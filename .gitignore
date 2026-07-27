@@ -1,0 +1,36 @@
+# Python
+backend/.venv/
+__pycache__/
+*.py[cod]
+backend/*.egg-info/
+backend/.pytest_cache/
+backend/.coverage
+backend/htmlcov/
+backend/*.db
+backend/*.db-shm
+backend/*.db-wal
+
+# Angular / Node
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/coverage/
+
+# Runtime
+.runtime/
+logs/
+*.pid
+*.log
+
+# Environment and editor
+.env
+.env.*
+!.env.example
+.idea/
+.vscode/
+*.user
+*.suo
+
+# OS
+.DS_Store
+Thumbs.db

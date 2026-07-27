@@ -1,0 +1,38 @@
+# DeployGuard AI - OpenTelemetry Collector Pipeline Config
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    timeout: 1s
+    send_batch_size: 256
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 80
+    spike_limit_percentage: 20
+
+exporters:
+  http/deployguard:
+    endpoint: "http://deployguard-backend:8100/api/v1/telemetry/events"
+    headers:
+      Content-Type: "application/json"
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [http/deployguard]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [http/deployguard]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [http/deployguard]
