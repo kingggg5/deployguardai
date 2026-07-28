@@ -1,4 +1,12 @@
+import hashlib
+import hmac
+import json
+from pathlib import Path
+
 from fastapi.testclient import TestClient
+
+from app.config import Settings
+from app.main import create_app
 
 
 ANALYZE_PAYLOAD = {
@@ -33,6 +41,7 @@ def test_health_overview_and_seeded_lists(client: TestClient) -> None:
     assert sum(item["is_active"] for item in scenarios.json()) == 1
     assert len(changes.json()) == 3
     assert len(incidents.json()) == 3
+    assert all(item["repository"] for item in scenarios.json())
     assert all(item["data_mode"] == "synthetic" for item in scenarios.json())
 
 
@@ -149,30 +158,91 @@ def test_dora_metrics_webhook_telemetry_llm(client: TestClient) -> None:
     dora = client.get("/api/v1/metrics/dora")
     assert dora.status_code == 200
     assert dora.json()["period"] == "Last 30 Days"
-    assert dora.json()["total_deployments"] >= 3
+    assert dora.json()["total_deployments"] == 3
+    assert dora.json()["deployment_frequency_per_week"] == 0.7
+    assert dora.json()["change_lead_time_minutes"] == 7.7
+    assert dora.json()["change_failure_rate"] == 1.0
+    assert dora.json()["mean_time_to_restore_minutes"] == 25.5
+    assert dora.json()["deployment_rework_rate"] == 0.333
 
+    webhook_payload = {
+        "pull_request": {
+            "title": "Update retry limit",
+            "changed_files": 4,
+            "additions": 40,
+            "deletions": 10,
+        }
+    }
+    webhook_body = json.dumps(
+        webhook_payload, separators=(",", ":")
+    ).encode()
+    webhook_signature = "sha256=" + hmac.new(
+        b"test-github-secret", webhook_body, hashlib.sha256
+    ).hexdigest()
     webhook = client.post(
         "/api/v1/webhooks/github",
-        headers={"X-GitHub-Event": "pull_request", "X-GitHub-Delivery": "del-8812"},
-        json={"pull_request": {"title": "Update retry limit", "changed_files": 4, "additions": 40, "deletions": 10}},
+        headers={
+            "Content-Type": "application/json",
+            "X-GitHub-Event": "pull_request",
+            "X-GitHub-Delivery": "del-8812",
+            "X-Hub-Signature-256": webhook_signature,
+        },
+        content=webhook_body,
     )
     assert webhook.status_code == 200
     assert webhook.json()["status"] == "accepted"
 
     telemetry = client.post(
         "/api/v1/telemetry/events",
+        headers={"Authorization": "Bearer test-telemetry-token"},
         json={"source": "loki", "type": "log", "service_id": "checkout-api", "summary": "High latency detected"},
     )
     assert telemetry.status_code == 201
     assert telemetry.json()["status"] == "ok"
 
     llm = client.post("/api/v1/incidents/inc-checkout-latency/synthesize-llm")
-    assert llm.status_code == 200
-    assert llm.json()["unsupported_claims_count"] == 0
+    assert llm.status_code == 501
+    assert llm.json()["code"] == "llm_synthesis_disabled"
 
     export_md = client.get("/api/v1/incidents/inc-checkout-latency/export-markdown")
     assert export_md.status_code == 200
     assert "# Incident Post-Mortem" in export_md.text
+
+
+def test_external_write_endpoints_are_secure_by_default(
+    tmp_path: Path,
+) -> None:
+    database_path = tmp_path / "deployguard-secure-defaults.db"
+    settings = Settings(
+        database_url=f"sqlite:///{database_path.as_posix()}",
+        cors_origins=["http://127.0.0.1:4300"],
+        _env_file=None,
+    )
+
+    with TestClient(create_app(settings)) as secure_client:
+        webhook = secure_client.post(
+            "/api/v1/webhooks/github",
+            headers={"X-Hub-Signature-256": "sha256=invalid"},
+            json={"pull_request": {"title": "Unsigned change"}},
+        )
+        assert webhook.status_code == 503
+        assert webhook.json()["code"] == "github_webhook_not_configured"
+
+        telemetry = secure_client.post(
+            "/api/v1/telemetry/events",
+            json={
+                "source": "loki",
+                "type": "log",
+                "service_id": "checkout-api",
+                "summary": "Untrusted telemetry",
+            },
+        )
+        assert telemetry.status_code == 503
+        assert telemetry.json()["code"] == "telemetry_ingest_not_configured"
+
+        reset = secure_client.post("/api/v1/reset-database")
+        assert reset.status_code == 403
+        assert reset.json()["code"] == "database_reset_disabled"
 
 
 def test_ml_model_prediction() -> None:

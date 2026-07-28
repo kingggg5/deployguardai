@@ -1,0 +1,77 @@
+<header class="workspace-title">
+  <div>
+    <p class="system-kicker">{{ t('scenario_lab_tag') }}</p>
+    <h1>{{ t('scenario_lab_title') }}</h1>
+    <p>{{ t('scenario_lab_intro') }}</p>
+  </div>
+  <span class="register-count">
+    {{ scenarios().length }} {{ t('registered_labs') }}
+  </span>
+</header>
+
+<section class="scenario-register">
+  <header class="scenario-register-head" aria-hidden="true">
+    <span>{{ t('scenario') }}</span>
+    <span>{{ t('data_mode') }}</span>
+    <span>{{ t('linked_records') }}</span>
+    <span>{{ t('action') }}</span>
+  </header>
+
+  <div class="scenario-register-body">
+    @for (scenario of scenarios(); track scenario.id; let index = $index) {
+      <article
+        class="scenario-entry"
+        [attr.data-state]="scenario.id === activeScenarioId() ? 'active' : 'idle'"
+      >
+        <span class="scenario-index">
+          {{ (index + 1).toString().padStart(2, '0') }}
+        </span>
+
+        <div class="scenario-copy">
+          <div class="scenario-title-row">
+            <h2 class="scenario-name">{{ scenario.name }}</h2>
+            @if (scenario.id === activeScenarioId()) {
+              <span class="scenario-active">
+                <i class="scenario-active-mark" aria-hidden="true"></i>
+                {{ t('active_scenario_badge') }}
+              </span>
+            }
+          </div>
+          <p class="scenario-description">{{ scenario.description }}</p>
+          <code class="scenario-repository">{{ scenario.repository }}</code>
+        </div>
+
+        <span class="scenario-mode">
+          {{ scenario.data_mode === 'synthetic' ? t('synthetic') : t('connected') }}
+        </span>
+
+        <div class="scenario-links">
+          <code class="scenario-link">{{ scenario.active_change_id }}</code>
+          <code class="scenario-link">{{ scenario.active_incident_id }}</code>
+        </div>
+
+        <button
+          type="button"
+          class="scenario-action"
+          [attr.data-variant]="scenario.id === activeScenarioId() ? 'current' : 'activate'"
+          [disabled]="switchingScenarioId() !== null || scenario.id === activeScenarioId()"
+          (click)="scenarioSelected.emit(scenario)"
+        >
+          @if (switchingScenarioId() === scenario.id) {
+            {{ t('activating_lab') }}
+          } @else if (scenario.id === activeScenarioId()) {
+            {{ t('current_active_lab') }}
+          } @else {
+            {{ t('activate_scenario_btn') }}
+          }
+        </button>
+      </article>
+    } @empty {
+      <div class="empty-state">
+        <span aria-hidden="true">∅</span>
+        <strong>{{ t('no_scenarios') }}</strong>
+        <p>{{ t('no_scenarios_help') }}</p>
+      </div>
+    }
+  </div>
+</section>

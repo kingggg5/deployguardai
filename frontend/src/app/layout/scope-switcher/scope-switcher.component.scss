@@ -1,0 +1,291 @@
+:host {
+  display: block;
+  margin: 24px 0 18px;
+}
+
+.scope-switcher {
+  --scope-chevron-rotate: 0deg;
+  position: relative;
+  display: grid;
+  gap: 7px;
+}
+
+.scope-switcher[data-open='true'] {
+  --scope-chevron-rotate: 180deg;
+}
+
+.scope-label,
+.scope-workspace,
+.scope-option-mode,
+.scope-search-label {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.scope-trigger {
+  position: relative;
+  display: grid;
+  width: 100%;
+  min-height: 62px;
+  padding: 10px 34px 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.scope-trigger:hover,
+.scope-trigger:focus-visible {
+  border-color: var(--cobalt);
+  background: var(--surface-hover);
+}
+
+.scope-repository {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scope-chevron {
+  position: absolute;
+  top: 21px;
+  right: 13px;
+  color: var(--muted);
+  font-size: 18px;
+  transform: rotate(var(--scope-chevron-rotate));
+  transition: transform 180ms var(--ease-out);
+}
+
+.scope-mode {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted-strong);
+  font-size: 11px;
+}
+
+.scope-mode-mark {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--cobalt);
+}
+
+.scope-scrim {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  border: 0;
+  background: rgb(3 10 22 / 52%);
+  cursor: default;
+}
+
+.scope-menu {
+  position: fixed;
+  z-index: 81;
+  top: 82px;
+  left: 16px;
+  display: grid;
+  width: min(430px, calc(100vw - 32px));
+  max-height: min(620px, calc(100vh - 104px));
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-float);
+  animation: scope-enter 220ms var(--ease-out);
+}
+
+.scope-menu-header,
+.scope-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px 16px;
+}
+
+.scope-menu-header {
+  border-bottom: 1px solid var(--line);
+}
+
+.scope-heading {
+  display: grid;
+  gap: 2px;
+}
+
+.scope-heading-label {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.scope-heading-title {
+  font-size: 15px;
+}
+
+.scope-close {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+  color: var(--ink);
+  font-size: 21px;
+  cursor: pointer;
+}
+
+.scope-search {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+}
+
+.scope-search-input {
+  width: 100%;
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+  color: var(--ink);
+  outline: 0;
+}
+
+.scope-search-input:focus {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus) 24%, transparent);
+}
+
+.scope-options {
+  display: grid;
+  gap: 6px;
+  min-height: 120px;
+  padding: 0 10px 12px;
+  overflow-y: auto;
+}
+
+.scope-option {
+  --scope-mark-color: var(--surface);
+  position: relative;
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 58px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 180ms var(--ease-out),
+    border-color 180ms var(--ease-out);
+}
+
+.scope-option:hover,
+.scope-option:focus-visible {
+  border-color: var(--line-strong);
+  background: var(--surface-hover);
+}
+
+.scope-option[data-state='active'] {
+  --scope-mark-color: var(--cobalt);
+  border-color: var(--cobalt);
+  background: var(--cobalt-soft);
+}
+
+.scope-option-mark {
+  width: 10px;
+  height: 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  background: var(--scope-mark-color);
+}
+
+.scope-option-copy {
+  display: grid;
+  min-width: 0;
+}
+
+.scope-option-title,
+.scope-option-subtitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scope-option-subtitle {
+  color: var(--muted);
+}
+
+.scope-option-mode {
+  padding: 3px 6px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  font-family: "Cascadia Code", Consolas, monospace;
+}
+
+.scope-empty {
+  margin: 0;
+  padding: 24px 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.scope-footer {
+  border-top: 1px solid var(--line);
+}
+
+.scope-share {
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+  color: var(--ink);
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.scope-share:hover,
+.scope-share:focus-visible {
+  border-color: var(--cobalt);
+  color: var(--cobalt-strong);
+}
+
+@keyframes scope-enter {
+  from {
+    clip-path: inset(0 0 100% 0 round var(--radius-lg));
+    filter: blur(4px);
+  }
+  to {
+    clip-path: inset(0 0 0 0 round var(--radius-lg));
+    filter: blur(0);
+  }
+}
+
+@media (max-width: 680px) {
+  .scope-menu {
+    top: auto;
+    bottom: 12px;
+    left: 12px;
+    width: calc(100vw - 24px);
+    max-height: calc(100vh - 24px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scope-menu {
+    animation: none;
+  }
+
+  .scope-chevron,
+  .scope-option {
+    transition: none;
+  }
+}

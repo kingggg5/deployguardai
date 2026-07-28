@@ -1,654 +1,843 @@
-<a class="skip-link" href="#investigation-workspace">Skip to investigation workspace</a>
+<!--
+THESIS: An evidence cockpit that keeps change, propagation, proof, and human verdict in one traceable workspace instead of a generic analytics card wall.
+OWN-WORLD: Obsidian instrument surfaces, cool paper light mode, blueprint registration lines, cobalt selection, and semantic square marks.
+STORY: Choose a repository-backed scenario, jump by command, inspect service impact, replay evidence, compare hypotheses, share the exact view, and close the loop with a human verdict.
+FIRST VIEWPORT: A repository scope rail, searchable command center, dominant topology canvas, adjacent evidence ledger, incident header, and replay controls visible without hunting.
+FORM: Investigation cockpit, pinned by the product brief; direction seed intentionally skipped.
+-->
+
+<a class="skip-link" href="#workspace-content">{{ t('skip_to_content') }}</a>
 
 @if (isLoading()) {
-  <main class="ledger-loading" aria-busy="true" aria-label="Loading investigation ledger">
-    <div class="loading-masthead">
-      <span class="skeleton skeleton-mark"></span>
-      <span class="skeleton skeleton-title"></span>
-      <span class="skeleton skeleton-action"></span>
+  <main class="boot-state" aria-busy="true" [attr.aria-label]="t('loading_dashboard')">
+    <div class="boot-brand">
+      <span class="skeleton skeleton--mark"></span>
+      <span class="skeleton skeleton--brand"></span>
     </div>
-    <div class="loading-grid">
-      <section class="loading-rail">
-        @for (row of [1, 2, 3, 4]; track row) {
-          <span class="skeleton skeleton-row"></span>
-        }
-      </section>
-      <section class="loading-topology">
-        <span class="skeleton skeleton-rule"></span>
-        <span class="skeleton skeleton-map"></span>
-      </section>
-      <section class="loading-ledger">
-        @for (row of [1, 2, 3, 4, 5]; track row) {
-          <span class="skeleton skeleton-row"></span>
-        }
-      </section>
+    <div class="boot-layout">
+      <span class="skeleton skeleton--rail"></span>
+      <div class="boot-workspace">
+        <span class="skeleton skeleton--command"></span>
+        <span class="skeleton skeleton--headline"></span>
+        <div class="boot-grid">
+          <span class="skeleton skeleton--stage"></span>
+          <span class="skeleton skeleton--inspector"></span>
+        </div>
+      </div>
     </div>
   </main>
 } @else if (loadError() && !overview()) {
   <main class="fatal-state">
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M12 2 2 20h20L12 2Zm0 5 1 8h-2l1-8Zm0 11a1.25 1.25 0 1 1 0-2.5A1.25 1.25 0 0 1 12 18Z"/>
-    </svg>
-    <p class="instrument-tag">Connection Interrupted</p>
-    <h1>Investigation ledger unavailable</h1>
+    <span class="fatal-state__mark" aria-hidden="true">!</span>
+    <p class="system-kicker">{{ t('connection_interrupted') }}</p>
+    <h1>{{ t('dashboard_unavailable') }}</h1>
     <p>{{ loadError() }}</p>
-    <button type="button" class="primary-action" (click)="refreshDashboard()">
+    <button type="button" class="button button--primary" (click)="refreshDashboard()">
       <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.76-4.24L13 11h8V3l-3.3 3.3Z"/>
+        <path d="M18.2 5.8A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.5-4L13 11h8V3l-2.8 2.8Z"/>
       </svg>
-      Retry connection
+      {{ t('retry_connection') }}
     </button>
   </main>
 } @else if (overview(); as data) {
-  <div class="app-frame">
-    <!-- Top Glass Navigation Bar -->
-    <header class="app-masthead">
-      <div class="brand-lockup">
-        <svg class="brand-mark" viewBox="0 0 36 36" aria-hidden="true">
-          <path d="M18 3 31 8v9c0 8.2-5.2 13.4-13 16C10.2 30.4 5 25.2 5 17V8l13-5Z"/>
-          <path d="M12 18h4l2-6 3 11 2-5h4"/>
+  <div class="cockpit-shell" [class.is-sidebar-open]="isSidebarOpen()">
+    <button
+      type="button"
+      class="sidebar-backdrop"
+      [attr.aria-label]="t('close_navigation')"
+      (click)="toggleSidebar()"
+    ></button>
+
+    <aside class="command-rail" [attr.aria-label]="t('main_navigation')">
+      <div class="rail-brand">
+        <svg class="brand-mark" viewBox="0 0 38 38" aria-hidden="true">
+          <path class="brand-shield" d="M19 3 33 8.4v9.2c0 8.5-5.6 14-14 17.4C10.6 31.6 5 26.1 5 17.6V8.4L19 3Z"/>
+          <path class="brand-pulse" d="M10.5 19h5l2.4-7 3.3 12 2.2-5H28"/>
         </svg>
         <div>
-          <strong>{{ t('app_title') }}</strong>
-          <span>{{ t('app_subtitle') }}</span>
+          <strong>DeployGuard AI</strong>
+          <span>{{ t('app_subtitle_short') }}</span>
         </div>
-      </div>
-
-      <div class="demo-register" aria-label="Data mode">
-        <span class="status-square status-square--synthetic" aria-hidden="true"></span>
-        <span>{{ t('synthetic_demo') }}</span>
-      </div>
-
-      <nav class="masthead-tabs" aria-label="Main Navigation">
         <button
           type="button"
-          class="masthead-tab-btn"
-          [class.is-active]="activeTab() === 'investigation'"
-          (click)="activeTab.set('investigation')"
+          class="icon-button rail-close"
+          [attr.aria-label]="t('close_navigation')"
+          (click)="toggleSidebar()"
         >
-          <svg class="tab-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.3 4.9 12.8 12.8-1.4 1.4L4.9 6.3l1.4-1.4Zm11.4 0 1.4 1.4L6.3 19.1l-1.4-1.4L17.7 4.9Z"/></svg>
+        </button>
+      </div>
+
+      <app-scope-switcher
+        [scenarios]="scenarios()"
+        [activeScenarioId]="activeScenarioId()"
+        [language]="lang()"
+        (scenarioSelected)="activateScenario($event)"
+        (shareRequested)="copyCurrentView()"
+      />
+
+      <nav class="rail-navigation">
+        <button
+          type="button"
+          [class.is-active]="activeTab() === 'investigation'"
+          [attr.aria-current]="activeTab() === 'investigation' ? 'page' : null"
+          (click)="setActiveTab('investigation')"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.8 3a7.8 7.8 0 1 0 4.8 13.9l4.5 4.5 1.4-1.4-4.5-4.5A7.8 7.8 0 0 0 10.8 3Zm0 2a5.8 5.8 0 1 1 0 11.6 5.8 5.8 0 0 1 0-11.6Z"/></svg>
           <span>{{ t('tab_investigation') }}</span>
         </button>
         <button
           type="button"
-          class="masthead-tab-btn"
           [class.is-active]="activeTab() === 'change_risk'"
-          (click)="activeTab.set('change_risk')"
+          [attr.aria-current]="activeTab() === 'change_risk' ? 'page' : null"
+          (click)="setActiveTab('change_risk')"
         >
-          <svg class="tab-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19h16v2H4v-2Zm1-4h3v3H5v-3Zm5-6h3v9h-3V9Zm5 3h3v6h-3v-6ZM5 8l4-4 4 3 5-5 1.4 1.4-6.2 6.2-4-3-2.8 2.8L5 8Z"/></svg>
           <span>{{ t('tab_change_risk') }}</span>
         </button>
         <button
           type="button"
-          class="masthead-tab-btn"
           [class.is-active]="activeTab() === 'dora'"
-          (click)="activeTab.set('dora')"
+          [attr.aria-current]="activeTab() === 'dora' ? 'page' : null"
+          (click)="setActiveTab('dora')"
         >
-          <svg class="tab-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4V4Zm2 2v12h12V6H6Zm2 8h2v2H8v-2Zm0-6h2v4H8V8Zm4 3h2v5h-2v-5Zm4-3h2v8h-2V8Z"/></svg>
           <span>{{ t('tab_dora') }}</span>
         </button>
         <button
           type="button"
-          class="masthead-tab-btn"
           [class.is-active]="activeTab() === 'scenarios'"
-          (click)="activeTab.set('scenarios')"
+          [attr.aria-current]="activeTab() === 'scenarios' ? 'page' : null"
+          (click)="setActiveTab('scenarios')"
         >
-          <svg class="tab-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 9 5-9 5-9-5 9-5Zm-7.1 9L12 15l7.1-4 1.9 1-9 5-9-5 1.9-1Zm0 5L12 20l7.1-4 1.9 1-9 5-9-5 1.9-1Z"/></svg>
           <span>{{ t('tab_scenarios') }}</span>
+        </button>
+        <button
+          type="button"
+          [class.is-active]="activeTab() === 'workspace'"
+          [attr.aria-current]="activeTab() === 'workspace' ? 'page' : null"
+          (click)="setActiveTab('workspace')"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm12.5 0a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7Zm0 2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"/></svg>
+          <span>{{ t('tab_workspace') }}</span>
         </button>
       </nav>
 
-      <dl class="masthead-register" aria-label="Workspace summary">
+      <div class="rail-foot">
         <div>
-          <dt>{{ t('open_incidents') }}</dt>
-          <dd>{{ data.stats.open_incidents }}</dd>
+          <span class="context-label">{{ t('last_sync') }}</span>
+          <time [attr.datetime]="lastUpdated()">
+            {{ lastUpdated() | date:'HH:mm:ss':'UTC' }} UTC
+          </time>
         </div>
-        <div>
-          <dt>{{ t('high_risk_changes') }}</dt>
-          <dd>{{ data.stats.high_risk_changes }}</dd>
-        </div>
-        <div>
-          <dt>{{ t('evidence_quality') }}</dt>
-          <dd>{{ data.stats.evidence_quality | percent:'1.0-0' }}</dd>
-        </div>
-      </dl>
+        <span class="connection-state"><i aria-hidden="true"></i>{{ t('api_connected') }}</span>
+      </div>
+    </aside>
 
-      <div class="masthead-actions">
-        <!-- Language Switcher -->
-        <div class="lang-switcher" aria-label="Language Selector">
+    <div class="cockpit-main">
+      <header class="command-bar">
+        <div class="command-bar__context">
           <button
             type="button"
-            class="lang-btn"
-            [class.is-active]="lang() === 'th'"
-            (click)="setLang('th')"
+            class="icon-button mobile-menu"
+            [attr.aria-label]="t('open_navigation')"
+            (click)="toggleSidebar()"
           >
-            <svg class="lang-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
-            <span>TH</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18v2H3V5Zm0 6h18v2H3v-2Zm0 6h18v2H3v-2Z"/></svg>
           </button>
-          <button
-            type="button"
-            class="lang-btn"
-            [class.is-active]="lang() === 'en'"
-            (click)="setLang('en')"
-          >
-            <span>EN</span>
-          </button>
-        </div>
-
-        <!-- Dark/Light Theme Toggle -->
-        <button
-          type="button"
-          class="theme-toggle-btn"
-          (click)="toggleTheme()"
-          [title]="isDarkMode() ? t('theme_light') : t('theme_dark')"
-        >
-          @if (isDarkMode()) {
-            <svg class="theme-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0s-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0s-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41s-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41s-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"/></svg>
-          } @else {
-            <svg class="theme-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4C12.92 3.04 12.46 3 12 3z"/></svg>
-          }
-          <span>{{ isDarkMode() ? t('theme_light') : t('theme_dark') }}</span>
-        </button>
-
-        <button
-          type="button"
-          class="xray-switch"
-          role="switch"
-          [attr.aria-checked]="isEvidenceXray()"
-          [class.is-active]="isEvidenceXray()"
-          (click)="toggleEvidenceXray()"
-        >
-          <span class="switch-track" aria-hidden="true"><span></span></span>
-          <span>{{ t('evidence_xray') }}</span>
-        </button>
-
-        <button
-          type="button"
-          class="icon-action"
-          aria-label="Refresh investigation data"
-          [disabled]="isRefreshing()"
-          (click)="refreshDashboard(true)"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true" [class.is-spinning]="isRefreshing()">
-            <path d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.76-4.24L13 11h8V3l-3.3 3.3Z"/>
-          </svg>
-        </button>
-      </div>
-    </header>
-
-    @if (loadError()) {
-      <div class="inline-error" role="alert">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M12 2 2 20h20L12 2Zm0 5 1 8h-2l1-8Zm0 11a1.25 1.25 0 1 1 0-2.5A1.25 1.25 0 0 1 12 18Z"/>
-        </svg>
-        <span>{{ loadError() }}</span>
-        <button type="button" (click)="refreshDashboard(true)">Retry</button>
-      </div>
-    }
-
-    <!-- PAGE 1: RCA & INCIDENT INVESTIGATION -->
-    @if (activeTab() === 'investigation') {
-      <main class="page-workspace" id="investigation-workspace">
-        <header class="page-header">
           <div>
-            <p class="instrument-tag">{{ t('rca_tag') }}</p>
-            <h1 class="page-title">{{ activeIncident()?.title || 'Checkout latency regression' }}</h1>
-          </div>
-          <div class="incident-badge-group">
-            <span class="incident-severity-badge">{{ activeIncident()?.severity || 'SEV-2' }}</span>
-            <span class="incident-status-badge">{{ activeIncident()?.status || 'investigating' }}</span>
-          </div>
-        </header>
-
-        <!-- Top Bento Grid: Topology & Evidence -->
-        <div class="bento-grid bento-grid--2col">
-          <!-- Topology Viewport Card -->
-          <section class="bento-card bento-card--topology">
-            <div class="bento-card-header">
-              <div>
-                <h2>{{ t('topology_title') }}</h2>
-                <p>{{ isEvidenceXray() ? t('evidence_contribution_view') : t('operational_surface_view') }}</p>
-              </div>
-              <div class="topology-legend" aria-label="Topology legend">
-                <span><i class="legend-shape legend-shape--changed"></i>{{ t('legend_changed') }}</span>
-                <span><i class="legend-shape legend-shape--impacted"></i>{{ t('legend_impacted') }}</span>
-                <span><i class="legend-line"></i>{{ t('legend_active_path') }}</span>
-              </div>
-            </div>
-
-            @if (activeChange(); as change) {
-              <div class="topology-canvas">
-                <svg viewBox="0 0 980 340" role="group" preserveAspectRatio="xMidYMid meet">
-                  <defs>
-                    <marker id="edge-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-                      <path d="M0 0 8 4 0 8Z"></path>
-                    </marker>
-                  </defs>
-                  <g class="graph-registration" aria-hidden="true">
-                    <path d="M40 34H940M40 170H940M40 306H940"/>
-                    <path d="M120 22V318M355 22V318M610 22V318M860 22V318"/>
-                  </g>
-                  <g class="graph-edges">
-                    @for (edge of change.blast_radius.edges; track edge.source + '-' + edge.target; let edgeIndex = $index) {
-                      <line
-                        [attr.x1]="nodePoint(edge.source).x"
-                        [attr.y1]="nodePoint(edge.source).y"
-                        [attr.x2]="nodePoint(edge.target).x"
-                        [attr.y2]="nodePoint(edge.target).y"
-                        marker-end="url(#edge-arrow)"
-                        [class.is-active]="edge.active"
-                        [class.is-revealed]="isEdgeRevealed(edge, edgeIndex)"
-                      ></line>
-                      <text
-                        class="edge-label"
-                        [attr.x]="(nodePoint(edge.source).x + nodePoint(edge.target).x) / 2"
-                        [attr.y]="(nodePoint(edge.source).y + nodePoint(edge.target).y) / 2 - 8"
-                        text-anchor="middle"
-                      >{{ edge.relation }}</text>
-                    }
-                  </g>
-                  <g class="graph-nodes">
-                    @for (node of change.blast_radius.nodes; track node.id) {
-                      @let point = nodePoint(node.id);
-                      <g
-                        class="topology-node"
-                        [class.is-selected]="selectedNodeId() === node.id"
-                        [class.is-changed]="change.changed_services.includes(node.id)"
-                        [class.is-impacted]="node.impact_score > 0"
-                        [class.is-critical]="node.health === 'critical'"
-                        [attr.transform]="'translate(' + (point.x - 82) + ',' + (point.y - 35) + ')'"
-                        tabindex="0"
-                        role="button"
-                        (click)="selectNode(node)"
-                        (keydown.enter)="selectNode(node)"
-                        (keydown.space)="$event.preventDefault(); selectNode(node)"
-                      >
-                        <rect class="node-surface" width="164" height="70" rx="6"></rect>
-                        @switch (node.kind) {
-                          @case ('database') {
-                            <ellipse class="node-kind-mark" cx="18" cy="18" rx="8" ry="4"></ellipse>
-                            <path class="node-kind-line" d="M10 18v9c0 5 16 5 16 0v-9"></path>
-                          }
-                          @case ('queue') {
-                            <path class="node-kind-mark" d="m18 10 8 8-8 8-8-8 8-8Z"></path>
-                          }
-                          @case ('external') {
-                            <path class="node-kind-mark" d="m13 10 10 0 5 8-5 8H13l-5-8 5-8Z"></path>
-                          }
-                          @default {
-                            <rect class="node-kind-mark" x="10" y="10" width="16" height="16" rx="2"></rect>
-                          }
-                        }
-                        <text class="node-label" x="36" y="22">{{ node.label }}</text>
-                        @if (isEvidenceXray()) {
-                          <text class="node-annotation" x="12" y="52">impact {{ node.impact_score }} · E {{ nodeEvidenceCount(node) }} · hop {{ node.hop_distance }}</text>
-                        } @else {
-                          <text class="node-annotation" x="12" y="52">{{ node.health }} · {{ node.team }}</text>
-                        }
-                      </g>
-                    }
-                  </g>
-                </svg>
-              </div>
-              <div class="topology-footer">
-                <span>{{ change.blast_radius.nodes.length }} {{ t('registered_nodes') }}</span>
-                <span>{{ change.blast_radius.edges.length }} {{ t('dependency_relations') }}</span>
-                <span>{{ t('geometry_locked') }}</span>
-              </div>
-            }
-          </section>
-
-          <!-- Evidence Inspector Card -->
-          <section class="bento-card bento-card--evidence">
-            <div class="bento-card-header">
-              <div>
-                <h2>{{ t('evidence_inspector_title') }}</h2>
-                <p>{{ visibleEvidence().length }} {{ t('telemetry_rows') }}</p>
-              </div>
-            </div>
-
-            @if (selectedHypothesis(); as hypothesis) {
-              <div class="inspection-target">
-                <span>{{ t('target_hypothesis') }} #{{ hypothesis.rank }}</span>
-                <strong>{{ hypothesis.cause_service }}</strong>
-              </div>
-            } @else if (selectedNode(); as node) {
-              <div class="inspection-target">
-                <span>{{ t('target_topology_node') }}</span>
-                <strong>{{ node.label }}</strong>
-              </div>
-            }
-
-            <div class="evidence-list">
-              @for (evidence of visibleEvidence(); track evidence.id) {
-                <article class="evidence-row" [attr.data-relation]="evidenceRelation(evidence)">
-                  <div class="evidence-row-head">
-                    <code>{{ evidence.id }}</code>
-                    <span>{{ evidenceRelation(evidence) }}</span>
-                  </div>
-                  <strong>{{ evidence.summary }}</strong>
-                  <p>{{ evidence.source }} · {{ evidence.timestamp | date:'HH:mm:ss':'UTC' }} UTC</p>
-                  <div class="evidence-quality">
-                    <span>quality {{ evidence.quality | percent:'1.0-0' }}</span>
-                    <span>{{ evidence.type }}</span>
-                  </div>
-                </article>
-              } @empty {
-                <div class="empty-ledger">
-                  <strong>{{ t('no_evidence_linked') }}</strong>
-                  <p>{{ t('select_node_or_hypothesis') }}</p>
-                </div>
+            <span class="system-kicker">{{ t('workspace_label') }}</span>
+            <strong>
+              @switch (activeTab()) {
+                @case ('change_risk') { {{ t('tab_change_risk') }} }
+                @case ('dora') { {{ t('tab_dora') }} }
+                @case ('scenarios') { {{ t('tab_scenarios') }} }
+                @case ('workspace') { {{ t('tab_workspace') }} }
+                @default { {{ t('tab_investigation') }} }
               }
-            </div>
-          </section>
+            </strong>
+          </div>
         </div>
 
-        <!-- Incident Replay Timeline Card -->
-        @if (activeIncident(); as incident) {
-          <section class="bento-card bento-card--timeline">
-            <div class="bento-card-header">
-              <div>
-                <h2>{{ t('incident_replay_title') }}</h2>
-                <p>{{ incident.timeline.length }} {{ t('events_registered') }} · {{ incident.affected_services.length }} {{ t('services_affected') }}</p>
+        <dl class="command-stats" [attr.aria-label]="t('workspace_summary')">
+          <div>
+            <dt>{{ t('open_incidents') }}</dt>
+            <dd>{{ data.stats.open_incidents }}</dd>
+          </div>
+          <div>
+            <dt>{{ t('high_risk_changes') }}</dt>
+            <dd>{{ data.stats.high_risk_changes }}</dd>
+          </div>
+          <div>
+            <dt>{{ t('evidence_quality') }}</dt>
+            <dd>{{ data.stats.evidence_quality | percent:'1.0-0' }}</dd>
+          </div>
+        </dl>
+
+        <div class="command-actions">
+          <app-command-palette
+            [scenarios]="scenarios()"
+            [language]="lang()"
+            (actionSelected)="handlePaletteAction($event)"
+          />
+
+          @if (activeTab() === 'investigation') {
+            <button
+              type="button"
+              class="control-button xray-control"
+              role="switch"
+              [attr.aria-checked]="isEvidenceXray()"
+              [class.is-active]="isEvidenceXray()"
+              (click)="toggleEvidenceXray()"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 3 3 3-2 2-3-3 2-2Zm14 0 2 2-3 3-2-2 3-3ZM8.7 9.3l6 6-1.4 1.4-6-6 1.4-1.4Zm6.6 0 1.4 1.4-6 6-1.4-1.4 6-6ZM3 19l3-3 2 2-3 3-2-2Zm13-1 2-2 3 3-2 2-3-3Z"/></svg>
+              <span>{{ t('evidence_xray') }}</span>
+              <i class="switch-dot" aria-hidden="true"></i>
+            </button>
+          }
+
+          <div class="language-control" [attr.aria-label]="t('language_selector')">
+            <button type="button" [class.is-active]="lang() === 'th'" (click)="setLang('th')">TH</button>
+            <button type="button" [class.is-active]="lang() === 'en'" (click)="setLang('en')">EN</button>
+          </div>
+
+          <button
+            type="button"
+            class="icon-button"
+            [attr.aria-label]="isDarkMode() ? t('theme_light') : t('theme_dark')"
+            [attr.title]="isDarkMode() ? t('theme_light') : t('theme_dark')"
+            (click)="toggleTheme()"
+          >
+            @if (isDarkMode()) {
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10Zm0-5 1 3h-2l1-3Zm0 20-1-3h2l-1 3ZM2 12l3-1v2l-3-1Zm20 0-3 1v-2l3 1ZM4.2 4.2l2.8 1.4L5.6 7 4.2 4.2Zm15.6 15.6L17 18.4l1.4-1.4 1.4 2.8Zm0-15.6L18.4 7 17 5.6l2.8-1.4ZM4.2 19.8 5.6 17 7 18.4l-2.8 1.4Z"/></svg>
+            } @else {
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.4 15.5A8.5 8.5 0 0 1 8.5 3.6 8.5 8.5 0 1 0 20.4 15.5Z"/></svg>
+            }
+          </button>
+
+          <button
+            type="button"
+            class="icon-button"
+            [disabled]="isRefreshing()"
+            [attr.aria-label]="t('refresh_data')"
+            [attr.title]="t('refresh_data')"
+            (click)="refreshDashboard(true)"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" [class.is-spinning]="isRefreshing()">
+              <path d="M18.2 5.8A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.5-4L13 11h8V3l-2.8 2.8Z"/>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      @if (loadError()) {
+        <div class="notice notice--error" role="alert">
+          <span aria-hidden="true">!</span>
+          <p>{{ loadError() }}</p>
+          <button type="button" (click)="refreshDashboard(true)">{{ t('retry') }}</button>
+        </div>
+      }
+
+      @if (shareSuccess()) {
+        <div class="notice notice--success" role="status">
+          <span aria-hidden="true">✓</span>
+          <p>{{ shareSuccess() }}</p>
+        </div>
+      }
+
+      @if (shareError()) {
+        <div class="notice notice--error" role="alert">
+          <span aria-hidden="true">!</span>
+          <p>{{ shareError() }}</p>
+        </div>
+      }
+
+      <main id="workspace-content" class="workspace" tabindex="-1">
+        @if (activeTab() === 'investigation') {
+          @if (activeIncident(); as incident) {
+            <section class="incident-command">
+              <div class="incident-command__status">
+                <span class="severity-mark">{{ incident.severity }}</span>
+                <span class="status-mark"><i aria-hidden="true"></i>{{ readableStatus(incident.status) }}</span>
               </div>
-              <div class="timeline-controls">
-                @if (isReplaying()) {
-                  <button type="button" class="secondary-action" (click)="stopReplay()">{{ t('pause_replay_btn') }}</button>
-                } @else {
-                  <button type="button" class="secondary-action" (click)="startReplay()">{{ t('replay_incident_btn') }}</button>
+              <div class="incident-command__copy">
+                <p class="system-kicker">{{ t('incident_investigation') }} · {{ incident.id }}</p>
+                <h1>{{ incident.title }}</h1>
+                <p>{{ incident.summary }}</p>
+              </div>
+              <div class="incident-command__action">
+                <button
+                  type="button"
+                  class="button button--secondary"
+                  [disabled]="isExporting()"
+                  (click)="exportPostMortem()"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 3h2v10l3-3 1.4 1.4L12 16.8l-5.4-5.4L8 10l3 3V3ZM4 19h16v2H4v-2Z"/></svg>
+                  {{ isExporting() ? t('exporting') : t('export_postmortem') }}
+                </button>
+                @if (exportSuccess()) {
+                  <span class="action-success" role="status">{{ exportSuccess() }}</span>
+                }
+                @if (exportError()) {
+                  <span class="action-error" role="alert">{{ exportError() }}</span>
                 }
               </div>
-            </div>
+            </section>
+          }
 
-            <div class="timeline-scrubber">
-              @for (evt of incident.timeline; track evt.id; let idx = $index) {
-                <div
-                  class="timeline-step"
-                  [class.is-active]="replayIndex() === idx"
-                  [class.is-passed]="replayIndex() > idx"
-                  (click)="replayIndex.set(idx)"
-                >
-                  <div class="step-dot"></div>
-                  <span class="step-time">{{ evt.timestamp | date:'HH:mm:ss':'UTC' }}</span>
-                  <strong class="step-title">{{ evt.title }}</strong>
-                  <span class="step-detail">{{ evt.detail }}</span>
+          <div class="investigation-stage">
+            @if (activeChange(); as change) {
+              <section class="instrument-panel topology-panel">
+                <header class="panel-heading">
+                  <div>
+                    <p class="system-kicker">{{ t('blast_radius_map') }}</p>
+                    <h2>{{ t('topology_title') }}</h2>
+                  </div>
+                  <div class="topology-legend" [attr.aria-label]="t('topology_legend')">
+                    <span><i class="legend-square legend-square--changed"></i>{{ t('legend_changed') }}</span>
+                    <span><i class="legend-square legend-square--impacted"></i>{{ t('legend_impacted') }}</span>
+                    <span><i class="legend-path"></i>{{ t('legend_active_path') }}</span>
+                  </div>
+                </header>
+
+                <div class="topology-mode">
+                  <span>{{ isEvidenceXray() ? t('evidence_contribution_view') : t('operational_surface_view') }}</span>
+                  <span>{{ change.blast_radius.nodes.length }} {{ t('registered_nodes') }} · {{ change.blast_radius.edges.length }} {{ t('dependency_relations') }}</span>
+                </div>
+
+                <div class="topology-canvas">
+                  <svg viewBox="0 0 940 380" role="group" preserveAspectRatio="xMidYMid meet">
+                    <title>{{ t('topology_title') }}</title>
+                    <desc>{{ t('topology_description') }}</desc>
+                    <defs>
+                      <marker id="edge-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                        <path d="M0 0 8 4 0 8Z"></path>
+                      </marker>
+                    </defs>
+                    <g class="graph-registration" aria-hidden="true">
+                      <path d="M26 42H914M26 190H914M26 338H914"/>
+                      <path d="M110 20V360M350 20V360M590 20V360M830 20V360"/>
+                    </g>
+                    <g class="graph-edges">
+                      @for (edge of change.blast_radius.edges; track edge.source + '-' + edge.target; let edgeIndex = $index) {
+                        <line
+                          [attr.x1]="nodePoint(edge.source).x"
+                          [attr.y1]="nodePoint(edge.source).y"
+                          [attr.x2]="nodePoint(edge.target).x"
+                          [attr.y2]="nodePoint(edge.target).y"
+                          marker-end="url(#edge-arrow)"
+                          [class.is-active]="edge.active"
+                          [class.is-revealed]="isEdgeRevealed(edge, edgeIndex)"
+                        ></line>
+                        <text
+                          class="edge-label"
+                          [attr.x]="(nodePoint(edge.source).x + nodePoint(edge.target).x) / 2"
+                          [attr.y]="(nodePoint(edge.source).y + nodePoint(edge.target).y) / 2 - 9"
+                          text-anchor="middle"
+                        >{{ edge.relation }}</text>
+                      }
+                    </g>
+                    <g class="graph-nodes">
+                      @for (node of change.blast_radius.nodes; track node.id) {
+                        @let point = nodePoint(node.id);
+                        <g
+                          class="topology-node"
+                          [class.is-selected]="selectedNodeId() === node.id"
+                          [class.is-changed]="change.changed_services.includes(node.id)"
+                          [class.is-impacted]="node.impact_score > 0"
+                          [class.is-critical]="node.health === 'critical'"
+                          [attr.transform]="'translate(' + (point.x - 86) + ',' + (point.y - 38) + ')'"
+                          [attr.aria-label]="node.label + ', ' + readableStatus(node.health) + ', ' + node.team"
+                          tabindex="0"
+                          role="button"
+                          (click)="selectNode(node)"
+                          (keydown.enter)="selectNode(node)"
+                          (keydown.space)="$event.preventDefault(); selectNode(node)"
+                        >
+                          <rect class="node-surface" width="172" height="76" rx="12"></rect>
+                          @switch (node.kind) {
+                            @case ('database') {
+                              <ellipse class="node-kind-mark" cx="20" cy="18" rx="8" ry="4"></ellipse>
+                              <path class="node-kind-line" d="M12 18v10c0 5 16 5 16 0V18"></path>
+                            }
+                            @case ('queue') {
+                              <path class="node-kind-mark" d="m20 10 9 9-9 9-9-9 9-9Z"></path>
+                            }
+                            @case ('external') {
+                              <path class="node-kind-mark" d="m14 10 11 0 5 9-5 9H14l-5-9 5-9Z"></path>
+                            }
+                            @default {
+                              <rect class="node-kind-mark" x="12" y="10" width="17" height="17" rx="3"></rect>
+                            }
+                          }
+                          <text class="node-label" x="39" y="23">{{ node.label }}</text>
+                          @if (isEvidenceXray()) {
+                            <text class="node-annotation" x="13" y="54">impact {{ node.impact_score }} · evidence {{ nodeEvidenceCount(node) }} · hop {{ node.hop_distance }}</text>
+                          } @else {
+                            <text class="node-annotation" x="13" y="54">{{ readableStatus(node.health) }} · {{ node.team }}</text>
+                          }
+                        </g>
+                      }
+                    </g>
+                  </svg>
+                </div>
+
+                <footer class="panel-foot">
+                  <span>{{ t('geometry_locked') }}</span>
+                  <span>{{ t('selected_node') }}: <strong>{{ selectedNode()?.label ?? t('none') }}</strong></span>
+                </footer>
+              </section>
+            }
+
+            <section class="instrument-panel evidence-panel">
+              <header class="panel-heading">
+                <div>
+                  <p class="system-kicker">{{ t('evidence_chain') }}</p>
+                  <h2>{{ t('evidence_inspector_title') }}</h2>
+                </div>
+                <span class="panel-count">{{ visibleEvidence().length }}</span>
+              </header>
+
+              @if (selectedHypothesis(); as hypothesis) {
+                <div class="inspection-target">
+                  <span>{{ t('target_hypothesis') }} #{{ hypothesis.rank }}</span>
+                  <strong>{{ hypothesis.cause_service }}</strong>
+                </div>
+              } @else if (selectedNode(); as node) {
+                <div class="inspection-target">
+                  <span>{{ t('target_topology_node') }}</span>
+                  <strong>{{ node.label }}</strong>
                 </div>
               }
-            </div>
-          </section>
 
-          <!-- Top-3 Hypotheses & Human Verdict Panel -->
-          <section class="bento-card bento-card--hypotheses">
-            <div class="bento-card-header">
-              <div>
-                <h2>{{ t('rca_hypotheses_title') }}</h2>
-                <p>{{ t('rca_hypotheses_desc') }}</p>
+              <div class="evidence-ledger">
+                @for (evidence of visibleEvidence(); track evidence.id) {
+                  @let relation = evidenceRelation(evidence);
+                  <article class="evidence-entry" [attr.data-relation]="relation">
+                    <div class="evidence-entry__meta">
+                      <code>{{ evidence.id }}</code>
+                      <span class="relation-mark">{{ t('relation_' + relation) }}</span>
+                    </div>
+                    <strong>{{ evidence.summary }}</strong>
+                    <p>{{ evidence.source }} · {{ evidence.timestamp | date:'HH:mm:ss':'UTC' }} UTC</p>
+                    <div class="evidence-entry__measure">
+                      <span>{{ t('quality') }} {{ evidence.quality | percent:'1.0-0' }}</span>
+                      <span>{{ readableStatus(evidence.type) }}</span>
+                    </div>
+                  </article>
+                } @empty {
+                  <div class="empty-state">
+                    <span aria-hidden="true">∅</span>
+                    <strong>{{ t('no_evidence_linked') }}</strong>
+                    <p>{{ t('select_node_or_hypothesis') }}</p>
+                  </div>
+                }
               </div>
-            </div>
+            </section>
+          </div>
 
-            <div class="hypotheses-grid">
-              @for (hyp of orderedHypotheses(); track hyp.id) {
-                <article
-                  class="hypothesis-card"
-                  [class.is-selected]="selectedHypothesisId() === hyp.id"
-                  (click)="selectHypothesis(hyp)"
-                >
-                  <div class="hyp-rank">RANK {{ hyp.rank }}</div>
-                  <h3>{{ hyp.cause_service }}</h3>
-                  <p class="hyp-cause">{{ hyp.cause }}</p>
-                  <div class="hyp-confidence">
-                    <span>{{ t('confidence') }}</span>
-                    <strong>{{ hyp.confidence | percent:'1.0-0' }}</strong>
-                  </div>
-                  <p class="hyp-reasoning">{{ hyp.reasoning }}</p>
-                  <div class="hyp-next-step">
-                    <strong>{{ t('next_step') }}</strong> {{ hyp.next_step }}
-                  </div>
-                </article>
-              }
-            </div>
-
-            <!-- Human Verdict Form Panel -->
-            @if (selectedHypothesis(); as hyp) {
-              <div class="verdict-form-panel">
-                <div class="verdict-header">
-                  <h3>{{ t('record_verdict_title') }} #{{ hyp.rank }}</h3>
-                  <p>{{ hyp.cause_service }} — {{ hyp.cause }}</p>
+          @if (activeIncident(); as incident) {
+            <section class="instrument-panel replay-panel">
+              <header class="panel-heading">
+                <div>
+                  <p class="system-kicker">{{ incident.id }} · {{ incident.started_at | date:'MMM d, HH:mm':'UTC' }} UTC</p>
+                  <h2>{{ t('incident_replay_title') }}</h2>
                 </div>
+                <div class="replay-controls">
+                  @if (replayIndex() >= 0) {
+                    <button type="button" class="button button--ghost" (click)="resetReplay()">{{ t('reset_replay') }}</button>
+                  }
+                  @if (isReplaying()) {
+                    <button type="button" class="button button--secondary" (click)="pauseReplay()">
+                      <span aria-hidden="true">Ⅱ</span>{{ t('pause_replay_btn') }}
+                    </button>
+                  } @else {
+                    <button type="button" class="button button--secondary" (click)="startReplay()">
+                      <span aria-hidden="true">▶</span>
+                      {{ replayIndex() >= 0 ? t('resume_replay_btn') : t('replay_incident_btn') }}
+                    </button>
+                  }
+                </div>
+              </header>
 
-                @if (feedbackSuccess()) {
-                  <div class="feedback-alert feedback-alert--success">{{ feedbackSuccess() }}</div>
+              <div class="timeline-ledger" role="list" [attr.aria-label]="t('incident_timeline')">
+                @for (event of incident.timeline; track event.id; let index = $index) {
+                  <button
+                    type="button"
+                    class="timeline-event"
+                    role="listitem"
+                    [class.is-active]="replayIndex() === index"
+                    [class.is-passed]="replayIndex() > index"
+                    [attr.aria-pressed]="replayIndex() === index"
+                    (click)="scrubReplay(index)"
+                  >
+                    <span class="timeline-event__rail" aria-hidden="true"><i></i></span>
+                    <time [attr.datetime]="event.timestamp">{{ event.timestamp | date:'HH:mm:ss':'UTC' }}</time>
+                    <strong>{{ event.title }}</strong>
+                    <span>{{ event.detail }}</span>
+                  </button>
                 }
-                @if (feedbackError()) {
-                  <div class="feedback-alert feedback-alert--error">{{ feedbackError() }}</div>
-                }
+              </div>
+              <footer class="panel-foot">
+                <span>{{ incident.timeline.length }} {{ t('events_registered') }}</span>
+                <span>{{ incident.affected_services.length }} {{ t('services_affected') }}</span>
+              </footer>
+            </section>
 
-                <div class="verdict-input-group">
+            <div class="closing-loop">
+              <section class="instrument-panel hypotheses-panel">
+                <header class="panel-heading">
+                  <div>
+                    <p class="system-kicker">{{ t('deterministic_ranking') }}</p>
+                    <h2>{{ t('rca_hypotheses_title') }}</h2>
+                  </div>
+                  <span class="panel-count">{{ orderedHypotheses().length }}</span>
+                </header>
+
+                <div class="hypothesis-ledger">
+                  @for (hypothesis of orderedHypotheses(); track hypothesis.id) {
+                    <button
+                      type="button"
+                      class="hypothesis-entry"
+                      [class.is-selected]="selectedHypothesisId() === hypothesis.id"
+                      [attr.aria-pressed]="selectedHypothesisId() === hypothesis.id"
+                      (click)="selectHypothesis(hypothesis)"
+                    >
+                      <span class="hypothesis-rank">{{ hypothesis.rank }}</span>
+                      <span class="hypothesis-copy">
+                        <span class="hypothesis-copy__top">
+                          <strong>{{ hypothesis.cause_service }}</strong>
+                          <span>{{ hypothesis.confidence | percent:'1.0-0' }}</span>
+                        </span>
+                        <span class="hypothesis-cause">{{ hypothesis.cause }}</span>
+                        <span class="hypothesis-evidence">
+                          <i class="support-square"></i>{{ hypothesis.evidence_ids.length }} {{ t('supporting') }}
+                          <i class="counter-square"></i>{{ hypothesis.counter_evidence_ids.length }} {{ t('contradicting') }}
+                        </span>
+                        <span class="hypothesis-next"><strong>{{ t('verify_next') }}</strong> {{ hypothesis.next_step }}</span>
+                      </span>
+                    </button>
+                  }
+                </div>
+              </section>
+
+              <section class="instrument-panel verdict-panel">
+                <header class="panel-heading">
+                  <div>
+                    <p class="system-kicker">{{ t('human_control') }}</p>
+                    <h2>{{ t('record_verdict_title') }}</h2>
+                  </div>
+                </header>
+
+                @if (selectedHypothesis(); as hypothesis) {
+                  <div class="verdict-target">
+                    <span>#{{ hypothesis.rank }} · {{ hypothesis.cause_service }}</span>
+                    <strong>{{ hypothesis.cause }}</strong>
+                  </div>
+
+                  @if (feedbackForSelectedHypothesis().length) {
+                    <div class="previous-verdicts">
+                      <span>{{ t('recorded_verdicts') }}</span>
+                      @for (feedback of feedbackForSelectedHypothesis(); track feedback.submitted_at) {
+                        <div>
+                          <strong>{{ feedbackLabel(feedback.verdict) }}</strong>
+                          <p>{{ feedback.note }}</p>
+                        </div>
+                      }
+                    </div>
+                  }
+
+                  @if (feedbackSuccess()) {
+                    <div class="notice notice--success" role="status">{{ feedbackSuccess() }}</div>
+                  }
+                  @if (feedbackError()) {
+                    <div class="notice notice--error" role="alert">{{ feedbackError() }}</div>
+                  }
+
+                  <label class="field-label" for="verdict-note">{{ t('investigation_note') }}</label>
                   <textarea
-                    class="verdict-textarea"
-                    rows="2"
+                    id="verdict-note"
+                    rows="4"
                     [placeholder]="t('verdict_placeholder')"
                     [value]="feedbackNote()"
                     (input)="feedbackNote.set($any($event.target).value)"
                   ></textarea>
+                  <p class="field-help">{{ t('verdict_help') }}</p>
 
                   <div class="verdict-actions">
                     <button
                       type="button"
-                      class="verdict-btn verdict-btn--confirm"
+                      class="button button--confirm"
                       [disabled]="isSubmittingFeedback()"
                       (click)="submitFeedback('confirmed')"
                     >{{ t('confirm_cause') }}</button>
                     <button
                       type="button"
-                      class="verdict-btn verdict-btn--partial"
+                      class="button button--partial"
                       [disabled]="isSubmittingFeedback()"
                       (click)="submitFeedback('partial')"
                     >{{ t('mark_partial') }}</button>
                     <button
                       type="button"
-                      class="verdict-btn verdict-btn--reject"
+                      class="button button--reject"
                       [disabled]="isSubmittingFeedback()"
                       (click)="submitFeedback('rejected')"
                     >{{ t('reject_hypothesis') }}</button>
                   </div>
-                </div>
+                } @else {
+                  <div class="empty-state">
+                    <span aria-hidden="true">↖</span>
+                    <strong>{{ t('select_hypothesis') }}</strong>
+                    <p>{{ t('select_hypothesis_help') }}</p>
+                  </div>
+                }
+              </section>
+            </div>
+          }
+        } @else if (activeTab() === 'change_risk') {
+          @if (displayedRiskChange(); as change) {
+            <header class="workspace-title">
+              <div>
+                <p class="system-kicker">{{ t('change_risk_tag') }}</p>
+                <h1>{{ t('change_risk_workspace') }}</h1>
+                <p>{{ t('change_risk_intro') }}</p>
+              </div>
+              <button type="button" class="button button--primary" (click)="toggleAnalysisForm()">
+                <span aria-hidden="true">{{ isAnalysisFormOpen() ? '−' : '+' }}</span>
+                {{ isAnalysisFormOpen() ? t('close_analysis_form') : t('new_risk_analysis') }}
+              </button>
+            </header>
+
+            @if (analysisSuccess()) {
+              <div class="notice notice--success" role="status">
+                <p>{{ analysisSuccess() }}</p>
+                <button type="button" (click)="clearAnalysisResult()">{{ t('show_scenario_change') }}</button>
               </div>
             }
-          </section>
+            @if (analysisError()) {
+              <div class="notice notice--error" role="alert">{{ analysisError() }}</div>
+            }
+
+            @if (isAnalysisFormOpen()) {
+              @let draft = analysisDraft();
+              <form class="instrument-panel analysis-form" (submit)="$event.preventDefault(); submitChangeAnalysis()">
+                <header class="panel-heading">
+                  <div>
+                    <p class="system-kicker">{{ t('manual_analysis') }}</p>
+                    <h2>{{ t('analyze_change_title') }}</h2>
+                  </div>
+                  <span class="synthetic-label">{{ t('deterministic_only') }}</span>
+                </header>
+
+                <div class="form-grid">
+                  <label>
+                    <span>{{ t('change_title') }}</span>
+                    <input
+                      type="text"
+                      maxlength="240"
+                      required
+                      [value]="draft.title"
+                      (input)="updateAnalysisDraft({ title: $any($event.target).value })"
+                    >
+                  </label>
+                  <label>
+                    <span>{{ t('repository') }}</span>
+                    <input
+                      type="text"
+                      maxlength="240"
+                      required
+                      placeholder="org/repository"
+                      [value]="draft.repository"
+                      (input)="updateAnalysisDraft({ repository: $any($event.target).value })"
+                    >
+                  </label>
+                  <label>
+                    <span>{{ t('author') }}</span>
+                    <input
+                      type="text"
+                      maxlength="160"
+                      required
+                      [value]="draft.author"
+                      (input)="updateAnalysisDraft({ author: $any($event.target).value })"
+                    >
+                  </label>
+                  <label>
+                    <span>{{ t('files_changed') }}</span>
+                    <input type="number" min="0" [value]="draft.filesChanged" (input)="updateAnalysisDraft({ filesChanged: $any($event.target).valueAsNumber })">
+                  </label>
+                  <label>
+                    <span>{{ t('lines_added') }}</span>
+                    <input type="number" min="0" [value]="draft.linesAdded" (input)="updateAnalysisDraft({ linesAdded: $any($event.target).valueAsNumber })">
+                  </label>
+                  <label>
+                    <span>{{ t('lines_deleted') }}</span>
+                    <input type="number" min="0" [value]="draft.linesDeleted" (input)="updateAnalysisDraft({ linesDeleted: $any($event.target).valueAsNumber })">
+                  </label>
+                  <label>
+                    <span>{{ t('test_coverage_percent') }}</span>
+                    <input type="number" min="0" max="100" [value]="draft.testCoveragePercent" (input)="updateAnalysisDraft({ testCoveragePercent: $any($event.target).valueAsNumber })">
+                  </label>
+                  <label>
+                    <span>{{ t('observability_percent') }}</span>
+                    <input type="number" min="0" max="100" [value]="draft.observabilityPercent" (input)="updateAnalysisDraft({ observabilityPercent: $any($event.target).valueAsNumber })">
+                  </label>
+                  <label>
+                    <span>{{ t('previous_failures') }}</span>
+                    <input type="number" min="0" [value]="draft.previousFailures" (input)="updateAnalysisDraft({ previousFailures: $any($event.target).valueAsNumber })">
+                  </label>
+                  <label class="form-span-2">
+                    <span>{{ t('risk_flags_csv') }}</span>
+                    <input
+                      type="text"
+                      [placeholder]="t('risk_flags_placeholder')"
+                      [value]="draft.flags"
+                      (input)="updateAnalysisDraft({ flags: $any($event.target).value })"
+                    >
+                  </label>
+                </div>
+
+                <fieldset class="service-selector">
+                  <legend>{{ t('changed_services_required') }}</legend>
+                  <div>
+                    @for (node of availableAnalysisNodes(); track node.id) {
+                      <label>
+                        <input
+                          type="checkbox"
+                          [checked]="draft.changedServices.includes(node.id)"
+                          (change)="toggleAnalysisService(node.id, $any($event.target).checked)"
+                        >
+                        <span><strong>{{ node.label }}</strong><small>{{ node.id }} · {{ readableStatus(node.kind) }}</small></span>
+                      </label>
+                    }
+                  </div>
+                </fieldset>
+
+                <label class="rollback-toggle">
+                  <input
+                    type="checkbox"
+                    [checked]="draft.rollbackReady"
+                    (change)="updateAnalysisDraft({ rollbackReady: $any($event.target).checked })"
+                  >
+                  <span>
+                    <strong>{{ t('rollback_ready') }}</strong>
+                    <small>{{ t('rollback_ready_help') }}</small>
+                  </span>
+                </label>
+
+                <footer class="form-actions">
+                  <button type="button" class="button button--ghost" (click)="toggleAnalysisForm()">{{ t('cancel') }}</button>
+                  <button type="submit" class="button button--primary" [disabled]="!canAnalyze() || isAnalyzing()">
+                    {{ isAnalyzing() ? t('analyzing') : t('run_analysis') }}
+                  </button>
+                </footer>
+              </form>
+            }
+
+            <section class="risk-command">
+              <div class="risk-score" [attr.data-level]="change.risk.level">
+                <span>{{ t('risk_score_title') }}</span>
+                <strong>{{ change.risk.overall_score }}</strong>
+                <small>/100 · {{ readableStatus(change.risk.level) }}</small>
+              </div>
+              <div class="risk-command__change">
+                <p class="system-kicker">{{ analysisResult() ? t('manual_analysis_result') : t('active_scenario_change') }}</p>
+                <h2>{{ change.title }}</h2>
+                <p>{{ change.repository }} · {{ change.branch }} · <code>{{ change.commit_sha }}</code></p>
+                <div class="change-state-row">
+                  <span>{{ readableStatus(change.deployment_status) }}</span>
+                  <span>{{ readableStatus(change.deployment_environment) }}</span>
+                  <span>{{ change.changed_services.length }} {{ t('services_changed') }}</span>
+                </div>
+              </div>
+              <div class="risk-command__quality">
+                <span>{{ t('data_quality_label') }}</span>
+                <strong>{{ change.risk.data_quality | percent:'1.0-0' }}</strong>
+                <div class="quality-bar"><i [style.width.%]="change.risk.data_quality * 100"></i></div>
+              </div>
+            </section>
+
+            <div class="risk-workspace-grid">
+              <section class="instrument-panel risk-ledger">
+                <header class="panel-heading">
+                  <div>
+                    <p class="system-kicker">{{ t('explicit_weights') }}</p>
+                    <h2>{{ t('weighted_dimensions_title') }}</h2>
+                  </div>
+                </header>
+                <div class="dimension-ledger">
+                  @for (dimension of change.risk.dimensions; track dimension.key) {
+                    <article>
+                      <div class="dimension-ledger__head">
+                        <strong>{{ dimension.label }}</strong>
+                        <span>{{ dimension.score }}/100</span>
+                      </div>
+                      <div class="dimension-track"><i [style.width.%]="dimension.score"></i></div>
+                      <p>{{ dimension.reason }}</p>
+                      <div class="dimension-ledger__meta">
+                        <span>{{ t('weight_label') }} {{ dimension.weight | percent:'1.0-0' }}</span>
+                        <span>{{ dimension.evidence_ids.length }} {{ t('evidence_refs') }}</span>
+                      </div>
+                    </article>
+                  }
+                </div>
+              </section>
+
+              <div class="risk-side-ledger">
+                <section class="instrument-panel change-ledger">
+                  <header class="panel-heading"><h2>{{ t('pr_details_title') }}</h2></header>
+                  <dl>
+                    <div><dt>{{ t('author') }}</dt><dd>{{ change.author }}</dd></div>
+                    <div><dt>{{ t('files_changed') }}</dt><dd>{{ change.files_changed }}</dd></div>
+                    <div><dt>{{ t('lines_added_deleted') }}</dt><dd><span class="positive">+{{ change.lines_added }}</span> / <span class="negative">−{{ change.lines_deleted }}</span></dd></div>
+                    <div><dt>{{ t('created_at') }}</dt><dd>{{ change.created_at | date:'MMM d, HH:mm':'UTC' }} UTC</dd></div>
+                  </dl>
+                  <div class="flag-register">
+                    <span>{{ t('risk_flags') }}</span>
+                    <div>
+                      @for (flag of change.flags; track flag) {
+                        <code>{{ flag }}</code>
+                      } @empty {
+                        <span>{{ t('none') }}</span>
+                      }
+                    </div>
+                  </div>
+                </section>
+
+                <section class="instrument-panel recommendation-ledger">
+                  <header class="panel-heading"><h2>{{ t('pre_deploy_recommendations') }}</h2></header>
+                  <ol>
+                    @for (recommendation of change.risk.recommendations; track recommendation) {
+                      <li>{{ recommendation }}</li>
+                    } @empty {
+                      <li>{{ t('no_recommendations') }}</li>
+                    }
+                  </ol>
+                </section>
+              </div>
+            </div>
+          }
+        } @else if (activeTab() === 'dora') {
+          <app-dora-dashboard
+            [metrics]="doraMetrics()"
+            [isLoading]="isDoraLoading()"
+            [error]="doraError()"
+            [dataMode]="data.data_mode"
+            [language]="lang()"
+            (retryRequested)="loadDoraMetrics()"
+          />
+        } @else if (activeTab() === 'scenarios') {
+          <app-scenario-lab
+            [scenarios]="scenarios()"
+            [activeScenarioId]="activeScenarioId()"
+            [switchingScenarioId]="switchingScenarioId()"
+            [language]="lang()"
+            (scenarioSelected)="activateScenario($event)"
+          />
+        } @else if (activeTab() === 'workspace') {
+          <app-workspace-setup [language]="lang()" />
         }
       </main>
-    }
-
-    <!-- PAGE 2: CHANGE RISK ANALYZER -->
-    @else if (activeTab() === 'change_risk') {
-      <main class="page-workspace" id="change-risk-workspace">
-        <header class="page-header">
-          <div>
-            <p class="instrument-tag">{{ t('change_risk_tag') }}</p>
-            <h1 class="page-title">{{ activeChange()?.title || 'PR Risk Evaluation' }}</h1>
-          </div>
-          <div class="incident-badge-group">
-            <span class="incident-severity-badge">{{ activeChange()?.repository }}</span>
-            <span class="incident-status-badge">{{ activeChange()?.deployment_environment }}</span>
-          </div>
-        </header>
-
-        <div class="bento-grid bento-grid--2col">
-          <!-- PR Metadata & Risk Score Card -->
-          <section class="bento-card">
-            <div class="bento-card-header">
-              <div>
-                <h2>{{ t('risk_score_title') }}</h2>
-                <p>{{ t('computed_risk_index') }}</p>
-              </div>
-            </div>
-
-            <div class="risk-score-display">
-              <div class="score-circle" [attr.data-level]="activeChange()?.risk?.level">
-                <span class="score-num">{{ activeChange()?.risk?.overall_score || 0 }}</span>
-                <span class="score-max">/ 100</span>
-              </div>
-              <div class="score-meta">
-                <span class="risk-level-tag">{{ activeChange()?.risk?.level | uppercase }} {{ t('risk_level_tag') }}</span>
-                <p>{{ t('data_quality_label') }} <strong>{{ (activeChange()?.risk?.data_quality || 0) | percent:'1.0-0' }}</strong></p>
-              </div>
-            </div>
-
-            @if (activeChange()?.risk?.recommendations?.length) {
-              <div class="recommendations-box">
-                <h3>{{ t('pre_deploy_recommendations') }}</h3>
-                <ul>
-                  @for (rec of activeChange()?.risk?.recommendations ?? []; track rec) {
-                    <li>{{ rec }}</li>
-                  }
-                </ul>
-              </div>
-            }
-          </section>
-
-          <!-- Change Diff & PR Flags Card -->
-          <section class="bento-card">
-            <div class="bento-card-header">
-              <div>
-                <h2>{{ t('pr_details_title') }}</h2>
-                <p>{{ activeChange()?.author }} · {{ activeChange()?.branch }}</p>
-              </div>
-            </div>
-
-            <dl class="pr-details-list">
-              <div><dt>{{ t('commit_sha') }}</dt><dd><code>{{ activeChange()?.commit_sha }}</code></dd></div>
-              <div><dt>{{ t('deployment_status') }}</dt><dd>{{ activeChange()?.deployment_status }}</dd></div>
-              <div><dt>{{ t('files_changed') }}</dt><dd>{{ activeChange()?.files_changed }} files</dd></div>
-              <div><dt>{{ t('lines_added_deleted') }}</dt><dd><span class="diff-add">+{{ activeChange()?.lines_added }}</span> / <span class="diff-delete">−{{ activeChange()?.lines_deleted }}</span></dd></div>
-            </dl>
-
-            <div class="change-flags" style="margin-top: 16px;">
-              <h3>{{ t('risk_flags') }}</h3>
-              <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
-                @for (flag of activeChange()?.flags ?? []; track flag) {
-                  <span class="flag-pill">{{ flag }}</span>
-                }
-              </div>
-            </div>
-          </section>
-        </div>
-
-        <!-- Risk Dimensions Breakdown -->
-        <section class="bento-card" style="margin-top: 24px;">
-          <div class="bento-card-header">
-            <div>
-              <h2>{{ t('weighted_dimensions_title') }}</h2>
-              <p>{{ t('weighted_dimensions_desc') }}</p>
-            </div>
-          </div>
-
-          <div class="dimensions-grid">
-            @for (dim of activeChange()?.risk?.dimensions ?? []; track dim.key) {
-              <article class="dimension-card">
-                <div class="dim-head">
-                  <span>{{ dim.label }}</span>
-                  <strong>{{ dim.score }}/100</strong>
-                </div>
-                <div class="dim-bar">
-                  <div class="dim-fill" [style.width.%]="dim.score"></div>
-                </div>
-                <p class="dim-reason">{{ dim.reason }}</p>
-                <span class="dim-weight">{{ t('weight_label') }} {{ dim.weight | percent:'1.0-0' }}</span>
-              </article>
-            }
-          </div>
-        </section>
-      </main>
-    }
-
-    <!-- PAGE 3: DORA METRICS DASHBOARD -->
-    @else if (activeTab() === 'dora') {
-      <main class="page-workspace" id="dora-workspace">
-        <header class="page-header">
-          <div>
-            <p class="instrument-tag">{{ t('dora_tag') }}</p>
-            <h1 class="page-title">{{ t('dora_title') }}</h1>
-          </div>
-          <span class="dora-badge">{{ doraMetrics()?.period || 'Last 30 Days' }}</span>
-        </header>
-
-        <div class="dora-grid">
-          <div class="dora-card">
-            <span class="dora-card-tag">{{ t('deployment_frequency') }}</span>
-            <div class="dora-value">{{ doraMetrics()?.deployment_frequency_per_week || 7.0 }} <small>/ week</small></div>
-            <div class="dora-pill dora-pill--success">{{ t('high_velocity') }}</div>
-            <p class="dora-desc">{{ t('based_on_releases') }} ({{ doraMetrics()?.total_deployments || 28 }})</p>
-          </div>
-          <div class="dora-card">
-            <span class="dora-card-tag">{{ t('change_lead_time') }}</span>
-            <div class="dora-value">{{ doraMetrics()?.change_lead_time_minutes || 90 }} <small>mins</small></div>
-            <div class="dora-pill dora-pill--success">{{ t('elite_efficiency') }}</div>
-            <p class="dora-desc">{{ t('avg_commit_to_rollout') }}</p>
-          </div>
-          <div class="dora-card">
-            <span class="dora-card-tag">{{ t('change_failure_rate') }}</span>
-            <div class="dora-value">{{ (doraMetrics()?.change_failure_rate || 0.042) | percent:'1.1-1' }}</div>
-            <div class="dora-pill dora-pill--info">{{ t('low_risk_profile') }}</div>
-            <p class="dora-desc">{{ t('failure_incident_prop') }}</p>
-          </div>
-          <div class="dora-card">
-            <span class="dora-card-tag">{{ t('mttr_label') }}</span>
-            <div class="dora-value">{{ doraMetrics()?.mean_time_to_restore_minutes || 18.0 }} <small>mins</small></div>
-            <div class="dora-pill dora-pill--success">{{ t('fast_recovery') }}</div>
-            <p class="dora-desc">{{ t('avg_mttr_desc') }}</p>
-          </div>
-        </div>
-      </main>
-    }
-
-    <!-- PAGE 4: SCENARIO LAB MATRIX -->
-    @else if (activeTab() === 'scenarios') {
-      <main class="page-workspace" id="scenarios-workspace">
-        <header class="page-header">
-          <div>
-            <p class="instrument-tag">{{ t('scenario_lab_tag') }}</p>
-            <h1 class="page-title">{{ t('scenario_lab_title') }}</h1>
-          </div>
-          <span class="register-count">{{ scenarios().length }} {{ t('registered_labs') }}</span>
-        </header>
-
-        <div class="scenarios-grid">
-          @for (scenario of scenarios(); track scenario.id; let idx = $index) {
-            <article
-              class="scenario-bento-card"
-              [class.is-active]="scenario.id === activeScenarioId()"
-            >
-              <div class="scenario-card-head">
-                <span class="scenario-num">LAB #{{ (idx + 1).toString().padStart(2, '0') }}</span>
-                @if (scenario.id === activeScenarioId()) {
-                  <span class="active-badge">{{ t('active_scenario_badge') }}</span>
-                }
-              </div>
-
-              <h3>{{ scenario.name }}</h3>
-              <p>{{ scenario.description }}</p>
-
-              <div class="scenario-actions">
-                <button
-                  type="button"
-                  class="primary-action"
-                  [disabled]="switchingScenarioId() !== null || scenario.id === activeScenarioId()"
-                  (click)="activateScenario(scenario)"
-                >
-                  @if (switchingScenarioId() === scenario.id) {
-                    {{ t('activating_lab') }}
-                  } @else if (scenario.id === activeScenarioId()) {
-                    {{ t('current_active_lab') }}
-                  } @else {
-                    {{ t('activate_scenario_btn') }}
-                  }
-                </button>
-              </div>
-            </article>
-          }
-        </div>
-      </main>
-    }
+    </div>
   </div>
 }

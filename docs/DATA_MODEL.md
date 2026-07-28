@@ -1,5 +1,21 @@
 # Data model
 
+## Workspace access domain
+
+```text
+User
+  ├─ AccessToken (hashed, expiring, revocable)
+  └─ WorkspaceMembership ── Workspace
+                              ├─ Repository
+                              ├─ Invitation (hashed one-time token)
+                              └─ AuditEvent (append-only API)
+```
+
+Workspace slug, user email/provider subject, membership
+`(workspace_id, user_id)`, and provider repository identity are unique. All
+workspace-management queries resolve membership before returning tenant-owned
+records.
+
 > สถานะ: **SQLAlchemy schema ใช้งานแล้ว** บน SQLite default และรับ PostgreSQL URL ผ่าน configuration ปัจจุบันสร้าง schema ด้วย `Base.metadata.create_all()` และยังไม่มี Alembic migrations หรือ PostgreSQL integration run
 
 ## หลักการ

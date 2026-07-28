@@ -164,6 +164,7 @@ class ScenarioSummary(APIModel):
     id: str
     name: str
     description: str
+    repository: str
     data_mode: DataMode
     is_active: bool
     active_change_id: str
@@ -232,3 +233,128 @@ class LLMSynthesisResponse(APIModel):
     hypotheses: list[Hypothesis]
     unsupported_claims_count: int = Field(ge=0)
     citation_coverage: float = Field(ge=0, le=1)
+
+
+WorkspaceRole = Literal["viewer", "responder", "admin", "owner"]
+
+
+class UserSummary(APIModel):
+    id: str
+    email: str
+    display_name: str
+    auth_provider: str
+
+
+class WorkspaceCreate(APIModel):
+    name: NonEmptyString = Field(max_length=120)
+    slug: NonEmptyString = Field(max_length=80, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+
+
+class WorkspaceSummary(APIModel):
+    id: str
+    name: str
+    slug: str
+    role: WorkspaceRole
+    repository_count: int = Field(ge=0)
+    member_count: int = Field(ge=0)
+    created_at: datetime
+
+
+class MembershipSummary(APIModel):
+    user: UserSummary
+    role: WorkspaceRole
+    joined_at: datetime
+
+
+class RepositoryCreate(APIModel):
+    full_name: NonEmptyString = Field(max_length=240, pattern=r"^[^/\s]+/[^/\s]+$")
+    default_branch: NonEmptyString = Field(default="main", max_length=160)
+    visibility: Literal["private", "public", "internal"] = "private"
+
+
+class RepositorySummary(APIModel):
+    id: str
+    workspace_id: str
+    provider: Literal["development", "github"]
+    provider_repository_id: str
+    full_name: str
+    default_branch: str
+    visibility: str
+    connection_state: str
+    data_mode: DataMode
+    selected: bool
+    last_synced_at: datetime | None
+    created_at: datetime
+
+
+class InvitationCreate(APIModel):
+    email: NonEmptyString = Field(max_length=320)
+    role: Literal["viewer", "responder", "admin"] = "viewer"
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        local, separator, domain = normalized.rpartition("@")
+        if not separator or not local or "." not in domain:
+            raise ValueError("Enter a valid email address")
+        return normalized
+
+
+class InvitationSummary(APIModel):
+    id: str
+    workspace_id: str
+    email: str
+    role: Literal["viewer", "responder", "admin"]
+    status: Literal["pending", "accepted", "revoked", "expired"]
+    created_at: datetime
+    expires_at: datetime
+
+
+class InvitationCreated(InvitationSummary):
+    delivery_mode: Literal["smtp", "development_outbox", "disabled"]
+    delivery_status: Literal[
+        "sent", "failed", "development_outbox", "disabled"
+    ]
+    claim_token: str | None = None
+    accept_path: str | None = None
+
+
+class InvitationAccept(APIModel):
+    token: NonEmptyString = Field(max_length=500)
+
+
+class AuditEventSummary(APIModel):
+    id: str
+    action: str
+    resource_type: str
+    resource_id: str
+    request_id: str
+    event_metadata: dict[str, object]
+    created_at: datetime
+
+
+class DevelopmentSessionRequest(APIModel):
+    email: str | None = Field(default=None, max_length=320)
+    display_name: str | None = Field(default=None, max_length=160)
+
+
+class SessionResponse(APIModel):
+    access_token: str
+    token_type: Literal["bearer"]
+    expires_at: datetime
+    provider: Literal["development"]
+    user: UserSummary
+    workspaces: list[WorkspaceSummary]
+
+
+class UserContextResponse(APIModel):
+    workspace_id: str | None
+    repository_id: str | None
+    scenario_id: str | None
+
+
+class UserContextUpdate(APIModel):
+    workspace_id: NonEmptyString = Field(max_length=36)
+    repository_id: str | None = Field(default=None, max_length=36)
+    scenario_id: str | None = Field(default=None, max_length=80)

@@ -22,6 +22,7 @@ export interface ScenarioSummary {
   id: string;
   name: string;
   description: string;
+  repository: string;
   data_mode: DataMode;
   is_active: boolean;
   active_change_id: string;

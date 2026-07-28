@@ -1,13 +1,21 @@
 import hashlib
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from uuid import uuid4
 
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .engines import calculate_blast_radius, calculate_change_risk
 from .errors import DomainError
-from .models import ChangeRecord, FeedbackRecord, IncidentRecord, Scenario
+from .models import (
+    ChangeRecord,
+    FeedbackRecord,
+    IncidentRecord,
+    Repository,
+    Scenario,
+)
+from .provider_models import ProviderConnection, WebhookDelivery
 from .schemas import (
     AnalyzeChangeRequest,
     ChangeDetail,
@@ -91,18 +99,37 @@ def incident_detail(session: Session, record: IncidentRecord) -> IncidentDetail:
     )
 
 
-def list_scenarios(session: Session) -> list[ScenarioSummary]:
+def list_scenarios(
+    session: Session,
+    workspace_id: str | None = None,
+    active_scenario_id: str | None = None,
+) -> list[ScenarioSummary]:
+    statement = select(Scenario)
+    if workspace_id is not None:
+        statement = statement.where(Scenario.workspace_id == workspace_id)
     records = session.scalars(
-        select(Scenario).order_by(Scenario.sort_order, Scenario.id)
+        statement.order_by(Scenario.sort_order, Scenario.id)
     ).all()
+    change_ids = [record.active_change_id for record in records]
+    changes = session.scalars(
+        select(ChangeRecord).where(ChangeRecord.id.in_(change_ids))
+    ).all()
+    repositories = {change.id: change.repository for change in changes}
     return [
         ScenarioSummary.model_validate(
             {
                 "id": record.id,
                 "name": record.name,
                 "description": record.description,
+                "repository": repositories.get(
+                    record.active_change_id, "unassigned"
+                ),
                 "data_mode": record.data_mode,
-                "is_active": record.is_active,
+                "is_active": (
+                    record.id == active_scenario_id
+                    if active_scenario_id is not None
+                    else record.is_active
+                ),
                 "active_change_id": record.active_change_id,
                 "active_incident_id": record.active_incident_id,
             }
@@ -111,40 +138,94 @@ def list_scenarios(session: Session) -> list[ScenarioSummary]:
     ]
 
 
-def list_changes(session: Session) -> list[ChangeDetail]:
+def list_changes(
+    session: Session,
+    workspace_id: str | None = None,
+    repository_id: str | None = None,
+) -> list[ChangeDetail]:
+    statement = select(ChangeRecord)
+    if workspace_id is not None:
+        statement = statement.where(ChangeRecord.workspace_id == workspace_id)
+    if repository_id is not None:
+        statement = statement.where(ChangeRecord.repository_id == repository_id)
     records = session.scalars(
-        select(ChangeRecord).order_by(ChangeRecord.created_at.desc())
+        statement.order_by(ChangeRecord.created_at.desc())
     ).all()
     return [change_detail(record) for record in records]
 
 
-def get_change(session: Session, change_id: str) -> ChangeDetail:
-    record = session.get(ChangeRecord, change_id)
+def get_change(
+    session: Session,
+    change_id: str,
+    workspace_id: str | None = None,
+) -> ChangeDetail:
+    statement = select(ChangeRecord).where(ChangeRecord.id == change_id)
+    if workspace_id is not None:
+        statement = statement.where(ChangeRecord.workspace_id == workspace_id)
+    record = session.scalar(statement)
     if record is None:
         raise DomainError("Change not found", "change_not_found", 404)
     return change_detail(record)
 
 
-def list_incidents(session: Session) -> list[IncidentDetail]:
+def list_incidents(
+    session: Session, workspace_id: str | None = None
+) -> list[IncidentDetail]:
+    statement = select(IncidentRecord)
+    if workspace_id is not None:
+        statement = statement.where(IncidentRecord.workspace_id == workspace_id)
     records = session.scalars(
-        select(IncidentRecord).order_by(IncidentRecord.started_at.desc())
+        statement.order_by(IncidentRecord.started_at.desc())
     ).all()
     return [incident_detail(session, record) for record in records]
 
 
-def get_incident(session: Session, incident_id: str) -> IncidentDetail:
-    record = session.get(IncidentRecord, incident_id)
+def get_incident(
+    session: Session,
+    incident_id: str,
+    workspace_id: str | None = None,
+) -> IncidentDetail:
+    statement = select(IncidentRecord).where(IncidentRecord.id == incident_id)
+    if workspace_id is not None:
+        statement = statement.where(
+            IncidentRecord.workspace_id == workspace_id
+        )
+    record = session.scalar(statement)
     if record is None:
         raise DomainError("Incident not found", "incident_not_found", 404)
     return incident_detail(session, record)
 
 
-def active_scenario(session: Session) -> Scenario:
+def active_scenario(
+    session: Session,
+    *,
+    workspace_id: str | None = None,
+    repository_id: str | None = None,
+    scenario_id: str | None = None,
+) -> Scenario:
+    statement = select(Scenario)
+    if workspace_id is not None:
+        statement = statement.where(Scenario.workspace_id == workspace_id)
+    if repository_id is not None:
+        statement = statement.where(Scenario.repository_id == repository_id)
+    if scenario_id is not None:
+        statement = statement.where(Scenario.id == scenario_id)
+    else:
+        statement = statement.where(Scenario.is_active.is_(True))
     scenario = session.scalar(
-        select(Scenario)
-        .where(Scenario.is_active.is_(True))
-        .order_by(Scenario.sort_order, Scenario.id)
+        statement.order_by(Scenario.sort_order, Scenario.id)
     )
+    if scenario is None and scenario_id is None and workspace_id is not None:
+        fallback = select(Scenario).where(
+            Scenario.workspace_id == workspace_id
+        )
+        if repository_id is not None:
+            fallback = fallback.where(
+                Scenario.repository_id == repository_id
+            )
+        scenario = session.scalar(
+            fallback.order_by(Scenario.sort_order, Scenario.id)
+        )
     if scenario is None:
         raise DomainError(
             "No active scenario is configured", "active_scenario_not_found", 409
@@ -168,12 +249,6 @@ def get_overview(session: Session, scenario: Scenario | None = None) -> Overview
         change = session.scalars(select(ChangeRecord).where(ChangeRecord.scenario_id == selected.id)).first()
     if incident is None:
         incident = session.scalars(select(IncidentRecord).where(IncidentRecord.scenario_id == selected.id)).first()
-
-    if change is None or incident is None:
-        from .seed import seed_database
-        seed_database(session)
-        change = session.get(ChangeRecord, selected.active_change_id)
-        incident = session.get(IncidentRecord, selected.active_incident_id)
 
     if change is None or incident is None:
         raise DomainError(
@@ -221,22 +296,42 @@ def get_overview(session: Session, scenario: Scenario | None = None) -> Overview
     )
 
 
-def activate_scenario(session: Session, scenario_id: str) -> Overview:
-    scenario = session.get(Scenario, scenario_id)
+def activate_scenario(
+    session: Session,
+    scenario_id: str,
+    workspace_id: str | None = None,
+) -> Overview:
+    statement = select(Scenario).where(Scenario.id == scenario_id)
+    if workspace_id is not None:
+        statement = statement.where(Scenario.workspace_id == workspace_id)
+    scenario = session.scalar(statement)
     if scenario is None:
         raise DomainError("Scenario not found", "scenario_not_found", 404)
-    session.execute(update(Scenario).values(is_active=False))
-    scenario.is_active = True
-    session.commit()
     return get_overview(session, scenario)
 
 
 def analyze_change(
-    session: Session, request: AnalyzeChangeRequest
+    session: Session,
+    request: AnalyzeChangeRequest,
+    *,
+    workspace_id: str | None = None,
+    repository_id: str | None = None,
+    scenario_id: str | None = None,
 ) -> ChangeDetail:
-    scenario = active_scenario(session)
+    scenario = active_scenario(
+        session,
+        workspace_id=workspace_id,
+        repository_id=repository_id,
+        scenario_id=scenario_id,
+    )
     canonical = json.dumps(
-        request.model_dump(mode="json"), sort_keys=True, separators=(",", ":")
+        {
+            "workspace_id": workspace_id,
+            "repository_id": repository_id,
+            "request": request.model_dump(mode="json"),
+        },
+        sort_keys=True,
+        separators=(",", ":"),
     )
     digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
     change_id = f"chg-analysis-{digest[:12]}"
@@ -270,6 +365,8 @@ def analyze_change(
     )
     record = ChangeRecord(
         id=change_id,
+        workspace_id=scenario.workspace_id,
+        repository_id=scenario.repository_id,
         scenario_id=scenario.id,
         data_mode=scenario.data_mode,
         title=request.title,
@@ -298,9 +395,17 @@ def analyze_change(
 
 
 def submit_feedback(
-    session: Session, incident_id: str, request: FeedbackRequest
+    session: Session,
+    incident_id: str,
+    request: FeedbackRequest,
+    workspace_id: str | None = None,
 ) -> IncidentDetail:
-    incident = session.get(IncidentRecord, incident_id)
+    statement = select(IncidentRecord).where(IncidentRecord.id == incident_id)
+    if workspace_id is not None:
+        statement = statement.where(
+            IncidentRecord.workspace_id == workspace_id
+        )
+    incident = session.scalar(statement)
     if incident is None:
         raise DomainError("Incident not found", "incident_not_found", 404)
     if not any(
@@ -331,24 +436,141 @@ def submit_feedback(
     return incident_detail(session, incident)
 
 
-def get_dora_metrics(session: Session) -> DoraMetricsResponse:
-    changes_count = session.query(ChangeRecord).count()
-    incidents_count = session.query(IncidentRecord).count()
+def get_dora_metrics(
+    session: Session, workspace_id: str | None = None
+) -> DoraMetricsResponse:
+    window_days = 30
+    deployed_statuses = {"deployed", "rolled_back"}
+    changes_statement = select(ChangeRecord)
+    incidents_statement = select(IncidentRecord)
+    if workspace_id is not None:
+        changes_statement = changes_statement.where(
+            ChangeRecord.workspace_id == workspace_id
+        )
+        incidents_statement = incidents_statement.where(
+            IncidentRecord.workspace_id == workspace_id
+        )
+    all_changes = session.scalars(changes_statement).all()
+    all_incidents = session.scalars(incidents_statement).all()
+    records = [*all_changes, *all_incidents]
+    observed_timestamps = [
+        timestamp
+        for timestamp in (
+            *(_utc(change.created_at) for change in all_changes),
+            *(_utc(incident.started_at) for incident in all_incidents),
+        )
+        if timestamp is not None
+    ]
+    is_synthetic_dataset = bool(records) and all(
+        record.data_mode == "synthetic" for record in records
+    )
+    window_end = (
+        max(observed_timestamps)
+        if is_synthetic_dataset and observed_timestamps
+        else datetime.now(UTC)
+    )
+    cutoff = window_end - timedelta(days=window_days)
 
-    total_deployments = max(changes_count, 1)
-    failed_deployments = incidents_count
-    cfr = round(min(failed_deployments / total_deployments, 1.0), 3)
+    changes = [
+        change
+        for change in all_changes
+        if change.deployment_status.lower() in deployed_statuses
+        and (_utc(change.created_at) or cutoff) >= cutoff
+    ]
+    incidents = [
+        incident
+        for incident in all_incidents
+        if (_utc(incident.started_at) or cutoff) >= cutoff
+    ]
+
+    deployed_change_ids = {change.id for change in changes}
+    failed_deployments = {
+        incident.correlated_change_id
+        for incident in incidents
+        if incident.correlated_change_id in deployed_change_ids
+    }
+    total_deployments = len(changes)
+    change_failure_rate = (
+        len(failed_deployments) / total_deployments if total_deployments else 0.0
+    )
+
+    lead_times: list[float] = []
+    for change in changes:
+        change_created = _utc(change.created_at)
+        if change_created is None:
+            continue
+        deployment_markers = [
+            _timeline_timestamp(event.get("timestamp"))
+            for incident in incidents
+            if incident.correlated_change_id == change.id
+            for event in (incident.timeline or [])
+            if str(event.get("type", "")).lower() in {"deploy", "deployment"}
+        ]
+        valid_markers = [
+            marker
+            for marker in deployment_markers
+            if marker is not None and marker >= change_created
+        ]
+        if valid_markers:
+            lead_times.append(
+                (min(valid_markers) - change_created).total_seconds() / 60
+            )
+
+    restore_times: list[float] = []
+    for incident in incidents:
+        started_at = _utc(incident.started_at)
+        if started_at is None:
+            continue
+        restored_at = _utc(incident.resolved_at)
+        if restored_at is None:
+            recovery_markers = [
+                _timeline_timestamp(event.get("timestamp"))
+                for event in (incident.timeline or [])
+                if str(event.get("type", "")).lower() == "recovery"
+            ]
+            recovery_markers = [
+                marker
+                for marker in recovery_markers
+                if marker is not None and marker >= started_at
+            ]
+            restored_at = max(recovery_markers) if recovery_markers else None
+        if restored_at is not None and restored_at >= started_at:
+            restore_times.append((restored_at - started_at).total_seconds() / 60)
+
+    rollback_count = sum(
+        change.deployment_status.lower() == "rolled_back" for change in changes
+    )
 
     return DoraMetricsResponse(
         period="Last 30 Days",
-        deployment_frequency_per_week=round(total_deployments * 1.75, 1),
-        change_lead_time_minutes=42.5,
-        change_failure_rate=cfr,
-        mean_time_to_restore_minutes=18.4,
-        deployment_rework_rate=0.05,
+        deployment_frequency_per_week=round(
+            total_deployments / (window_days / 7), 1
+        ),
+        change_lead_time_minutes=round(_mean_or_zero(lead_times), 1),
+        change_failure_rate=round(change_failure_rate, 3),
+        mean_time_to_restore_minutes=round(_mean_or_zero(restore_times), 1),
+        deployment_rework_rate=round(
+            rollback_count / total_deployments if total_deployments else 0.0,
+            3,
+        ),
         total_deployments=total_deployments,
-        total_incidents=incidents_count,
+        total_incidents=len(incidents),
     )
+
+
+def _timeline_timestamp(value: object) -> datetime | None:
+    if isinstance(value, datetime):
+        return _utc(value)
+    if isinstance(value, str):
+        try:
+            return _utc(datetime.fromisoformat(value.replace("Z", "+00:00")))
+        except ValueError:
+            return None
+    return None
+
+
+def _mean_or_zero(values: list[float]) -> float:
+    return sum(values) / len(values) if values else 0.0
 
 
 import hmac
@@ -356,7 +578,7 @@ import hmac
 
 def verify_github_signature(secret: str, raw_body: bytes, signature_header: str) -> bool:
     if not signature_header or not secret:
-        return True
+        return False
     if not signature_header.startswith("sha256="):
         return False
     expected = hmac.new(secret.encode("utf-8"), msg=raw_body, digestmod=hashlib.sha256).hexdigest()
@@ -372,10 +594,184 @@ def process_github_webhook(
     signature: str = "",
     raw_body: bytes = b"",
     secret: str = "",
+    allow_synthetic_fallback: bool = False,
 ) -> GitHubWebhookResponse:
-    if secret and signature:
-        if not verify_github_signature(secret, raw_body, signature):
-            raise DomainError("Invalid GitHub Webhook HMAC Signature", "invalid_signature", 401)
+    if not secret:
+        raise DomainError(
+            "GitHub webhook ingestion is not configured",
+            "github_webhook_not_configured",
+            503,
+        )
+    if not signature or not verify_github_signature(
+        secret, raw_body, signature
+    ):
+        raise DomainError(
+            "Invalid GitHub Webhook HMAC Signature",
+            "invalid_signature",
+            401,
+        )
+
+    existing_delivery = session.scalar(
+        select(WebhookDelivery).where(
+            WebhookDelivery.provider == "github",
+            WebhookDelivery.delivery_id == delivery_id,
+        )
+    )
+    if existing_delivery is not None:
+        return GitHubWebhookResponse(
+            status="accepted",
+            event=event_type,
+            delivery_id=delivery_id,
+            detail="Duplicate delivery was already recorded.",
+        )
+
+    installation_id = str((payload.get("installation") or {}).get("id") or "")
+    provider_repository_id = str(
+        (payload.get("repository") or {}).get("id") or ""
+    )
+    connection = (
+        session.scalar(
+            select(ProviderConnection).where(
+                ProviderConnection.provider == "github",
+                ProviderConnection.installation_id == installation_id,
+            )
+        )
+        if installation_id
+        else None
+    )
+    repository = (
+        session.scalar(
+            select(Repository).where(
+                Repository.workspace_id == connection.workspace_id,
+                Repository.provider == "github",
+                Repository.provider_repository_id == provider_repository_id,
+                Repository.selected.is_(True),
+            )
+        )
+        if connection is not None and provider_repository_id
+        else None
+    )
+    installation_event = event_type in {
+        "installation",
+        "installation_repositories",
+    }
+    if installation_event:
+        if connection is not None:
+            action = str(payload.get("action") or "")
+            connection.connection_state = (
+                "revoked"
+                if action in {"deleted", "suspend"}
+                else "connected"
+            )
+            connection.updated_at = datetime.now(UTC)
+        session.add(
+            WebhookDelivery(
+                id=str(uuid4()),
+                provider="github",
+                delivery_id=delivery_id,
+                event_type=event_type,
+                installation_id=installation_id or None,
+                workspace_id=(
+                    connection.workspace_id if connection is not None else None
+                ),
+                repository_id=None,
+                status=(
+                    "verified" if connection is not None else "verified_unmapped"
+                ),
+                created_at=datetime.now(UTC),
+            )
+        )
+        session.commit()
+        return GitHubWebhookResponse(
+            status="accepted",
+            event=event_type,
+            delivery_id=delivery_id,
+            detail="Signed GitHub installation state was recorded.",
+        )
+    if connection is not None:
+        session.add(
+            WebhookDelivery(
+                id=str(uuid4()),
+                provider="github",
+                delivery_id=delivery_id,
+                event_type=event_type,
+                installation_id=installation_id or None,
+                workspace_id=connection.workspace_id,
+                repository_id=repository.id if repository is not None else None,
+                status="verified" if repository is not None else "ignored",
+                created_at=datetime.now(UTC),
+            )
+        )
+        session.commit()
+        if repository is None:
+            return GitHubWebhookResponse(
+                status="ignored",
+                event=event_type,
+                delivery_id=delivery_id,
+                detail="Repository is not selected for this workspace.",
+            )
+        if event_type == "pull_request" and str(
+            payload.get("action") or ""
+        ) in {"opened", "reopened", "synchronize", "ready_for_review"}:
+            pr_data = payload.get("pull_request") or {}
+            labels = [
+                str(label.get("name"))
+                for label in pr_data.get("labels", [])
+                if isinstance(label, dict) and label.get("name")
+            ]
+            detail = analyze_change(
+                session,
+                AnalyzeChangeRequest(
+                    title=str(pr_data.get("title") or "Untitled pull request")[
+                        :240
+                    ],
+                    repository=repository.full_name,
+                    author=str(
+                        (pr_data.get("user") or {}).get("login") or "unknown"
+                    )[:160],
+                    files_changed=int(pr_data.get("changed_files") or 0),
+                    lines_added=int(pr_data.get("additions") or 0),
+                    lines_deleted=int(pr_data.get("deletions") or 0),
+                    changed_services=[repository.full_name],
+                    flags=labels[:100],
+                    test_coverage=0.0,
+                    rollback_ready=False,
+                    observability_score=0.0,
+                    previous_failures=0,
+                ),
+                workspace_id=connection.workspace_id,
+                repository_id=repository.id,
+            )
+            scenario = active_scenario(
+                session,
+                workspace_id=connection.workspace_id,
+                repository_id=repository.id,
+            )
+            scenario.active_change_id = detail.id
+            session.commit()
+            return GitHubWebhookResponse(
+                status="accepted",
+                event=event_type,
+                delivery_id=delivery_id,
+                change_id=detail.id,
+                detail=(
+                    "Verified pull request evidence was analyzed in its "
+                    "connected repository context."
+                ),
+            )
+        return GitHubWebhookResponse(
+            status="accepted",
+            event=event_type,
+            delivery_id=delivery_id,
+            detail="Verified provider event was durably recorded.",
+        )
+
+    if not allow_synthetic_fallback:
+        raise DomainError(
+            "GitHub installation is not linked to a workspace",
+            "github_installation_not_linked",
+            404,
+        )
 
     if event_type not in ["pull_request", "workflow_run", "deployment_status"]:
         return GitHubWebhookResponse(
@@ -446,8 +842,12 @@ def ingest_telemetry_event(
     return {"status": "ok", "evidence_id": ev_id, "detail": "Telemetry event ingested successfully."}
 
 
-def export_incident_postmortem(session: Session, incident_id: str) -> str:
-    inc = get_incident(session, incident_id)
+def export_incident_postmortem(
+    session: Session,
+    incident_id: str,
+    workspace_id: str | None = None,
+) -> str:
+    inc = get_incident(session, incident_id, workspace_id)
     lines = [
         f"# Incident Post-Mortem: {inc.title}",
         "",
@@ -486,18 +886,13 @@ def synthesize_llm_hypotheses(
     if incident is None:
         raise DomainError("Incident not found", "incident_not_found", 404)
 
-    hypotheses = incident_detail(session, incident).hypotheses
-    evidence_items = incident.evidence or []
-    total_ev = len(evidence_items)
-    coverage = round(min(total_ev / max(len(hypotheses) * 2, 1), 1.0), 2)
-
-    return LLMSynthesisResponse(
-        incident_id=incident.id,
-        model_used="constrained-llm-synthesizer-v1 (Zero-Hallucination Guarded)",
-        confidence=0.88,
-        hypotheses=hypotheses,
-        unsupported_claims_count=0,
-        citation_coverage=coverage if coverage > 0 else 0.95,
+    raise DomainError(
+        (
+            "LLM synthesis is disabled until an evidence-only contract "
+            "and evaluation gate are configured"
+        ),
+        "llm_synthesis_disabled",
+        501,
     )
 
 

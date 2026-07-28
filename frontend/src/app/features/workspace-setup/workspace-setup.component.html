@@ -1,0 +1,320 @@
+<section class="setup-shell" [attr.aria-busy]="isBusy()">
+  <header class="setup-heading">
+    <div>
+      <p>Workspace activation</p>
+      <h1>{{ language() === 'th' ? 'ตั้งค่าทีมและ Repository' : 'Set up your team and repositories' }}</h1>
+      <span>
+        {{ language() === 'th'
+          ? 'ขั้นตอนนี้ใช้ Development identity และ fixture provider ที่ระบุชัดเจน ไม่จำลองว่าเชื่อม GitHub หรือส่งอีเมลแล้ว'
+          : 'This local flow uses an explicitly labelled development identity and fixture provider. It does not pretend GitHub or email is connected.' }}
+      </span>
+    </div>
+    @if (user()) {
+      <button type="button" class="setup-action" data-variant="quiet" (click)="signOut()">
+        {{ language() === 'th' ? 'ออกจากระบบ Local' : 'End local session' }}
+      </button>
+    }
+  </header>
+
+  <ol class="activation-rail" [attr.aria-label]="language() === 'th' ? 'ความคืบหน้า' : 'Activation progress'">
+    <li [attr.data-state]="activationStep() >= 1 ? 'active' : 'pending'"><b>1</b><span>Identity</span></li>
+    <li [attr.data-state]="activationStep() >= 2 ? 'active' : 'pending'"><b>2</b><span>Workspace</span></li>
+    <li [attr.data-state]="activationStep() >= 3 ? 'active' : 'pending'"><b>3</b><span>Repository</span></li>
+    <li [attr.data-state]="activationStep() >= 4 ? 'active' : 'pending'"><b>4</b><span>Team</span></li>
+  </ol>
+
+  @if (error()) {
+    <div class="setup-notice" data-tone="error" role="alert">{{ error() }}</div>
+  }
+  @if (notice()) {
+    <div class="setup-notice" data-tone="success" role="status">{{ notice() }}</div>
+  }
+
+  @if (!capabilities()) {
+    <section class="activation-stage capability-state" aria-live="polite">
+      <div class="stage-copy"><span>Runtime check</span><h2>Checking configured providers…</h2></div>
+    </section>
+  } @else if (!user() && capabilities()!.development_identity) {
+    <section class="activation-stage">
+      <div class="stage-copy">
+        <span>Development provider</span>
+        <h2>{{ language() === 'th' ? 'เริ่มด้วย Local identity' : 'Start with a local identity' }}</h2>
+        <p>
+          {{ language() === 'th'
+            ? 'เว้นอีเมลว่างเพื่อใช้ Owner เริ่มต้น หรือใส่อีเมลของผู้รับคำเชิญเพื่อทดสอบอีก session'
+            : 'Leave email empty for the default owner, or use an invited email to test a second session.' }}
+        </p>
+      </div>
+      <form class="stage-form" [formGroup]="identityForm" (ngSubmit)="signIn()">
+        <label>
+          <span>Email (optional)</span>
+          <input type="email" formControlName="email" autocomplete="email" placeholder="owner@deployguard.local">
+        </label>
+        <label>
+          <span>Display name (optional)</span>
+          <input type="text" formControlName="displayName" autocomplete="name" placeholder="Platform owner">
+        </label>
+        <button type="submit" class="setup-action" data-variant="primary" [disabled]="identityForm.invalid || isBusy()">
+          {{ isBusy() ? 'Starting…' : 'Start development session' }}
+        </button>
+      </form>
+    </section>
+  } @else if (!user()) {
+    <section class="activation-stage capability-state">
+      <div class="stage-copy">
+        <span>Production identity</span>
+        <h2>{{ capabilities()!.auth_provider === 'oidc' ? 'Sign in through your organization' : 'Identity provider unavailable' }}</h2>
+        <p>
+          {{ capabilities()!.auth_provider === 'oidc'
+            ? 'The API accepts verified OIDC bearer tokens. Configure your organization’s OIDC client or authentication gateway to open this workspace.'
+            : 'Production access is blocked until an OIDC provider is configured. Development sign-in is intentionally hidden.' }}
+        </p>
+      </div>
+      <div class="stage-form">
+        @if (capabilities()!.auth_provider === 'oidc') {
+          <button type="button" class="setup-action" data-variant="primary" (click)="signInOidc()">
+            Continue with organization SSO
+          </button>
+          <span class="truth-note">Uses Authorization Code + PKCE in a secure sign-in popup. Provider tokens remain in memory and are never written to localStorage.</span>
+        } @else {
+          <span class="truth-note">No test identity or fabricated session is available in production mode.</span>
+        }
+      </div>
+    </section>
+  } @else {
+    <div class="identity-strip">
+      <span>{{ user()!.display_name }}</span>
+      <code>{{ user()!.email }}</code>
+      <small>development identity</small>
+    </div>
+
+    <div class="workspace-grid">
+      <aside class="workspace-register">
+        <header>
+          <span>Workspaces</span>
+          <b>{{ workspaces().length }}</b>
+        </header>
+        @for (workspace of workspaces(); track workspace.id) {
+          <button
+            type="button"
+            class="workspace-row"
+            [attr.aria-current]="activeWorkspace()?.id === workspace.id ? 'page' : null"
+            (click)="selectWorkspace(workspace)"
+          >
+            <strong>{{ workspace.name }}</strong>
+            <span>{{ workspace.slug }} · {{ workspace.role }}</span>
+          </button>
+        } @empty {
+          <p class="register-empty">No workspace yet. Create the first one.</p>
+        }
+      </aside>
+
+      <div class="activation-work">
+        <section class="work-panel">
+          <header class="work-heading">
+            <div>
+              <span>01 · Tenant boundary</span>
+              <h2>Create workspace</h2>
+            </div>
+            @if (activeWorkspace()) {
+              <small data-tone="ready">Ready</small>
+            }
+          </header>
+          <form class="compact-form" [formGroup]="workspaceForm" (ngSubmit)="createWorkspace()">
+            <label><span>Name</span><input type="text" formControlName="name" placeholder="Platform Reliability"></label>
+            <label><span>Slug</span><input type="text" formControlName="slug" placeholder="platform-reliability"></label>
+            <button type="submit" class="setup-action" data-variant="primary" [disabled]="workspaceForm.invalid || isBusy()">Create workspace</button>
+          </form>
+        </section>
+
+        @if (activeWorkspace(); as workspace) {
+          <section class="work-panel">
+            <header class="work-heading">
+              <div>
+                <span>02 · Repository source</span>
+                <h2>Connect repository</h2>
+              </div>
+              <small [attr.data-tone]="capabilities()!.github_app ? 'ready' : 'fixture'">
+                {{ capabilities()!.github_app ? 'GitHub App' : 'Development fixture' }}
+              </small>
+            </header>
+            @if (capabilities()!.github_app) {
+              @if (!githubConnection()) {
+                <div class="provider-callout">
+                  <div>
+                    <strong>Connect the GitHub App</strong>
+                    <p>Install with read-only metadata, pull request, and deployment permissions. Access tokens remain on the server.</p>
+                  </div>
+                  @if (canManage()) {
+                    <button type="button" class="setup-action" data-variant="primary" (click)="installGitHub()" [disabled]="isBusy()">
+                      Install GitHub App
+                    </button>
+                  }
+                </div>
+              } @else {
+                <div class="provider-callout">
+                  <div>
+                    <strong>{{ githubConnection()!.account_login }}</strong>
+                    <p>{{ githubConnection()!.account_type }} · {{ githubConnection()!.repository_selection }} repositories · {{ githubConnection()!.connection_state }}</p>
+                  </div>
+                  <span [attr.data-state]="githubConnection()!.connection_state">
+                    {{ githubConnection()!.connection_state === 'connected' ? 'Verified installation' : 'Waiting for signed webhook' }}
+                  </span>
+                </div>
+                @if (githubConnection()!.connection_state === 'connected') {
+                <div class="repository-picker" role="listbox" aria-label="GitHub repositories" aria-multiselectable="true">
+                  @for (candidate of githubCandidates(); track candidate.provider_repository_id) {
+                    <button
+                      type="button"
+                      role="option"
+                      [attr.aria-selected]="candidate.selected"
+                      [disabled]="candidate.archived || isBusy()"
+                      (click)="toggleGitHubRepository(candidate)"
+                    >
+                      <span>{{ candidate.selected ? 'Selected' : 'Available' }}</span>
+                      <strong>{{ candidate.full_name }}</strong>
+                      <small>{{ candidate.default_branch }} · {{ candidate.visibility }}{{ candidate.archived ? ' · archived' : '' }}</small>
+                    </button>
+                  } @empty {
+                    <p class="register-empty">No accessible repositories were returned by this installation.</p>
+                  }
+                </div>
+                @if (canManage() && githubCandidates().length) {
+                  <div class="provider-actions">
+                    <button type="button" class="setup-action" data-variant="primary" (click)="syncGitHubRepositories()" [disabled]="isBusy()">
+                      Sync selected repositories
+                    </button>
+                  </div>
+                }
+                } @else {
+                  <p class="truth-note">Repository access remains blocked until the signed GitHub installation webhook is verified.</p>
+                }
+              }
+            } @else {
+              <p class="truth-note">
+                GitHub App is not configured. Development fixtures are isolated and always labelled synthetic.
+              </p>
+            }
+            @if (canManage() && !capabilities()!.github_app) {
+              <form class="compact-form" [formGroup]="repositoryForm" (ngSubmit)="connectRepository()">
+                <label><span>Owner / repository</span><input type="text" formControlName="fullName" placeholder="acme/checkout-platform"></label>
+                <label><span>Default branch</span><input type="text" formControlName="defaultBranch"></label>
+                <label>
+                  <span>Visibility</span>
+                  <select formControlName="visibility">
+                    <option value="private">Private</option>
+                    <option value="internal">Internal</option>
+                    <option value="public">Public</option>
+                  </select>
+                </label>
+                <button type="submit" class="setup-action" data-variant="primary" [disabled]="repositoryForm.invalid || isBusy()">Connect fixture</button>
+              </form>
+            }
+            <div class="repository-ledger">
+              @for (repository of repositories(); track repository.id) {
+                <article>
+                  <span data-state="connected">Connected</span>
+                  <strong>{{ repository.full_name }}</strong>
+                  <p>{{ repository.default_branch }} · {{ repository.visibility }} · {{ repository.data_mode }}</p>
+                </article>
+              } @empty {
+                <p class="register-empty">Connected repositories will appear here.</p>
+              }
+            </div>
+            @if (connectedChanges().length) {
+              <div class="connected-change-ledger" aria-live="polite">
+                <header><strong>Verified pull request risk</strong><span>{{ connectedChanges().length }} records</span></header>
+                @for (change of connectedChanges(); track change.id) {
+                  <article>
+                    <div><strong>{{ change.title }}</strong><span>{{ change.repository }} · {{ change.author }}</span></div>
+                    <b [attr.data-level]="change.risk.level">{{ change.risk.overall_score }}</b>
+                  </article>
+                }
+              </div>
+            }
+          </section>
+
+          <section class="work-panel">
+            <header class="work-heading">
+              <div>
+                <span>03 · Access control</span>
+                <h2>Invite your team</h2>
+              </div>
+              <small [attr.data-tone]="capabilities()!.email_delivery === 'smtp' ? 'ready' : 'fixture'">
+                {{ capabilities()!.email_delivery === 'smtp' ? 'Email delivery' : capabilities()!.email_delivery === 'development_outbox' ? 'Local outbox' : 'Email disabled' }}
+              </small>
+            </header>
+            @if (canManage() && capabilities()!.email_delivery !== 'disabled') {
+              <form class="compact-form" [formGroup]="invitationForm" (ngSubmit)="inviteMember()">
+                <label><span>Email</span><input type="email" formControlName="email" placeholder="friend@example.com"></label>
+                <label>
+                  <span>Role</span>
+                  <select formControlName="role">
+                    <option value="viewer">Viewer</option>
+                    <option value="responder">Responder</option>
+                    @if (workspace.role === 'owner') { <option value="admin">Admin</option> }
+                  </select>
+                </label>
+                <button type="submit" class="setup-action" data-variant="primary" [disabled]="invitationForm.invalid || isBusy()">
+                  {{ capabilities()!.email_delivery === 'smtp' ? 'Send invitation' : 'Create development invite' }}
+                </button>
+              </form>
+            } @else if (capabilities()!.email_delivery === 'disabled') {
+              <p class="truth-note">Invitation delivery is unavailable until SMTP is configured.</p>
+            }
+            @if (latestInvite(); as invite) {
+              @if (invite.delivery_mode === 'development_outbox' && invite.claim_token) {
+              <div class="outbox-ticket">
+                <div><span>Email not sent</span><strong>{{ invite.email }}</strong></div>
+                <code>{{ invite.claim_token }}</code>
+                <button type="button" class="setup-action" data-variant="quiet" (click)="copyInvite()">Copy one-time token</button>
+              </div>
+              } @else {
+                <div class="delivery-ticket" [attr.data-state]="invite.delivery_status">
+                  <strong>{{ invite.email }}</strong>
+                  <span>{{ invite.delivery_status === 'sent' ? 'Invitation email sent' : 'Invitation saved; email delivery failed' }}</span>
+                </div>
+              }
+            }
+            <div class="member-ledger">
+              @for (member of members(); track member.user.id) {
+                <article><strong>{{ member.user.display_name }}</strong><span>{{ member.user.email }}</span><b>{{ member.role }}</b></article>
+              }
+              @for (invite of invitations(); track invite.id) {
+                <article data-kind="invite">
+                  <strong>{{ invite.email }}</strong><span>{{ invite.status }}</span><b>{{ invite.role }}</b>
+                  @if (invite.status === 'pending' && canManage()) {
+                    <button type="button" (click)="revokeInvitation(invite)">Revoke</button>
+                  }
+                </article>
+              }
+            </div>
+          </section>
+
+          @if (capabilities()!.development_identity) {
+          <section class="work-panel">
+            <header class="work-heading">
+              <div><span>04 · Second session</span><h2>Accept invitation</h2></div>
+            </header>
+            <form class="compact-form" [formGroup]="acceptForm" (ngSubmit)="acceptInvitation()">
+              <label class="token-field"><span>One-time invite token</span><input type="text" formControlName="token" autocomplete="off"></label>
+              <button type="submit" class="setup-action" data-variant="primary" [disabled]="acceptForm.invalid || isBusy()">Accept invite</button>
+            </form>
+          </section>
+          }
+
+          @if (canManage()) {
+            <section class="audit-panel">
+              <header><span>Append-only audit trail</span><b>{{ auditEvents().length }} events</b></header>
+              @for (event of auditEvents(); track event.id) {
+                <article><code>{{ event.action }}</code><span>{{ event.resource_type }}</span><time>{{ event.created_at | date:'medium' }}</time></article>
+              } @empty {
+                <p class="register-empty">Security-relevant actions will appear here.</p>
+              }
+            </section>
+          }
+        }
+      </div>
+    </div>
+  }
+</section>

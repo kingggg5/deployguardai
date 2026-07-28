@@ -1,0 +1,66 @@
+<button
+  type="button"
+  class="palette-trigger"
+  [attr.aria-label]="labels().open"
+  [attr.title]="labels().open"
+  (click)="open()"
+>
+  <svg class="palette-trigger-icon" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M10.5 3a7.5 7.5 0 1 0 4.7 13.3l4.2 4.2 1.4-1.4-4.2-4.2A7.5 7.5 0 0 0 10.5 3Zm0 2a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11Z"/>
+  </svg>
+  <span class="palette-trigger-label">{{ labels().title }}</span>
+  <kbd class="palette-trigger-shortcut">{{ labels().shortcut }}</kbd>
+</button>
+
+@if (isOpen()) {
+  <button
+    type="button"
+    class="palette-scrim"
+    [attr.aria-label]="labels().close"
+    (click)="close()"
+  ></button>
+
+  <section
+    class="palette"
+    role="dialog"
+    aria-modal="true"
+    [attr.aria-label]="labels().title"
+  >
+    <label class="palette-search">
+      <svg class="palette-search-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M10.5 3a7.5 7.5 0 1 0 4.7 13.3l4.2 4.2 1.4-1.4-4.2-4.2A7.5 7.5 0 0 0 10.5 3Zm0 2a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11Z"/>
+      </svg>
+      <span class="palette-search-label">{{ labels().search }}</span>
+      <input
+        #searchInput
+        class="palette-search-input"
+        type="search"
+        [value]="query()"
+        [placeholder]="labels().placeholder"
+        (input)="updateQuery($event)"
+      />
+      <kbd class="palette-search-shortcut">ESC</kbd>
+    </label>
+
+    <div class="palette-list" role="listbox">
+      @for (item of filteredItems(); track item.id; let index = $index) {
+        <button
+          type="button"
+          class="palette-item"
+          role="option"
+          [style.--palette-index]="index"
+          (click)="select(item)"
+        >
+          <span class="palette-mark" aria-hidden="true"></span>
+          <span class="palette-copy">
+            <strong class="palette-item-title">{{ item.label }}</strong>
+            <small class="palette-item-meta">{{ item.meta }}</small>
+          </span>
+          <span class="palette-arrow" aria-hidden="true">↵</span>
+        </button>
+      } @empty {
+        <p class="palette-empty">{{ labels().empty }}</p>
+      }
+    </div>
+  </section>
+}

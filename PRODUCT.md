@@ -45,12 +45,16 @@ Every risk dimension and root-cause hypothesis is traceable to evidence, exposes
 - Rank three root-cause hypotheses with supporting evidence, counter-evidence, confidence, and a next verification step.
 - Capture human confirmation, rejection, or partial-cause feedback.
 - Run seeded, reproducible scenarios without external credentials.
+- Switch between repository-backed synthetic scenarios from a searchable scope selector.
+- Open existing product actions through a keyboard command center and copy the current view as a deep link.
 - Persist demo state locally in SQLite and support PostgreSQL through configuration.
+- Create tenant workspaces, connect development-fixture repositories, invite members, enforce workspace roles, and inspect audit events through a truthful local activation flow.
 
 ### Constraints
 
 - Initial scenarios and telemetry are synthetic and must always be labeled as such.
-- Real GitHub App, OpenTelemetry collector, and production authentication integrations are out of scope for the first runnable MVP.
+- Production OIDC verification, GitHub App repository discovery, and SMTP invitation delivery are implemented and remain credential-gated. Connected OpenTelemetry ingestion requires its configured token. Local substitutes are visibly labelled development providers.
+- Copied view links preserve UI scope only and never grant access or act as anonymous invitations.
 - The system does not run shell commands, deploy code, roll back releases, or remediate infrastructure.
 - Risk scores are decision support, not deployment authorization.
 - LLM synthesis is deliberately deferred until the deterministic evidence contract and evaluation harness are stable.

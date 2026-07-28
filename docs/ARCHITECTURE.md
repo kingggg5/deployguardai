@@ -4,6 +4,16 @@
 
 ## Verified implementation snapshot
 
+### Workspace activation vertical slice
+
+The Angular workspace activation feature calls a typed workspace API. FastAPI
+resolves bearer sessions to `User`, enforces role policy against
+`WorkspaceMembership`, commits tenant mutations with `AuditEvent` records, and
+persists through SQLAlchemy/Alembic on SQLite or PostgreSQL. Repository
+connection is an explicitly synthetic development adapter until a GitHub App is
+configured; invitation delivery is a local outbox until an email provider is
+configured.
+
 - 10 routes ภายใต้ `/api/v1`
 - 3 seeded synthetic scenarios
 - deterministic risk engine 6 dimensions

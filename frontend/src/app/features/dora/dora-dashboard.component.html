@@ -1,0 +1,92 @@
+<header class="workspace-title">
+  <div>
+    <p class="system-kicker">{{ t('dora_tag') }}</p>
+    <h1>{{ t('dora_title') }}</h1>
+    <p>{{ t('dora_intro') }}</p>
+  </div>
+</header>
+
+@if (error()) {
+  <div class="notice notice--error" role="alert">
+    <p>{{ error() }}</p>
+    <button type="button" (click)="retryRequested.emit()">{{ t('retry') }}</button>
+  </div>
+}
+
+@if (metrics(); as data) {
+  <section class="metrics-command">
+    <div class="metrics-summary">
+      <span class="metrics-summary-label">{{ t('measurement_window') }}</span>
+      <strong class="metrics-summary-value">{{ data.period }}</strong>
+    </div>
+    <div class="metrics-summary">
+      <span class="metrics-summary-label">{{ t('total_deployments') }}</span>
+      <strong class="metrics-summary-value">{{ data.total_deployments }}</strong>
+    </div>
+    <div class="metrics-summary">
+      <span class="metrics-summary-label">{{ t('total_incidents') }}</span>
+      <strong class="metrics-summary-value">{{ data.total_incidents }}</strong>
+    </div>
+    <div class="metrics-summary">
+      <span class="metrics-summary-label">{{ t('deployment_rework_rate') }}</span>
+      <strong class="metrics-summary-value">
+        {{ data.deployment_rework_rate | percent:'1.1-1' }}
+      </strong>
+    </div>
+  </section>
+
+  <section class="instrument-panel metrics-ledger">
+    <header class="panel-heading">
+      <div>
+        <p class="system-kicker">{{ t('observed_metrics') }}</p>
+        <h2>{{ t('delivery_reliability_readout') }}</h2>
+      </div>
+      <span class="synthetic-label">
+        {{ dataMode() === 'synthetic' ? t('synthetic_data') : t('connected_data') }}
+      </span>
+    </header>
+
+    <div class="metric-grid">
+      <article class="metric-reading">
+        <span class="metric-label">{{ t('deployment_frequency') }}</span>
+        <strong class="metric-value">{{ data.deployment_frequency_per_week }}</strong>
+        <small class="metric-unit">{{ t('per_week') }}</small>
+        <p class="metric-description">{{ t('deployment_frequency_desc') }}</p>
+      </article>
+      <article class="metric-reading">
+        <span class="metric-label">{{ t('change_lead_time') }}</span>
+        <strong class="metric-value">{{ data.change_lead_time_minutes }}</strong>
+        <small class="metric-unit">{{ t('minutes') }}</small>
+        <p class="metric-description">{{ t('change_lead_time_desc') }}</p>
+      </article>
+      <article class="metric-reading">
+        <span class="metric-label">{{ t('change_failure_rate') }}</span>
+        <strong class="metric-value">
+          {{ data.change_failure_rate | percent:'1.1-1' }}
+        </strong>
+        <small class="metric-unit">{{ t('of_deployments') }}</small>
+        <p class="metric-description">{{ t('change_failure_rate_desc') }}</p>
+      </article>
+      <article class="metric-reading">
+        <span class="metric-label">{{ t('mttr_label') }}</span>
+        <strong class="metric-value">{{ data.mean_time_to_restore_minutes }}</strong>
+        <small class="metric-unit">{{ t('minutes') }}</small>
+        <p class="metric-description">{{ t('mttr_desc') }}</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="method-note">
+    <span class="method-mark" aria-hidden="true">i</span>
+    <div class="method-copy">
+      <strong class="method-title">{{ t('metric_integrity_title') }}</strong>
+      <p class="method-description">{{ t('metric_integrity_desc') }}</p>
+    </div>
+  </section>
+} @else if (isLoading()) {
+  <div class="metrics-loading" aria-busy="true">
+    @for (item of [1, 2, 3, 4]; track item) {
+      <span class="skeleton metric-skeleton"></span>
+    }
+  </div>
+}

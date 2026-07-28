@@ -1,0 +1,90 @@
+<section class="scope-switcher" [attr.data-open]="isOpen()">
+  <span class="scope-label">{{ labels().activeScope }}</span>
+  <button
+    type="button"
+    class="scope-trigger"
+    aria-haspopup="dialog"
+    [attr.aria-expanded]="isOpen()"
+    (click)="toggle()"
+  >
+    <span class="scope-workspace">{{ repositoryOwner() }}</span>
+    <strong class="scope-repository">
+      {{ activeScenario()?.repository ?? labels().selectRepository }}
+    </strong>
+    <span class="scope-chevron" aria-hidden="true">⌄</span>
+  </button>
+  <span class="scope-mode">
+    <i class="scope-mode-mark" aria-hidden="true"></i>
+    {{ labels().synthetic }}
+  </span>
+
+  @if (isOpen()) {
+    <button
+      type="button"
+      class="scope-scrim"
+      [attr.aria-label]="labels().close"
+      (click)="close()"
+    ></button>
+
+    <section
+      class="scope-menu"
+      role="dialog"
+      aria-modal="true"
+      [attr.aria-label]="labels().selectRepository"
+    >
+      <header class="scope-menu-header">
+        <div class="scope-heading">
+          <span class="scope-heading-label">{{ repositoryOwner() }}</span>
+          <strong class="scope-heading-title">{{ labels().selectRepository }}</strong>
+        </div>
+        <button
+          type="button"
+          class="scope-close"
+          [attr.aria-label]="labels().close"
+          (click)="close()"
+        >
+          ×
+        </button>
+      </header>
+
+      <label class="scope-search">
+        <span class="scope-search-label">{{ labels().repositorySearchLabel }}</span>
+        <input
+          class="scope-search-input"
+          type="search"
+          [value]="query()"
+          [placeholder]="labels().repositorySearch"
+          (input)="updateQuery($event)"
+        />
+      </label>
+
+      <div class="scope-options" role="listbox">
+        @for (scenario of filteredScenarios(); track scenario.id) {
+          <button
+            type="button"
+            class="scope-option"
+            role="option"
+            [attr.aria-selected]="scenario.id === activeScenarioId()"
+            [attr.data-state]="scenario.id === activeScenarioId() ? 'active' : 'idle'"
+            (click)="selectScenario(scenario)"
+          >
+            <span class="scope-option-mark" aria-hidden="true"></span>
+            <span class="scope-option-copy">
+              <strong class="scope-option-title">{{ scenario.repository }}</strong>
+              <small class="scope-option-subtitle">{{ scenario.name }}</small>
+            </span>
+            <span class="scope-option-mode">{{ scenario.data_mode }}</span>
+          </button>
+        } @empty {
+          <p class="scope-empty">{{ labels().repositorySearch }}</p>
+        }
+      </div>
+
+      <footer class="scope-footer">
+        <button type="button" class="scope-share" (click)="shareRequested.emit()">
+          {{ labels().copyLink }}
+        </button>
+      </footer>
+    </section>
+  }
+</section>

@@ -21,6 +21,7 @@ exporters:
     endpoint: "http://deployguard-backend:8100/api/v1/telemetry/events"
     headers:
       Content-Type: "application/json"
+      Authorization: "Bearer ${env:DEPLOYGUARD_TELEMETRY_INGEST_TOKEN}"
 
 service:
   pipelines:

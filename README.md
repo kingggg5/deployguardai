@@ -1,8 +1,8 @@
 # DeployGuard AI — Evidence-Backed Change Risk & RCA Investigation Ledger
 # ระบบวิเคราะห์และติดตามความเสี่ยงการเปลี่ยนผ่านระบบ (Evidence-First Change Risk & RCA Investigation Ledger)
 
-[![Backend Tests](https://img.shields.io/badge/Backend%20Tests-15%2F15%20Passed-brightgreen)](https://github.com/kingggg5/deployguard)
-[![Frontend Tests](https://img.shields.io/badge/Frontend%20Tests-8%2F8%20Passed-brightgreen)](https://github.com/kingggg5/deployguard)
+[![Backend Tests](https://img.shields.io/badge/Backend%20Tests-24%2F24%20Passed-brightgreen)](https://github.com/kingggg5/deployguard)
+[![Frontend Tests](https://img.shields.io/badge/Frontend%20Tests-12%2F12%20Passed-brightgreen)](https://github.com/kingggg5/deployguard)
 [![Angular Production Build](https://img.shields.io/badge/Angular%20Build-Passing-blue)](https://github.com/kingggg5/deployguard)
 [![License](https://img.shields.io/badge/License-MIT-purple.svg)](LICENSE)
 
@@ -10,7 +10,7 @@
 
 ## 📌 Project Overview / ภาพรวมโครงการ
 
-**DeployGuard AI** is a production-ready operational investigation ledger designed to analyze pre-deployment Pull Request risks, calculate microservice blast radii, correlate telemetry evidence during SLO breaches, and rank root-cause hypotheses with human verdict feedback.
+**DeployGuard AI** is a production-shaped local/Docker MVP for analyzing pre-deployment Pull Request risks, calculating microservice blast radii, correlating telemetry evidence during SLO breaches, and ranking root-cause hypotheses with human verdict feedback. It includes tenant-isolated workspaces, server-enforced RBAC, OIDC bearer verification, GitHub App installation and repository discovery, SMTP invitations, webhook deduplication, audit events, and Alembic migrations. Local synthetic providers remain visibly separated from connected production data.
 
 **DeployGuard AI** คือระบบวิเคราะห์ความเสี่ยงก่อนปล่อยอัปเดตระบบ (Pre-Deployment PR Risk Engine) และระบบสืบสวนหาสาเหตุรากเหง้าของการล่ม (RCA Investigation Ledger) แบบ Evidence-First โดยเชื่อมโยงข้อมูล Pull Request, ผังโครงสร้างระบบ (Dependency Graph), ข้อมูลชี้วัด Telemetry (OTel & Prometheus), และการตัดสินใจโดยทีมวิศวกร (Human Verdict) ไว้อย่างสมบูรณ์
 
@@ -113,6 +113,17 @@ Copy-Item .env.example .env
 docker compose up --build
 ```
 
+### 3. Production integrations
+
+Copy `.env.example` to `.env`, set `ENVIRONMENT=production`, then configure:
+
+- `AUTH_PROVIDER=oidc` plus `OIDC_ISSUER`, `OIDC_AUDIENCE`, `OIDC_CLIENT_ID`, and `OIDC_JWKS_URL`.
+- `GITHUB_APP_ID`, `GITHUB_APP_SLUG`, `GITHUB_APP_PRIVATE_KEY`, and `GITHUB_WEBHOOK_SECRET`.
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM_EMAIL`, and credentials when required.
+- `FRONTEND_PUBLIC_URL` to the public HTTPS application origin.
+
+The public `GET /api/v1/capabilities` response drives the activation UI. Missing providers are shown as unavailable; production never falls back to a development identity, manual repository fixture, or raw invitation token.
+
 ---
 
 ## 🧪 Verification & Testing / การทดสอบความถูกต้อง
@@ -120,11 +131,11 @@ docker compose up --build
 Both backend and frontend test suites are 100% covered and passing:
 
 ```powershell
-# Run Backend Pytest Suite (15/15 Passed)
+# Run Backend Pytest Suite (24/24 Passed)
 cd backend
 .\.venv\Scripts\python -m pytest
 
-# Run Frontend Vitest Suite (8/8 Passed)
+# Run Frontend Vitest Suite (12/12 Passed)
 cd ..\frontend
 npm test -- --watch=false
 

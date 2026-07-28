@@ -25,6 +25,27 @@ services:
       ENVIRONMENT: container
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-deployguard}:${POSTGRES_PASSWORD:-deployguard-dev-only}@postgres:5432/${POSTGRES_DB:-deployguard}
       CORS_ORIGINS: http://127.0.0.1:4300,http://localhost:4300
+      GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
+      TELEMETRY_INGEST_TOKEN: ${TELEMETRY_INGEST_TOKEN:-}
+      ALLOW_DATABASE_RESET: ${ALLOW_DATABASE_RESET:-false}
+      AUTH_PROVIDER: ${AUTH_PROVIDER:-development}
+      DEVELOPMENT_USER_EMAIL: ${DEVELOPMENT_USER_EMAIL:-owner@deployguard.local}
+      DEVELOPMENT_USER_NAME: ${DEVELOPMENT_USER_NAME:-Local workspace owner}
+      OIDC_ISSUER: ${OIDC_ISSUER:-}
+      OIDC_AUDIENCE: ${OIDC_AUDIENCE:-}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_SCOPE: ${OIDC_SCOPE:-openid profile email}
+      OIDC_JWKS_URL: ${OIDC_JWKS_URL:-}
+      FRONTEND_PUBLIC_URL: ${FRONTEND_PUBLIC_URL:-http://127.0.0.1:4300}
+      GITHUB_APP_ID: ${GITHUB_APP_ID:-}
+      GITHUB_APP_SLUG: ${GITHUB_APP_SLUG:-}
+      GITHUB_APP_PRIVATE_KEY: ${GITHUB_APP_PRIVATE_KEY:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-}
+      SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
     ports:
       - "8100:8100"
     depends_on:

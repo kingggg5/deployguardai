@@ -11,53 +11,53 @@ import {
   Overview,
   ScenarioSummary
 } from '../models/deployguard.models';
-
-export const DEPLOYGUARD_API_BASE = 'http://127.0.0.1:8100/api/v1';
+import { DEPLOYGUARD_API_BASE } from '../config/deployguard-config';
 
 @Injectable({ providedIn: 'root' })
 export class DeployGuardApiService {
   private readonly http = inject(HttpClient);
+  private readonly apiBase = inject(DEPLOYGUARD_API_BASE);
 
   getHealth(): Observable<HealthResponse> {
-    return this.http.get<HealthResponse>(`${DEPLOYGUARD_API_BASE}/health`);
+    return this.http.get<HealthResponse>(`${this.apiBase}/health`);
   }
 
   getOverview(): Observable<Overview> {
-    return this.http.get<Overview>(`${DEPLOYGUARD_API_BASE}/overview`);
+    return this.http.get<Overview>(`${this.apiBase}/overview`);
   }
 
   getScenarios(): Observable<ScenarioSummary[]> {
-    return this.http.get<ScenarioSummary[]>(`${DEPLOYGUARD_API_BASE}/scenarios`);
+    return this.http.get<ScenarioSummary[]>(`${this.apiBase}/scenarios`);
   }
 
   activateScenario(scenarioId: string): Observable<Overview> {
     return this.http.post<Overview>(
-      `${DEPLOYGUARD_API_BASE}/scenarios/${encodeURIComponent(scenarioId)}/activate`,
+      `${this.apiBase}/scenarios/${encodeURIComponent(scenarioId)}/activate`,
       {}
     );
   }
 
   getChanges(): Observable<ChangeDetail[]> {
-    return this.http.get<ChangeDetail[]>(`${DEPLOYGUARD_API_BASE}/changes`);
+    return this.http.get<ChangeDetail[]>(`${this.apiBase}/changes`);
   }
 
   getChange(changeId: string): Observable<ChangeDetail> {
     return this.http.get<ChangeDetail>(
-      `${DEPLOYGUARD_API_BASE}/changes/${encodeURIComponent(changeId)}`
+      `${this.apiBase}/changes/${encodeURIComponent(changeId)}`
     );
   }
 
   analyzeChange(request: AnalyzeChangeRequest): Observable<ChangeDetail> {
-    return this.http.post<ChangeDetail>(`${DEPLOYGUARD_API_BASE}/changes/analyze`, request);
+    return this.http.post<ChangeDetail>(`${this.apiBase}/changes/analyze`, request);
   }
 
   getIncidents(): Observable<IncidentDetail[]> {
-    return this.http.get<IncidentDetail[]>(`${DEPLOYGUARD_API_BASE}/incidents`);
+    return this.http.get<IncidentDetail[]>(`${this.apiBase}/incidents`);
   }
 
   getIncident(incidentId: string): Observable<IncidentDetail> {
     return this.http.get<IncidentDetail>(
-      `${DEPLOYGUARD_API_BASE}/incidents/${encodeURIComponent(incidentId)}`
+      `${this.apiBase}/incidents/${encodeURIComponent(incidentId)}`
     );
   }
 
@@ -66,18 +66,18 @@ export class DeployGuardApiService {
     request: FeedbackRequest
   ): Observable<IncidentDetail> {
     return this.http.post<IncidentDetail>(
-      `${DEPLOYGUARD_API_BASE}/incidents/${encodeURIComponent(incidentId)}/feedback`,
+      `${this.apiBase}/incidents/${encodeURIComponent(incidentId)}/feedback`,
       request
     );
   }
 
   getDoraMetrics(): Observable<DoraMetrics> {
-    return this.http.get<DoraMetrics>(`${DEPLOYGUARD_API_BASE}/metrics/dora`);
+    return this.http.get<DoraMetrics>(`${this.apiBase}/metrics/dora`);
   }
 
   exportPostMortem(incidentId: string): Observable<string> {
     return this.http.get(
-      `${DEPLOYGUARD_API_BASE}/incidents/${encodeURIComponent(incidentId)}/export-markdown`,
+      `${this.apiBase}/incidents/${encodeURIComponent(incidentId)}/export-markdown`,
       { responseType: 'text' }
     );
   }

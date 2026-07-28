@@ -1,6 +1,28 @@
 # Security model
 
-> สถานะ: **runnable local synthetic MVP** มี FastAPI/Angular, input validation, fixed local CORS, deterministic engines และไม่มี remediation capability อย่างไรก็ตามยังไม่มี authentication, authorization, tenancy, GitHub App, OTel ingestion, migrations หรือ LLM จึงเหมาะกับ local portfolio demo เท่านั้นและไม่ควร expose ต่อ internet
+## Current implemented access boundary
+
+- Human workspace-management routes require a hashed bearer session.
+- The development identity provider runs only in `development`, `test`, or
+  `container` environments and is visibly labelled in the UI.
+- `WorkspaceMembership` is the tenant boundary. Cross-workspace access returns
+  `workspace_not_found`; RBAC is enforced by backend policy checks.
+- Roles are `viewer`, `responder`, `admin`, and `owner`.
+- Invitation tokens are random, hashed at rest, bound to normalized email,
+  expiring, single-use, revocable, and omitted from list APIs.
+- Workspace, repository, invitation, acceptance, and revocation mutations append
+  redacted audit events.
+- Alembic owns fresh database creation. Production refuses an unversioned,
+  non-empty database; local legacy bootstrap refuses unexpected tables.
+
+The synthetic investigation routes remain demo-compatible, but all legacy
+change and incident reads now resolve through a per-user tenant context.
+Production verifies OIDC JWTs through issuer JWKS, maps GitHub installations
+and repositories to workspaces, and suppresses all development providers.
+Internet exposure still requires rate limiting, PostgreSQL verification,
+managed secrets, HTTPS, and configured provider credentials.
+
+> สถานะ: **production-integratable MVP** มี OIDC verification, tenancy/RBAC, GitHub App, SMTP invitation delivery, migrations และ deterministic engines แล้ว โดยจะไม่เปิด development fallback ใน production ทั้งนี้ยังต้องตั้งค่า secret, HTTPS, rate limit และทำ deployment security review ก่อน expose ต่อ internet
 
 ## Controls ที่ตรวจแล้ว
 
@@ -105,21 +127,21 @@ flowchart LR
 - provider retention/region ต้อง configurable
 - failure หรือ timeout ต้อง fallback ไป deterministic template
 
-## GitHub integration roadmap
+## GitHub integration
 
-GitHub App ยังไม่ถูกสร้างหรือเชื่อมต่อ Security gate ก่อนเปิด connected mode:
+Connected mode รองรับ GitHub App installation, short-lived installation token,
+repository discovery, workspace mapping และ durable webhook deduplication:
 
 - ใช้ GitHub App ไม่ใช้ personal access token
-- permission ขั้นต่ำที่เสนอ: Metadata read, Contents read, Pull requests read, Actions read, Deployments read และ Checks write เฉพาะเมื่อส่ง Check Run
+- permission ขั้นต่ำ: Metadata read, Pull requests read และ Deployments read
 - subscribe เฉพาะ event ที่ใช้
 - ตรวจ `X-Hub-Signature-256` ตาม [GitHub webhook validation](https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries)
 - deduplicate `X-GitHub-Delivery`
-- ตอบ webhook เร็วแล้วประมวลผล async
+- เก็บ verified event แบบ durable; PR metadata ที่มีหลักฐานจริงสร้าง connected change record ส่วน coverage/rollback/observability ที่ไม่ทราบใช้ค่าความไม่แน่นอนแบบ conservative
 - installation token อยู่ใน memory/cache ชั่วคราวและ rotate ตาม expiry
 - pin GitHub API version
 - เคารพ primary/secondary rate limits และ `Retry-After`
-- ignore Check Run ที่ DeployGuard สร้างเองเพื่อป้องกัน event loop
-- uninstall/repository removal ต้อง revoke access และเริ่ม deletion workflow
+- disconnect ทำเครื่องหมาย connection/repository เป็น revoked และหยุดใช้ข้อมูลนั้น
 
 GitHub ระบุว่า Check Run write ใช้ GitHub App และ Checks permission ตาม [Checks API](https://docs.github.com/en/rest/checks/runs)
 

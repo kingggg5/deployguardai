@@ -19,6 +19,24 @@ All timestamps are ISO 8601 UTC strings. Scores use `0–100`; confidence and qu
 | `GET` | `/incidents/{incident_id}` | Incident, timeline, evidence, hypotheses, and feedback |
 | `POST` | `/incidents/{incident_id}/feedback` | Record a human verdict for a hypothesis |
 
+### Workspace activation endpoints
+
+| Method | Path | Auth / purpose |
+|---|---|---|
+| `POST` | `/auth/development-session` | Local-only development identity; response is `no-store` |
+| `GET` | `/auth/me` | Current bearer principal |
+| `GET, POST` | `/workspaces` | List memberships or create a tenant workspace |
+| `GET, POST` | `/workspaces/{id}/repositories` | List or connect a development-fixture repository |
+| `GET` | `/workspaces/{id}/members` | List workspace members |
+| `GET, POST` | `/workspaces/{id}/invitations` | Admin/Owner invitation outbox |
+| `DELETE` | `/workspaces/{id}/invitations/{invite_id}` | Revoke a pending invitation |
+| `POST` | `/invitations/accept` | Accept a one-time invitation as the signed-in email |
+| `GET` | `/workspaces/{id}/audit-events` | Admin/Owner append-only security audit |
+
+Bearer tokens and invitation tokens are stored only as SHA-256 digests. Invitation
+list responses never contain the claim token; the development outbox returns it
+once from the create response with `Cache-Control: no-store`.
+
 ## Core response shapes
 
 ```text
@@ -94,6 +112,39 @@ incident; only the scenario activation endpoint changes the dashboard context.
   "rollback_ready": true,
   "observability_score": 0.84,
   "previous_failures": 1
+}
+```
+
+## Production provider endpoints
+
+```text
+GET    /api/v1/capabilities
+POST   /api/v1/workspaces/{workspace_id}/providers/github/install
+GET    /api/v1/providers/github/callback
+GET    /api/v1/workspaces/{workspace_id}/providers/github
+GET    /api/v1/workspaces/{workspace_id}/providers/github/repositories
+POST   /api/v1/workspaces/{workspace_id}/providers/github/repositories/sync
+DELETE /api/v1/workspaces/{workspace_id}/providers/github
+POST   /api/v1/webhooks/github
+```
+
+GitHub installation tokens are minted server-side and never returned. Provider
+state is single-use and expires after ten minutes. Repository synchronization
+accepts only IDs returned by the linked installation. In production,
+unmapped webhook installations are rejected and synthetic fallback is disabled.
+A signed `pull_request` event for a selected repository creates a
+`data_mode=connected` change analysis from the actual PR metadata. Unknown
+coverage, rollback, and observability evidence is treated conservatively rather
+than filled with synthetic values.
+
+Invitation creation returns `claim_token` only in
+`development_outbox` mode. SMTP responses expose delivery state but never the
+token:
+
+```json
+{
+  "delivery_mode": "smtp",
+  "delivery_status": "sent"
 }
 ```
 

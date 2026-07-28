@@ -4,7 +4,8 @@ import {
   provideHttpClientTesting
 } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { DeployGuardApiService, DEPLOYGUARD_API_BASE } from './deployguard-api.service';
+import { DeployGuardApiService } from './deployguard-api.service';
+import { DEPLOYGUARD_API_BASE } from '../config/deployguard-config';
 import { makeOverview, scenarioFixtures } from '../../test-fixtures';
 
 describe('DeployGuardApiService', () => {
@@ -15,6 +16,7 @@ describe('DeployGuardApiService', () => {
     TestBed.configureTestingModule({
       providers: [
         DeployGuardApiService,
+        { provide: DEPLOYGUARD_API_BASE, useValue: '/test-api/v1' },
         provideHttpClient(),
         provideHttpClientTesting()
       ]
@@ -25,11 +27,11 @@ describe('DeployGuardApiService', () => {
 
   afterEach(() => http.verify());
 
-  it('loads the bare scenarios array from the fixed local API base', () => {
+  it('loads the bare scenarios array from the injected API base', () => {
     let response = scenarioFixtures.slice(0, 0);
     service.getScenarios().subscribe((value) => (response = value));
 
-    const request = http.expectOne(`${DEPLOYGUARD_API_BASE}/scenarios`);
+    const request = http.expectOne('/test-api/v1/scenarios');
     expect(request.request.method).toBe('GET');
     request.flush(scenarioFixtures);
     expect(response).toEqual(scenarioFixtures);
@@ -39,7 +41,7 @@ describe('DeployGuardApiService', () => {
     service.activateScenario('queue/backlog').subscribe();
 
     const request = http.expectOne(
-      `${DEPLOYGUARD_API_BASE}/scenarios/queue%2Fbacklog/activate`
+      '/test-api/v1/scenarios/queue%2Fbacklog/activate'
     );
     expect(request.request.method).toBe('POST');
     expect(request.request.body).toEqual({});
@@ -55,7 +57,7 @@ describe('DeployGuardApiService', () => {
     service.submitFeedback('inc/checkout', payload).subscribe();
 
     const request = http.expectOne(
-      `${DEPLOYGUARD_API_BASE}/incidents/inc%2Fcheckout/feedback`
+      '/test-api/v1/incidents/inc%2Fcheckout/feedback'
     );
     expect(request.request.method).toBe('POST');
     expect(request.request.body).toEqual(payload);

@@ -5,10 +5,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .api import router
+from .auth.oidc import OIDCVerifier
 from .config import Settings, get_settings
 from .database import Database
 from .errors import DomainError, domain_error_handler
+from .provider_api import router as provider_router
 from .seed import seed_database
+from .workspace_api import router as workspace_router
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -17,7 +20,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-        database.create_schema()
+        database.migrate(
+            allow_legacy_bootstrap=configured_settings.environment.lower()
+            in {"development", "test", "container"}
+        )
         session = database.session_factory()
         try:
             seed_database(session)
@@ -33,6 +39,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     application.state.settings = configured_settings
     application.state.database = database
+    application.state.oidc_verifier = (
+        OIDCVerifier(configured_settings)
+        if configured_settings.auth_provider == "oidc"
+        else None
+    )
     application.add_middleware(
         CORSMiddleware,
         allow_origins=configured_settings.cors_origins,
@@ -42,6 +53,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     application.add_exception_handler(DomainError, domain_error_handler)
     application.include_router(router)
+    application.include_router(workspace_router)
+    application.include_router(provider_router)
     return application
 
 

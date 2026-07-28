@@ -17,8 +17,9 @@ def client(tmp_path: Path) -> Generator[TestClient, None, None]:
             "http://127.0.0.1:4300",
             "http://localhost:4300",
         ],
+        github_webhook_secret="test-github-secret",
+        telemetry_ingest_token="test-telemetry-token",
         _env_file=None,
     )
     with TestClient(create_app(settings)) as test_client:
         yield test_client
-

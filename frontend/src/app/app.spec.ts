@@ -13,14 +13,19 @@ describe('DeployGuard investigation ledger', () => {
     getDoraMetrics: ReturnType<typeof vi.fn>;
     activateScenario: ReturnType<typeof vi.fn>;
     submitFeedback: ReturnType<typeof vi.fn>;
+    analyzeChange: ReturnType<typeof vi.fn>;
+    exportPostMortem: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(async () => {
+    window.history.replaceState({}, '', '/');
     api = {
       getScenarios: vi.fn(() => of(scenarioFixtures)),
       getOverview: vi.fn(() => of(makeOverview())),
       getDoraMetrics: vi.fn(() => of(doraMetricsFixture)),
       activateScenario: vi.fn(() => of(makeOverview('queue-backlog'))),
+      analyzeChange: vi.fn(() => of(makeOverview().active_change)),
+      exportPostMortem: vi.fn(() => of('# Incident Post-Mortem')),
       submitFeedback: vi.fn(() =>
         of(
           makeOverview('checkout-latency', [
@@ -49,22 +54,24 @@ describe('DeployGuard investigation ledger', () => {
 
   it('renders the loaded synthetic investigation with ranked evidence', () => {
     const content = fixture.nativeElement.textContent as string;
-    expect(content).toContain('Synthetic demo');
+    expect(content).toContain('Synthetic data');
+    expect(content).toContain('acme/commerce');
     expect(content).toContain('Checkout latency regression');
-    expect(content).toContain('RCA Top-3 hypotheses');
+    expect(content).toContain('Root-cause hypotheses');
     expect(content).toContain('Order persistence lock contention');
   });
 
   it('switches scenario through the API and replaces the active overview', () => {
-    component.activeTab.set('scenarios');
+    component.setActiveTab('scenarios');
     fixture.detectChanges();
 
     const buttons = fixture.nativeElement.querySelectorAll(
-      '.scenario-bento-card button'
+      '.scenario-action'
     ) as NodeListOf<HTMLButtonElement>;
+    expect(buttons).toHaveLength(2);
     buttons[1].click();
     fixture.detectChanges();
-    component.activeTab.set('investigation');
+    component.setActiveTab('investigation');
     fixture.detectChanges();
 
     expect(api.activateScenario).toHaveBeenCalledWith('queue-backlog');
@@ -132,5 +139,75 @@ describe('DeployGuard investigation ledger', () => {
     });
     expect(component.feedbackForSelectedHypothesis()).toHaveLength(1);
     expect(component.feedbackSuccess()).toContain('Verdict recorded');
+  });
+
+  it('pauses replay without discarding the selected event', () => {
+    component.scrubReplay(0);
+    component.startReplay();
+    component.pauseReplay();
+
+    expect(component.isReplaying()).toBe(false);
+    expect(component.replayIndex()).toBe(0);
+  });
+
+  it('submits a complete manual change analysis through the API', () => {
+    component.updateAnalysisDraft({
+      title: 'Validate checkout cache policy',
+      repository: 'acme/commerce',
+      author: 'platform-team',
+      changedServices: ['checkout-api'],
+      filesChanged: 4,
+      linesAdded: 80,
+      linesDeleted: 12,
+      testCoveragePercent: 86,
+      observabilityPercent: 92
+    });
+
+    component.submitChangeAnalysis();
+
+    expect(api.analyzeChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Validate checkout cache policy',
+        changed_services: ['checkout-api'],
+        test_coverage: 0.86,
+        observability_score: 0.92
+      })
+    );
+    expect(component.analysisResult()).not.toBeNull();
+  });
+
+  it('switches repository from the scope selector through the scenario API', () => {
+    const trigger = fixture.nativeElement.querySelector(
+      '.scope-trigger'
+    ) as HTMLButtonElement;
+    trigger.click();
+    fixture.detectChanges();
+
+    const options = fixture.nativeElement.querySelectorAll(
+      '.scope-option'
+    ) as NodeListOf<HTMLButtonElement>;
+    options[1].click();
+    fixture.detectChanges();
+
+    expect(api.activateScenario).toHaveBeenCalledWith('queue-backlog');
+  });
+
+  it('copies a deep link containing the current view and scenario', async () => {
+    const writeText = vi.fn(() => Promise.resolve());
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText }
+    });
+
+    component.setActiveTab('dora');
+    await component.copyCurrentView();
+
+    expect(writeText).toHaveBeenCalledWith(
+      expect.stringContaining('view=dora')
+    );
+    expect(writeText).toHaveBeenCalledWith(
+      expect.stringContaining('scenario=checkout-latency')
+    );
+    expect(component.shareSuccess()).toContain('View link copied');
   });
 });

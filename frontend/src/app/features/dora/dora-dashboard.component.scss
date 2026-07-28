@@ -1,0 +1,186 @@
+:host {
+  display: block;
+}
+
+.metrics-command {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.metrics-summary {
+  min-height: 82px;
+  padding: 16px;
+  border-right: 1px solid var(--line);
+}
+
+.metrics-summary:last-child {
+  border-right: 0;
+}
+
+.metrics-summary-label {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.metrics-summary-value {
+  display: block;
+  margin-top: 5px;
+  color: var(--ink-strong);
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 20px;
+}
+
+.metrics-ledger {
+  margin-top: 14px;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.metric-reading {
+  position: relative;
+  min-height: 260px;
+  padding: 20px;
+  border-right: 1px solid var(--line);
+}
+
+.metric-reading:last-child {
+  border-right: 0;
+}
+
+.metric-reading::before {
+  position: absolute;
+  top: 0;
+  left: 20px;
+  width: 38px;
+  height: 2px;
+  background: var(--cobalt);
+  content: '';
+}
+
+.metric-label {
+  display: block;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.metric-value {
+  display: inline-block;
+  margin-top: 8px;
+  color: var(--ink-strong);
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: clamp(28px, 4vw, 40px);
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.metric-unit {
+  margin-left: 5px;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.metric-description {
+  max-width: 31ch;
+  margin: 20px 0 0;
+  color: var(--muted-strong);
+  font-size: 10px;
+}
+
+.method-note {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: start;
+  margin-top: 14px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle);
+}
+
+.method-mark {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid var(--cobalt);
+  border-radius: 50%;
+  color: var(--cobalt-strong);
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 11px;
+}
+
+.method-copy {
+  min-width: 0;
+}
+
+.method-title {
+  color: var(--ink-strong);
+  font-size: 11px;
+}
+
+.method-description {
+  max-width: 75ch;
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.metrics-loading {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.metric-skeleton {
+  height: 260px;
+}
+
+@media (max-width: 1060px) {
+  .metric-grid,
+  .metrics-command {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .metric-reading:nth-child(2),
+  .metrics-summary:nth-child(2) {
+    border-right: 0;
+  }
+
+  .metric-reading:nth-child(-n + 2),
+  .metrics-summary:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--line);
+  }
+}
+
+@media (max-width: 680px) {
+  .metric-grid,
+  .metrics-command,
+  .metrics-loading {
+    grid-template-columns: 1fr;
+  }
+
+  .metric-reading,
+  .metrics-summary {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .metric-reading:last-child,
+  .metrics-summary:last-child {
+    border-bottom: 0;
+  }
+
+  .metric-reading {
+    min-height: 180px;
+  }
+}
