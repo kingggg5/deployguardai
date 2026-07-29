@@ -1,5 +1,3 @@
-from hmac import compare_digest
-
 from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
@@ -88,12 +86,50 @@ def dora_metrics(
 async def github_webhook(
     request: Request, session: Session = Depends(get_session)
 ) -> GitHubWebhookResponse:
-    event_type = request.headers.get("X-GitHub-Event", "pull_request")
-    delivery_id = request.headers.get("X-GitHub-Delivery", "del-12345")
+    settings = request.app.state.settings
+    secret = getattr(settings, "github_webhook_secret", "")
+    if not secret:
+        raise DomainError(
+            "GitHub webhook ingestion is not configured",
+            "github_webhook_not_configured",
+            503,
+        )
+    event_type = request.headers.get("X-GitHub-Event", "").strip()
+    delivery_id = request.headers.get("X-GitHub-Delivery", "").strip()
+    if not event_type or len(event_type) > 100:
+        raise DomainError(
+            "GitHub event header is missing or invalid",
+            "invalid_github_event_header",
+            400,
+        )
+    if not delivery_id or len(delivery_id) > 120:
+        raise DomainError(
+            "GitHub delivery header is missing or invalid",
+            "invalid_github_delivery_header",
+            400,
+        )
     signature = request.headers.get("X-Hub-Signature-256", "")
     raw_body = await request.body()
-    payload = await request.json()
-    secret = getattr(request.app.state.settings, "github_webhook_secret", "")
+    if len(raw_body) > settings.github_webhook_max_body_bytes:
+        raise DomainError(
+            "GitHub webhook body exceeds the configured limit",
+            "github_webhook_body_too_large",
+            413,
+        )
+    try:
+        payload = await request.json()
+    except ValueError as error:
+        raise DomainError(
+            "GitHub webhook body is not valid JSON",
+            "invalid_github_webhook_json",
+            400,
+        ) from error
+    if not isinstance(payload, dict):
+        raise DomainError(
+            "GitHub webhook body must be a JSON object",
+            "invalid_github_webhook_payload",
+            400,
+        )
     return process_github_webhook(
         session,
         event_type,
@@ -103,8 +139,9 @@ async def github_webhook(
         raw_body=raw_body,
         secret=secret,
         allow_synthetic_fallback=(
-            request.app.state.settings.environment.lower() != "production"
+            settings.environment.lower() != "production"
         ),
+        settings=settings,
     )
 
 
@@ -122,13 +159,40 @@ def telemetry_ingest(
             503,
         )
     authorization = request.headers.get("Authorization", "")
-    if not compare_digest(authorization, f"Bearer {configured_token}"):
+    scheme, separator, presented_token = authorization.partition(" ")
+    if (
+        not separator
+        or scheme.lower() != "bearer"
+        or not presented_token.strip()
+    ):
         raise DomainError(
             "Invalid telemetry ingestion token",
             "invalid_telemetry_token",
             401,
         )
-    return ingest_telemetry_event(session, payload)
+    workspace_id = request.headers.get("X-DeployGuard-Workspace", "").strip()
+    repository_id = request.headers.get(
+        "X-DeployGuard-Repository", ""
+    ).strip()
+    provider_event_id = request.headers.get(
+        "X-DeployGuard-Event-ID", ""
+    ).strip()
+    if len(workspace_id) > 36 or len(repository_id) > 36:
+        raise DomainError(
+            "Telemetry scope header is invalid",
+            "invalid_telemetry_scope",
+            400,
+        )
+    return ingest_telemetry_event(
+        session,
+        payload,
+        master_token=configured_token,
+        presented_token=presented_token.strip(),
+        workspace_id=workspace_id or None,
+        repository_id=repository_id or None,
+        provider_event_id=provider_event_id or None,
+        environment=request.app.state.settings.environment,
+    )
 
 
 @router.get("/scenarios", response_model=list[ScenarioSummary])

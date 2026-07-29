@@ -1,223 +1,288 @@
 # Security model
 
-## Current implemented access boundary
+DeployGuard AI เป็นระบบวิเคราะห์และ collaboration แบบ read-mostly ไม่มี
+credential สำหรับ deploy, rollback, shell หรือ cluster และไม่มี autonomous
+remediation อย่างไรก็ตามระบบรับข้อมูลจาก identity provider, GitHub, SMTP และ
+telemetry source จึงต้องถือ external content ทุกชนิดเป็น untrusted
 
-- Human workspace-management routes require a hashed bearer session.
-- The development identity provider runs only in `development`, `test`, or
-  `container` environments and is visibly labelled in the UI.
-- `WorkspaceMembership` is the tenant boundary. Cross-workspace access returns
-  `workspace_not_found`; RBAC is enforced by backend policy checks.
-- Roles are `viewer`, `responder`, `admin`, and `owner`.
-- Invitation tokens are random, hashed at rest, bound to normalized email,
-  expiring, single-use, revocable, and omitted from list APIs.
-- Workspace, repository, invitation, acceptance, and revocation mutations append
-  redacted audit events.
-- Alembic owns fresh database creation. Production refuses an unversioned,
-  non-empty database; local legacy bootstrap refuses unexpected tables.
+## Security posture ปัจจุบัน
 
-The synthetic investigation routes remain demo-compatible, but all legacy
-change and incident reads now resolve through a per-user tenant context.
-Production verifies OIDC JWTs through issuer JWKS, maps GitHub installations
-and repositories to workspaces, and suppresses all development providers.
-Internet exposure still requires rate limiting, PostgreSQL verification,
-managed secrets, HTTPS, and configured provider credentials.
+### Implemented controls
 
-> สถานะ: **production-integratable MVP** มี OIDC verification, tenancy/RBAC, GitHub App, SMTP invitation delivery, migrations และ deterministic engines แล้ว โดยจะไม่เปิด development fallback ใน production ทั้งนี้ยังต้องตั้งค่า secret, HTTPS, rate limit และทำ deployment security review ก่อน expose ต่อ internet
+- production profile บังคับ `AUTH_PROVIDER=oidc`
+- OIDC ตรวจ signature ผ่าน JWKS พร้อม issuer, audience, expiry, issued-at และ
+  verified email
+- development identity เปิดเฉพาะ non-production
+- opaque development access token และ invitation token เก็บเฉพาะ SHA-256 digest
+- `WorkspaceMembership` เป็น application tenant boundary
+- service layer บังคับ role `viewer`, `responder`, `admin`, `owner`
+- tenant-owned read/write filter ด้วย workspace context
+- GitHub App install state เป็น hashed, expiring และ single-use
+- GitHub webhook ตรวจ HMAC SHA-256 บน raw body ด้วย constant-time comparison
+- GitHub delivery dedupe ด้วย database unique constraint
+- operational event dedupe ด้วย workspace/source/provider event identity
+- service dependencies และ event foreign IDs ถูกตรวจว่าอยู่ workspace เดียวกัน
+- incident assignee และ notification recipient ถูกจำกัดใน workspace
+- audit event ถูกเพิ่มพร้อม tenant mutation สำคัญ
+- Alembic จัดการ schema; production ปฏิเสธ unversioned non-empty database
+- provider credential ที่ไม่ configured ทำให้ capability ปิดหรือ API คืน `503`
+- LLM runtime ไม่มี และ reserved endpoint คืน `501`
 
-## Controls ที่ตรวจแล้ว
+### Controls ที่ยังขาด
 
-- CORS อนุญาต local UI ที่ `http://127.0.0.1:4300` และ `http://localhost:4300`
-- backend CORS tests ครอบคลุมทั้งสอง origins
-- Pydantic/FastAPI validation และ stable domain error envelope
-- ไม่มี shell, deploy, rollback, cluster credential หรือ autonomous remediation path
-- ข้อมูล runtime เป็น 3 seeded synthetic scenarios
-- npm production dependency audit รายงาน 0 vulnerabilities
-- backend 13 tests และ frontend 7 tests/build ผ่าน
-- Compose definition ผ่าน `docker compose config`
+- PostgreSQL RLS
+- API rate limit, request-body limit และ per-workspace quota
+- managed secret/KMS integration และ automated rotation
+- queue isolation, retry/dead-letter handling และ webhook reconciliation
+- automated retention/deletion และ backup/restore workflow
+- raw telemetry redaction pipeline
+- tamper-resistant external audit sink
+- penetration test, production threat review และ incident-response exercise
 
-ข้อจำกัดของหลักฐาน: Docker image build/scan ยังไม่ยืนยันเพราะ Linux daemon ไม่พร้อม และยังไม่มี penetration, auth/tenant isolation หรือ webhook-signature tests
-
-## Security principles
-
-1. ไม่มี autonomous remediation
-2. external content ทั้งหมดเป็น untrusted
-3. least privilege และ explicit opt-in
-4. connected mode ต้องทำให้ tenant/workspace isolation เป็น query และ database invariant
-5. evidence provenance มาก่อน language fluency
-6. secrets ไม่อยู่ใน repository, logs, telemetry หรือ model prompts
-7. synthetic mode ทำงานได้โดยไม่ใช้ external credentials
-
-## Assets
-
-- GitHub App private key และ webhook secret ในอนาคต
-- installation access tokens
-- repository/change/deployment metadata
-- telemetry evidence
-- incident notes และ human feedback
-- scoring weights, model/prompt versions
-- tenant/workspace boundary
-- audit trail และ evaluation artifacts
+ดังนั้นสถานะที่ถูกต้องคือ **production-integratable** เมื่อ configure
+dependencies ครบ แต่ยังไม่ควรเรียก **production-hardened**
 
 ## Trust boundaries
 
 ```mermaid
 flowchart LR
-    Internet["Untrusted internet"]
-    Hook["Webhook boundary<br/>Roadmap"]
-    API["DeployGuard API"]
+    Browser["Browser<br/>untrusted client"]
+    OIDC["OIDC issuer"]
+    GitHub["GitHub App + webhook"]
+    Collector["Telemetry gateway/Collector"]
+    API["FastAPI trust boundary"]
+    Tenant["Tenant + RBAC policy"]
     Core["Deterministic core"]
     DB["Workspace data"]
-    Model["External LLM boundary<br/>Deferred"]
-    UI["Local browser<br/>Current: unauthenticated"]
+    SMTP["SMTP provider"]
+    LLM["External LLM<br/>not connected"]
 
-    Internet -->|"signed payload required"| Hook
-    Hook -->|"validated + normalized"| API
-    UI -->|"local request; no auth yet"| API
-    API --> Core
-    Core --> DB
-    Core -.->|"redacted evidence only"| Model
-    Model -.->|"untrusted structured output"| Core
+    Browser -->|"OIDC/development bearer"| API
+    API -->|"JWKS verification"| OIDC
+    GitHub -->|"signed raw webhook"| API
+    API -->|"short-lived installation token"| GitHub
+    Collector -->|"ingest bearer + normalized event"| API
+    API --> Tenant --> Core --> DB
+    API -->|"invitation without claim token in response"| SMTP
+    Core -.->|"future redacted evidence-only data"| LLM
 ```
+
+## Authentication
+
+### Development
+
+`POST /auth/development-session` ออก opaque bearer token และคืน raw token เพียง
+ครั้งเดียว Token มี expiry และ database เก็บ digest เท่านั้น Endpoint ถูกปิด
+เมื่อ environment เป็น production
+
+Legacy synthetic investigation routes บางส่วนยอมใช้ configured development user
+เมื่อ request ไม่มี bearer เพื่อรักษา local demo flow Fallback นี้เปิดเฉพาะเมื่อ
+development auth available และถูกปิดใน production ส่วน workspace-management และ
+operations routes ยังต้องมี bearer
+
+Development auth มีไว้สำหรับ local verification ไม่ใช่ shared deployment และ
+ไม่ควรเปิดผ่าน public network
+
+### OIDC
+
+Production verifier:
+
+1. ดึง signing key จาก configured JWKS URL
+2. จำกัด algorithm ตาม allowlist
+3. ตรวจ `iss`, `aud`, `exp`, `iat`, `sub`
+4. ต้องมี email ที่ valid และ `email_verified = true`
+5. map stable provider subject จาก issuer + subject
+6. ปฏิเสธ email collision ระหว่างคนละ identity
+
+Browser token storage/refresh behavior ขึ้นกับ Angular OIDC client และ identity
+provider deployment การ review CSP, refresh-token rotation และ XSS defense ต้อง
+ทำร่วมกับ configuration จริง
+
+## Tenant isolation และ RBAC
+
+Application policy:
+
+| Operation class | Minimum role |
+|---|---|
+| Read tenant data | `viewer` |
+| Analyze/change incident/event/note | `responder` |
+| Catalog, risk policy, provider, repository, invitation, audit | `admin` |
+| Invite `admin` | `owner` |
+
+เมื่อ principal ไม่เป็นสมาชิก ระบบคืน `404` แทน `403` เพื่อลด resource
+enumeration Foreign IDs เช่น repository, service, incident และ assignee ต้อง
+ถูก resolve พร้อม `workspace_id` ไม่ query ด้วย ID เดี่ยว
+
+ข้อจำกัด: PostgreSQL RLS ยังไม่มี หาก application query ลืม tenant predicate
+database จะไม่ป้องกันให้ การเพิ่ม composite tenant constraints, RLS policies และ
+negative isolation tests เป็น production hardening ที่ยังต้องทำ
+
+## GitHub App boundary
+
+- ใช้ GitHub App แทน personal access token
+- private key และ webhook secret มาจาก runtime secret configuration
+- installation access token ถูก mint ฝั่ง server และไม่ส่งเข้า browser
+- install callback state bind กับ user/workspace, มี expiry และ single-use
+- installation ID unique และห้าม map ข้าม workspace
+- repository sync รับเฉพาะ ID ที่ installation เข้าถึงได้จริง
+- webhook HMAC ตรวจ raw body ก่อน parse/use
+- `X-GitHub-Delivery` เป็น durable dedupe key
+- monitored PR ใช้ processing status และ signed retry เดินเฉพาะ delivery ที่ยัง
+  ไม่ processed; workflow/deployment retry ซ่อม normalized event ที่หายได้
+- retry ต้องมี installation/repository identity ตรงกับ delivery ที่บันทึกไว้
+- production ปฏิเสธ unmapped installation และไม่ใช้ synthetic fallback
+- disconnected repository ถูก mark revoked/deselected แทนการแกล้งว่า connected
+- GitHub Check write ปิดโดย default; เมื่อเปิดจะตรวจ `Checks: write`, connected
+  repository/change และ responder role สำหรับ manual publish ส่วน signed PR
+  webhook publish แบบ system actor ได้เฉพาะ installation/repository ที่ map แล้ว
+- GitHub Check publication มี unique repository/head identity, stable external ID,
+  provider Check ID, attempt/error และ next-retry metadata; retry recover/PATCH
+  Check เดิมแทนการสร้าง duplicate
+
+ข้อจำกัด: processing ยัง synchronous ไม่มี queue, dead-letter queue, delivery
+reconciliation, backpressure หรือ persisted raw-body replay
+
+อ้างอิงวิธีตรวจ webhook:
+[Validating webhook deliveries](https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries)
+
+## Telemetry และ operational-event boundary
+
+มี ingestion สองระดับที่ต้องไม่สับสน:
+
+1. `/telemetry/events` รับ normalized metric/log/trace/alert ด้วย bearer ที่ derive
+   จาก server credential root + workspace ID และตรวจ service/repository scope
+   ไม่ใช่ native OTLP receiver Production ไม่ยอมรับ raw credential root
+2. `/workspaces/{workspace_id}/events` รับ tenant-scoped operational event จาก
+   authenticated responder และ dedupe ด้วย `(workspace_id, source,
+   provider_event_id)`
+
+Operational event จาก member discard client provenance ทั้ง object แล้วสร้าง
+`authenticated_member` trust statement ใหม่ Reserved `_ingestion` ถูกเขียนฝั่ง
+server เสมอ: `member_api` มี actor/request ID ส่วน `trusted_internal` ใช้ได้เฉพาะ
+adapter ภายในหลัง map provider identity เป็น workspace/repository แล้ว Namespace
+ของ GitHub/telemetry/OTel ถูกสงวนจาก member endpoint
+
+ข้อกำหนดสำหรับ production gateway/Collector:
+
+- ใช้ TLS และ workspace-derived collector credential แยกจาก human token
+- ส่ง `X-DeployGuard-Workspace`, stable event ID และ repository scope เมื่อมี
+- allowlist resource attributes ที่ใช้ correlation
+- redact authorization header, cookie, secret, credential และ PII ก่อน ingest
+- จำกัด body size, field size, cardinality และ event rate
+- ไม่ส่ง raw log/trace ทั้งชุดเมื่อ normalized evidence เพียงพอ
+- pin semantic-convention/normalization version
+
+Repository มี [telemetry gateway contract](TELEMETRY_GATEWAY.md) แต่จงใจไม่มี
+Collector config ที่ชี้ OTLP payload เข้า normalized endpoint โดยตรง FastAPI ไม่มี
+OTLP protocol implementation และยังไม่มี raw telemetry retention/redaction job
+
+## Operational collaboration controls
+
+- Service slug unique ต่อ workspace
+- Dependency ต้องอยู่ workspace เดียวกันและ graph ต้องเป็น DAG
+- Risk policy update ใช้ explicit version เพื่อป้องกัน lost update
+- `warn_threshold` ต้องน้อยกว่า `block_threshold`
+- Operational event replay คืน row เดิมแบบ idempotent และไม่สร้าง
+  row/audit/notification ซ้ำเฉพาะ canonical payload/origin เดิม ถ้า key เดิมแต่
+  content/origin ต่างกันคืน `409`
+- Resolved incident เป็น terminal สำหรับ lifecycle mutation แต่ยังเพิ่ม
+  post-resolution note ได้
+- Incident assignee ต้องเป็น active workspace member
+- Incident note เป็น append-only และเก็บ author
+- Notification query scope ด้วย recipient user และ workspace membership
+- Notification เป็น in-app เท่านั้น ไม่มี arbitrary outgoing webhook
+
+## Invitation และ email
+
+- invitation token สุ่ม, hash at rest, expiring, revocable และ single-use
+- token bind กับ normalized email ของ authenticated user
+- list API ไม่คืน claim token
+- development outbox คืน token ครั้งเดียวด้วย `Cache-Control: no-store`
+- SMTP mode ไม่คืน token ใน API response และเก็บเฉพาะ delivery outcome
+
+SMTP credential ยังอยู่ใน runtime environment; repository ไม่มี managed
+secret-store adapter หรือ rotation job
 
 ## Threat model
 
-| Threat | ตัวอย่าง | Control ที่ต้องมี |
-|---|---|---|
-| Spoofed webhook | ผู้โจมตีส่ง deployment ปลอม | HMAC SHA-256 บน raw body, constant-time compare |
-| Replay/duplicate | delivery เดิมถูกส่งซ้ำ | unique delivery ID, idempotent inbox |
-| Cross-tenant access | installation A อ่าน incident B | tenant key ทุก query/FK, PostgreSQL RLS, negative tests |
-| Secret leakage | token อยู่ใน logs/prompt | secret manager, redaction, structured logging |
-| Prompt injection | code/log บอก LLM ให้เปิดเผยข้อมูลหรือเรียก tool | treat content as data, tool allowlist, no write tools |
-| Evidence poisoning | telemetry/source ปลอม | provenance, source quality, contradiction, signed source where available |
-| Overconfident output | summary กล่าวเกิน evidence | schema validator, citation coverage, deterministic candidate set |
-| Unsafe recommendation | ระบบเสนอ rollback แล้ว execute เอง | recommendation only, no deployment/cluster credential |
-| Dependency compromise | malicious package/image | lockfiles, scanning, pinned images, provenance/SBOM |
-| Denial of service | webhook flood หรือ huge logs | body limits, queue bounds, rate limits, quotas |
-
-## Prompt-injection boundary
-
-LLM ยังไม่ implement และถูก defer จน evidence-only contract กับ evaluation tests ผ่าน เมื่อเพิ่มแล้วต้องใช้ boundary ต่อไปนี้:
-
-```mermaid
-flowchart LR
-    Raw["Raw code/log/PR text<br/>Untrusted"]
-    Normalize["Normalize + redact + size limit"]
-    Evidence["Typed evidence records<br/>IDs + provenance"]
-    Candidate["Deterministic candidate set"]
-    LLM["Bounded summarizer"]
-    Validate["JSON schema + citation validator"]
-    Human["Human review"]
-
-    Raw --> Normalize --> Evidence
-    Evidence --> Candidate
-    Candidate --> LLM
-    Evidence --> LLM
-    LLM --> Validate --> Human
-```
-
-ข้อบังคับ:
-
-- ไม่มี shell, file write, GitHub mutation, deploy หรือ rollback tool
-- model เห็นเฉพาะ evidence ที่ได้รับอนุญาตของ tenant เดียว
-- repository/log text อยู่ใน quoted data field ไม่ใช่ system instruction
-- output เป็น typed JSON
-- cause ที่ไม่มี candidate/evidence ID ถูก reject
-- recommendation เป็น read-only verification step
-- prompt, model, evidence bundle และ validator version ถูก audit
-- provider retention/region ต้อง configurable
-- failure หรือ timeout ต้อง fallback ไป deterministic template
-
-## GitHub integration
-
-Connected mode รองรับ GitHub App installation, short-lived installation token,
-repository discovery, workspace mapping และ durable webhook deduplication:
-
-- ใช้ GitHub App ไม่ใช้ personal access token
-- permission ขั้นต่ำ: Metadata read, Pull requests read และ Deployments read
-- subscribe เฉพาะ event ที่ใช้
-- ตรวจ `X-Hub-Signature-256` ตาม [GitHub webhook validation](https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries)
-- deduplicate `X-GitHub-Delivery`
-- เก็บ verified event แบบ durable; PR metadata ที่มีหลักฐานจริงสร้าง connected change record ส่วน coverage/rollback/observability ที่ไม่ทราบใช้ค่าความไม่แน่นอนแบบ conservative
-- installation token อยู่ใน memory/cache ชั่วคราวและ rotate ตาม expiry
-- pin GitHub API version
-- เคารพ primary/secondary rate limits และ `Retry-After`
-- disconnect ทำเครื่องหมาย connection/repository เป็น revoked และหยุดใช้ข้อมูลนั้น
-
-GitHub ระบุว่า Check Run write ใช้ GitHub App และ Checks permission ตาม [Checks API](https://docs.github.com/en/rest/checks/runs)
-
-## OpenTelemetry integration roadmap
-
-- OTLP endpoint ต้อง authenticate และใช้ TLS ใน connected deployment
-- allowlist resource attributes ที่ใช้ correlation
-- จำกัด payload/body/cardinality
-- redact secrets, authorization headers, cookies และ PII
-- telemetry source มี tenant/workspace mapping ที่ server กำหนด ไม่เชื่อค่าจาก client เพียงอย่างเดียว
-- collector retry/queue ต้องมี drop metrics และ alert
-- raw telemetry retention สั้นกว่ normalized evidence
-- semantic-convention version ถูก pin และ migration ได้
-
-ไม่มี Collector configuration หรือ live OTLP endpoint ใน repository ปัจจุบัน
-
-## Authentication and authorization roadmap
-
-Synthetic local MVP ปัจจุบันเป็น single-user และไม่มี auth ห้ามนำไป expose ต่อ internet
-
-Connected phase ต้องมี:
-
-- authenticated user/session
-- workspace role อย่างน้อย viewer, investigator และ admin
-- authorization ที่ service layer ไม่พึ่ง UI hiding
-- tenant-scoped primary/foreign/unique keys
-- PostgreSQL RLS เป็น defense in depth
-- audit ของ scenario activation, analysis, feedback และ integration changes
-- CSRF protection สำหรับ cookie session หรือ secure token strategy ที่ชัดเจน
+| Threat | ตัวอย่าง | Control ปัจจุบัน | Remaining work |
+|---|---|---|---|
+| Spoofed webhook | ส่ง deployment ปลอม | Raw-body HMAC | Secret rotation drill |
+| Replay/duplicate | delivery ถูกส่งซ้ำ | Durable unique delivery ID + Check publication identity/recovery | Background scheduler/TTL policy |
+| Cross-tenant access | workspace A อ่าน incident B | Membership + tenant predicates | PostgreSQL RLS/composite constraints |
+| IDOR | เปลี่ยน service/assignee เป็น ID tenant อื่น | Same-workspace validation | Fuzz/negative matrix |
+| Secret leakage | key อยู่ใน log/error | ไม่คืน installation/token ใน API | Central redaction tests/KMS |
+| Telemetry poisoning | source ส่ง evidence ปลอม | Workspace-HMAC bearer + server-owned source/provenance + scope validation | Per-source credential, quota, signing |
+| Event flood | webhook/log จำนวนมาก | Typed size limits บาง field | Global body/rate/queue limits |
+| Policy overwrite | admin สองคนแก้พร้อมกัน | Explicit monotonic version | ETag/transaction concurrency tests |
+| Audit tampering | Application DB user แก้ audit row | Append-only API behavior | Privilege separation/external sink |
+| XSS/token theft | untrusted event text เข้า UI | Angular escaping by default | CSP and deployment review |
+| Prompt injection | log สั่ง model ให้ทำ action | ไม่มี LLM runtime/tool | Corpus + citation validator ก่อนเปิด |
+| Unsafe remediation | ระบบสั่ง rollback | ไม่มี execution credential/path | Keep architecture boundary |
 
 ## Secrets
 
-- local development ใช้ ignored `.env` หรือ developer secret store
-- production ใช้ managed secret/KMS
-- ห้าม commit private key, webhook secret, database password หรือ model key
-- ห้ามแสดง secret ใน error response
-- log redaction test ต้องครอบคลุม token patterns
-- rotation runbook ต้องทดสอบได้โดยไม่หยุด synthetic mode
+ห้าม commit:
 
-## Data minimization and retention
+- OIDC client secret ถ้ามี
+- GitHub App private key และ webhook secret
+- SMTP password
+- database credential
+- telemetry ingest token
+- future model provider key
 
-- ไม่ clone repository โดย default; ดึงเฉพาะ metadata/diff ที่จำเป็น
-- ไม่ใช้ author identity เป็น performance/risk score
-- raw code/log ถูกจำกัดขนาดและ retention
-- feedback note อาจมีข้อมูลอ่อนไหว จึงต้อง redact/search policy
-- deletion ตาม installation/workspace และสำรองข้อมูลมี retention ชัดเจน
-- training/evaluation จาก private data ต้อง explicit opt-in และแยกจาก public benchmark
+Local ใช้ ignored `.env` ได้ Production ต้องใช้ managed secret provider และ
+inject เป็น runtime environment การ rotate ต้องไม่ต้อง rebuild image
 
-## Security acceptance gates
+## Data minimization และ retention
 
-| Gate | สถานะ |
+ปัจจุบันระบบเก็บ normalized metadata/evidence และไม่ clone repository โดย
+default แต่ automated retention ยังไม่มี:
+
+| Data class | Current behavior |
 |---|---|
-| Local CORS origins | ✅ Automated test ผ่าน |
-| FastAPI validation/domain errors | ✅ Automated tests ผ่าน |
-| npm production dependency audit | ✅ 0 vulnerabilities |
-| No shell/deploy/rollback/remediation capability | ✅ ตรวจ architecture/code boundary แล้ว |
-| Docker Compose parse | ✅ ผ่าน |
-| Docker image build/scan | ⚠️ ยังไม่ตรวจ; Linux daemon unavailable |
-| Invalid webhook signature/replay | Roadmap; ไม่มี GitHub adapter |
-| Cross-tenant negative tests | Roadmap; ไม่มี auth/tenancy |
-| Secret-fixture redaction | Roadmap ก่อน connected integrations |
-| Prompt-injection/tool-action corpus | Roadmap; ไม่มี LLM |
-| Authorization matrix | Roadmap |
-| Backup/restore, migrations และ deletion workflow | Roadmap |
+| Synthetic fixtures | อยู่ตาม repository/application version |
+| Webhook delivery ledger | เก็บจนกว่าจะมี external cleanup |
+| Operational events | เก็บจนกว่าจะมี external cleanup |
+| Incident evidence/notes/feedback | เก็บใน database ไม่มี TTL |
+| Notification | เก็บแม้ mark read |
+| Audit event | เก็บใน database ไม่มี archival policy |
 
-## Current limitations
+ห้ามอ้างว่าระบบลบข้อมูลตาม 7/30/90 วันจนกว่าจะมี configuration, scheduled job,
+deletion audit และ tests จริง Workspace deletion, uninstall cleanup, legal hold
+และ backup expiry ยังต้องออกแบบ
 
-- ไม่มี authentication/authorization และ tenant isolation
-- local endpoints เปิดรับ request โดยไม่ยืนยันตัวตน
-- CORS ไม่ใช่ access control
-- SQLite ใช้ `create_all`; ไม่มี migration, backup/restore หรือ deletion workflow
-- ไม่มี webhook receiver/signature/replay controls เพราะ GitHub integration ยังไม่ implement
-- ไม่มี OTel endpoint หรือ telemetry redaction pipeline
-- ไม่มี secret-store integration; Compose มี development defaults ที่ห้ามใช้ production
-- ไม่มี LLM boundary/runtime หรือ prompt-injection test
-- ไม่มี Docker image build/scan result
-- ไม่มี full penetration test หรือ production security review
+## LLM boundary
 
-สถานะเหล่านี้ต้องอัปเดตจากหลักฐานการทดสอบเท่านั้น
+LLM ไม่ได้ implement หากเพิ่มในอนาคตต้องผ่านเงื่อนไข:
+
+- model เห็นเฉพาะ redacted evidence ของ tenant เดียว
+- external text อยู่ใน data field ไม่ใช่ instruction
+- deterministic candidate set เป็นขอบเขตคำตอบ
+- typed output ต้องอ้าง evidence IDs
+- unsupported claim ถูก reject
+- ไม่มี shell/file/GitHub/deploy/rollback tool
+- timeout/failure fallback เป็น deterministic template
+- prompt/model/evidence bundle/validator version ถูก audit
+
+## Security verification checklist
+
+คำสั่งใน checklist เป็นขั้นตอนที่ต้องรันใน release pipeline ไม่ใช่คำยืนยันว่า
+environment ปัจจุบันผ่านแล้ว:
+
+- `pytest`
+- `npm test -- --watch=false`
+- `npm run build`
+- `npm audit --omit=dev`
+- `docker compose config`
+- Alembic upgrade บน empty SQLite และ PostgreSQL
+- invalid/expired OIDC token tests
+- cross-workspace negative tests ทุก endpoint
+- invalid GitHub signature และ duplicate delivery tests
+- duplicate operational event และ cross-tenant foreign-ID tests
+- dependency cycle, stale policy version และ illegal incident transition tests
+- secret-fixture log scan
+- backup/restore drill
+- dependency/image scan และ production penetration test
+
+Operations runbook อยู่ใน [OPERATIONS.md](OPERATIONS.md)

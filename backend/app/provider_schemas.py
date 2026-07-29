@@ -11,8 +11,10 @@ class ProductCapabilities(APIModel):
     auth_provider: Literal["development", "oidc", "disabled"]
     development_identity: bool
     github_app: bool
+    github_checks: bool
     email_delivery: Literal["smtp", "development_outbox", "disabled"]
     connected_telemetry: bool
+    telemetry_scope: Literal["workspace_credential", "disabled"]
     oidc_authority: str | None = None
     oidc_client_id: str | None = None
     oidc_scope: str | None = None
@@ -55,6 +57,15 @@ class GitHubRepositorySyncResponse(APIModel):
     imported: int = Field(ge=0)
     deselected: int = Field(ge=0)
     synced_at: datetime
+
+
+class GitHubCheckRunResponse(APIModel):
+    provider_check_id: str
+    change_id: str
+    status: str
+    conclusion: Literal["neutral", "success"]
+    details_url: str
+    published_at: datetime
 
 
 class InvitationDeliverySummary(APIModel):

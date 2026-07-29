@@ -106,6 +106,9 @@ class IncidentRecord(Base):
     title: Mapped[str] = mapped_column(String(240))
     severity: Mapped[str] = mapped_column(String(20))
     status: Mapped[str] = mapped_column(String(30))
+    assignee_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True, index=True
+    )
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     resolved_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True

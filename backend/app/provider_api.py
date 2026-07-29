@@ -13,6 +13,7 @@ from .services import list_changes
 from .workspace_services import membership_for
 from .provider_schemas import (
     GitHubConnectionSummary,
+    GitHubCheckRunResponse,
     GitHubInstallStart,
     GitHubRepositoryCandidate,
     GitHubRepositorySyncRequest,
@@ -27,6 +28,7 @@ from .provider_services import (
     connection_summary,
     disconnect_github,
     github_connection,
+    publish_github_change_check,
     sync_github_repositories,
 )
 from .workspace_api import get_current_user, get_session, request_id
@@ -61,6 +63,32 @@ def connected_repository_changes(
     if repository is None:
         raise DomainError("Repository not found", "repository_not_found", 404)
     return list_changes(session, workspace_id, repository_id)
+
+
+@router.post(
+    (
+        "/workspaces/{workspace_id}/repositories/{repository_id}"
+        "/changes/{change_id}/github-check"
+    ),
+    response_model=GitHubCheckRunResponse,
+)
+def publish_change_check(
+    workspace_id: str,
+    repository_id: str,
+    change_id: str,
+    request: Request,
+    user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_session)],
+) -> GitHubCheckRunResponse:
+    return publish_github_change_check(
+        session,
+        user,
+        workspace_id=workspace_id,
+        repository_id=repository_id,
+        change_id=change_id,
+        request_id=request_id(request),
+        settings=request.app.state.settings,
+    )
 
 
 @router.post(

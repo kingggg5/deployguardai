@@ -64,6 +64,8 @@ class BlastRadius(APIModel):
 
 class ChangeDetail(APIModel):
     id: str
+    workspace_id: str
+    repository_id: str
     scenario_id: str
     data_mode: DataMode
     title: str
@@ -90,6 +92,7 @@ class TimelineEvent(APIModel):
     title: str
     detail: str
     service_id: str | None
+    actor_user_id: str | None = None
 
 
 class Evidence(APIModel):
@@ -133,6 +136,7 @@ class IncidentDetail(APIModel):
     title: str
     severity: str
     status: str
+    assignee_user_id: str | None = None
     started_at: datetime
     resolved_at: datetime | None
     affected_services: list[str]
@@ -175,6 +179,18 @@ class AnalyzeChangeRequest(APIModel):
     title: NonEmptyString = Field(max_length=240)
     repository: NonEmptyString = Field(max_length=240)
     author: NonEmptyString = Field(max_length=160)
+    commit_sha: str | None = Field(
+        default=None,
+        min_length=7,
+        max_length=64,
+        pattern=r"^[0-9a-fA-F]+$",
+    )
+    branch: str | None = Field(default=None, min_length=1, max_length=160)
+    deployment_environment: str = Field(
+        default="staging",
+        min_length=1,
+        max_length=80,
+    )
     files_changed: int = Field(ge=0, le=100_000)
     lines_added: int = Field(ge=0, le=10_000_000)
     lines_deleted: int = Field(ge=0, le=10_000_000)

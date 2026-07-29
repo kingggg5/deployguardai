@@ -63,4 +63,14 @@ describe('DeployGuardApiService', () => {
     expect(request.request.body).toEqual(payload);
     request.flush(makeOverview().active_incident);
   });
+
+  it('fetches an immutable change by encoded id', () => {
+    service.getChange('change/checkout').subscribe();
+
+    const request = http.expectOne(
+      '/test-api/v1/changes/change%2Fcheckout'
+    );
+    expect(request.request.method).toBe('GET');
+    request.flush(makeOverview().active_change);
+  });
 });

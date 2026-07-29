@@ -1,276 +1,264 @@
-# Roadmap 12 สัปดาห์
+# DeployGuard AI roadmap
 
-> สถานะ: runnable synthetic MVP เสร็จและผ่าน core verification แล้ว Roadmap นี้แยกสิ่งที่ส่งมอบจริงออกจาก evaluation, security และ connected integrations ที่ยังเหลือ
+Roadmap นี้เรียงตาม dependency และความเสี่ยง ไม่ใช้เลขสัปดาห์ เพราะเลขสัปดาห์
+ไม่ได้เป็นหลักฐานว่า capability พร้อมใช้งาน
 
-สัญลักษณ์:
+## สถานะ
 
-- ✅ Implement และตรวจแล้ว
-- 🟡 Implement บางส่วนหรือมีเฉพาะ configuration
-- ⬜ ยังไม่ implement
+- ✅ **Implemented** — มี runtime path และ automated test coverage ใน repository
+- 🟡 **Credential/environment gated** — code มีแล้ว แต่ต้อง configure external
+  provider หรือยังต้อง verify บน reference production environment
+- ⬜ **Planned** — ยังไม่มี complete runtime path
+- ⏸ **Deferred** — จงใจยังไม่ทำจนกว่า prerequisite gate ผ่าน
 
-## Current snapshot
+## Capability map
 
-| Capability | สถานะ | หลักฐาน/ข้อจำกัด |
-|---|---|---|
-| Angular 22 + FastAPI local runtime | ✅ | รันที่ ports 4300/8100 |
-| SQLite persistence | ✅ | Default local database |
-| PostgreSQL | 🟡 | URL/config tests มี; ยังไม่มี migration หรือ integration run |
-| 3 synthetic scenarios | ✅ | Seed idempotency test |
-| 10 API routes | ✅ | API tests ครอบคลุม primary flows |
-| 6-dimension risk engine | ✅ | Determinism/bounds tests |
-| BFS blast radius | ✅ | Decay/cycle tests |
-| Top-3 evidence RCA | ✅ | Counter-evidence test |
-| Human feedback | ✅ | Backend/frontend persistence tests |
-| Frontend quality | ✅ | 7 testsและ production build |
-| Backend quality | ✅ | 13 tests |
-| Browser/CORS | ✅ | Desktop/mobile flow และ local origins verified |
-| npm production audit | ✅ | 0 vulnerabilities |
-| Docker Compose | 🟡 | `config` ผ่าน; image build ยังไม่ยืนยันเพราะ Linux daemon ไม่พร้อม |
-| Auth/tenancy/migrations | ⬜ | ไม่ implement |
-| GitHub/OTel/LLM | ⬜ | ไม่ implement |
-| Real/public dataset benchmark | ⬜ | ไม่มี measured result |
+| Capability | Status | Current truth |
+|---|---:|---|
+| Angular/FastAPI application shell | ✅ | Typed API client, responsive workspace/investigation UI |
+| Deterministic risk + blast radius | ✅ | Explicit dimensions, bounded cycle-safe traversal |
+| Incident evidence + RCA + feedback | ✅ | Top hypotheses, counter-evidence และ persistent verdict |
+| Workspace, invitation และ RBAC | ✅ | Viewer/responder/admin/owner และ tenant-scoped context |
+| OIDC production authentication | 🟡 | JWT/JWKS verifier มีแล้ว; ต้อง configure issuer |
+| Alembic migrations | ✅ | Upgrade ถึง head ตอน startup และ guarded legacy bootstrap |
+| GitHub App connected repositories | 🟡 | Install/sync/webhook path มีแล้ว; ต้อง configure GitHub App |
+| GitHub Check Run feedback | 🟡 | Durable create-or-PATCH/retry path มีแล้ว; ต้องเปิด flag, Checks write และ verify กับ GitHub จริง |
+| SMTP invitation delivery | 🟡 | SMTP path มีแล้ว; local ใช้ development outbox |
+| Normalized telemetry ingestion | 🟡 | Workspace-derived collector bearer และ tenant ledger มีแล้ว; ไม่ใช่ native OTLP receiver |
+| Service catalog | ✅ | Validated dependency DAG ถูก overlay เข้า deterministic risk/blast-radius analysis |
+| Workspace risk policy | ✅ | Versioned thresholds และ safety requirements |
+| Durable operational events | ✅ | Tenant validation, server-owned provenance และ conflict-safe idempotency |
+| Incident lifecycle + notes | ✅ | Role-gated transitions, assignee และ append-only notes |
+| In-app notifications | ✅ | Recipient-scoped list/read state |
+| PostgreSQL production verification | 🟡 | Driver/config/migrations รองรับ; reference integration gate ยังเปิด |
+| Retention/deletion automation | ⬜ | ไม่มี scheduled policy/job |
+| Native OTLP ingestion pipeline | ⬜ | ต้องมี authenticated Collector/gateway mapping |
+| LLM synthesis | ⏸ | Endpoint เป็น `501`; รอ evidence/security/evaluation gate |
 
-## 12-week delivery map
+## Foundation ที่ส่งมอบแล้ว
 
-```mermaid
-flowchart LR
-    W1["W1<br/>Foundation<br/>✅"]
-    W2["W2<br/>Data + seeds<br/>✅"]
-    W3["W3<br/>Risk + graph<br/>✅"]
-    W4["W4<br/>Incident + RCA<br/>✅"]
-    W5["W5<br/>Angular ledger<br/>✅"]
-    W6["W6<br/>Verification<br/>✅"]
-    W7["W7<br/>Versioned eval harness<br/>⬜"]
-    W8["W8<br/>Public benchmarks<br/>⬜"]
-    W9["W9<br/>Migrations + PostgreSQL<br/>⬜"]
-    W10["W10<br/>Auth + tenancy<br/>⬜"]
-    W11["W11<br/>GitHub + OTel sandbox<br/>⬜"]
-    W12["W12<br/>Container release + LLM decision<br/>⬜"]
+### Deterministic investigation core
 
-    W1 --> W2 --> W3 --> W4 --> W5 --> W6 --> W7 --> W8 --> W9 --> W10 --> W11 --> W12
-```
+- risk score 6 dimensions จาก explicit weights
+- risk reason และ evidence IDs
+- bounded BFS blast radius พร้อม hop cap และ cycle protection
+- deterministic RCA ที่พิจารณา evidence และ counter-evidence
+- human verdict แยกจาก original evidence snapshot
+- synthetic scenarios ที่ทำซ้ำได้และติดป้ายชัดเจน
 
-เลขสัปดาห์แสดงลำดับ delivery ไม่ใช่หลักฐานว่าการทำงานใช้เวลาตามนั้นจริง
+ข้อจำกัด: automated fixture correctness ไม่เท่ากับ real-dataset RCA accuracy
 
-## Week 1 — Foundation ✅
+### Tenant application layer
 
-Delivered:
+- development bearer สำหรับ local
+- production OIDC JWT/JWKS verification
+- workspace/repository/scenario context ต่อ user
+- roles `viewer`, `responder`, `admin`, `owner`
+- invitation แบบ hashed, expiring, single-use และ revocable
+- application audit events
+- tenant-scoped change/incident/provider operations
 
-- FastAPI, Pydantic, SQLAlchemy 2.x
-- Angular 22 standalone application
-- typed frontend API service
-- `/api/v1` router และ domain errors
-- local PowerShell run/stop scripts
-- Dockerfiles และ Compose definition
+ข้อจำกัด: ยังไม่มี PostgreSQL RLS และ audit store ยังไม่ tamper-proof
 
-Verified:
+### Connected provider layer
 
-- local backend/frontend start
-- health endpoint และ database readiness
-- API base URL/CORS smoke path
+- GitHub App install state และ callback
+- installation-to-workspace mapping
+- repository discovery/sync
+- raw-body webhook HMAC
+- durable GitHub delivery dedupe
+- PR processing status และ signed-retry repair สำหรับ normalized events
+- signed PR metadata เป็น connected change
+- SMTP invitation delivery
+- normalized telemetry HTTP endpoint
 
-## Week 2 — Data model และ seeded scenarios ✅
+ข้อจำกัด: webhook ยัง synchronous ไม่มี worker/DLQ/background retry scheduler
+แม้ Check publication จะมี durable retry state แล้ว และ telemetry endpoint
+ไม่ใช่ OTLP receiver
 
-Delivered:
+### Operations workspace
 
-- `Scenario`, `ChangeRecord`, `IncidentRecord`, `FeedbackRecord`
-- SQLite default persistence
-- PostgreSQL URL normalization/configuration
-- 3 embedded synthetic scenarios
-- idempotent seed behavior
+- service catalog ที่ไม่ต้องเดาจาก repository name
+- dependency validation ภายใน workspace และ cycle rejection
+- versioned workspace risk thresholds และ safety requirements
+- normalized operational-event ledger พร้อม tenant dedupe
+- incident state transitions, assignee และ responder notes
+- in-app notifications ที่ scope ตาม recipient
 
-Known debt:
+ข้อจำกัด: ยังไม่มี event queue/retention, Slack/Teams/PagerDuty delivery หรือ SLO
+engine
 
-- schema ใช้ `create_all`
-- JSON aggregates ยังไม่มี schema version
-- ไม่มี migrations, tenant keys หรือ RLS
+## P0 — Production hardening
 
-## Week 3 — Deterministic risk และ blast radius ✅
+งานกลุ่มนี้ต้องเสร็จก่อนอ้าง production-ready
 
-Delivered:
-
-- 6 weighted dimensions: change size, service scope, change type, test confidence gap, operational history และ safety readiness gap
-- score bounds/levels/data quality/recommendations
-- BFS blast radius พร้อม confidence decay, hop cap และ cycle handling
-
-Gate evidence:
-
-- deterministic/bounds/safer-input tests ผ่าน
-- BFS decay/cycle test ผ่าน
-
-## Week 4 — Incident, evidence และ RCA ✅
-
-Delivered:
-
-- incident timeline
-- typed evidence with support/contradiction links
-- deterministic Top-3 hypotheses
-- evidence-quality/reliability weighting
-- human feedback persistence
-
-Gate evidence:
-
-- Top-3/counter-evidence algorithm test ผ่าน
-- incident/feedback API tests ผ่าน
-
-ข้อจำกัด: ผลเหล่านี้เป็น fixture correctness ไม่ใช่ real-dataset RCA accuracy
-
-## Week 5 — Investigation Ledger UI ✅
-
-Delivered:
-
-- scenario rail
-- risk ledger
-- SVG topology
-- Evidence X-ray
-- evidence inspector
-- incident replay
-- RCA Top-3/detail
-- confirm/partial/reject feedback
-- responsive mobile panes
-
-Gate evidence:
-
-- 7 frontend tests ผ่าน
-- production build ผ่าน
-- desktop/mobile browser flow ผ่าน
-
-## Week 6 — MVP verification ✅ / 🟡
-
-Verified:
-
-- backend 13 tests
-- frontend 7 tests/build
-- npm production audit 0 vulnerabilities
-- CORS ทั้ง `127.0.0.1` และ `localhost`
-- Compose parse/configuration
-
-Open:
-
-- Docker Linux image build, container healthchecks และ container browser flow
-- full screen-reader audit
-- PostgreSQL runtime/integration tests
-
-Milestone: **Runnable synthetic portfolio MVP**
-
-## Week 7 — Versioned evaluation harness ⬜
+### PostgreSQL contract verification
 
 Deliver:
 
-- scenario/dataset/scoring/graph schema versions
+- run migrations บน empty และ upgraded PostgreSQL
+- concurrent policy/event/invitation tests
+- transaction retry policy สำหรับ serialization/deadlock
+- composite tenant constraints ที่เหมาะสม
+- PostgreSQL RLS เป็น defense in depth
+- query-plan/index review สำหรับ event/notification/audit list
+
+Exit gate:
+
+- SQLite local และ PostgreSQL contract behavior ตรงกัน
+- cross-tenant matrix ผ่านบน PostgreSQL
+- migration forward path และ restore path ถูกทดลองจริง
+
+### Ingestion reliability
+
+Deliver:
+
+- fast webhook acknowledgement
+- durable job queue
+- bounded retry พร้อม exponential backoff
+- dead-letter queue และ replay authorization
+- scheduled/proactive GitHub reconciliation เพิ่มจาก signed-retry repair ที่มีแล้ว
+- per-source/workspace rate limit และ quota
+- request-body/cardinality limits
+- operational metrics: accepted, duplicate, rejected, lag, retry, dropped
+
+Exit gate:
+
+- duplicate input ไม่สร้าง side effect ซ้ำ
+- provider outage ไม่ทำ request thread ค้าง
+- replay มี audit และ tenant authorization
+- overload test แสดง bounded resource usage
+
+### Data lifecycle
+
+Deliver:
+
+- configurable retention ต่อ data class
+- scheduled archive/delete job
+- workspace/provider uninstall deletion workflow
+- legal-hold override
+- backup/restore automation
+- deletion และ restore audit
+
+Exit gate:
+
+- policy ไม่ใช่เพียงข้อความใน docs
+- expired data ถูกลบจาก primary, backup ตาม policy และ search index ถ้ามี
+- restore drill บน reference environment ผ่าน
+
+### Platform security
+
+Deliver:
+
+- managed secret/KMS integration และ rotation
+- HTTPS/security headers/CSP deployment profile
+- dependency/image/SBOM pipeline
+- log/telemetry secret redaction
+- abuse/rate-limit tests
+- production threat review และ penetration test
+
+Exit gate:
+
+- development provider เปิดไม่ได้ใน production
+- no critical access-control/secret finding
+- rotation ไม่ทำ synthetic mode เสีย
+
+## P1 — Operational usefulness
+
+### Native telemetry gateway
+
+- OpenTelemetry Collector receiver
+- Collector deployment, rotation และ distribution ของ workspace-derived credential
+- semantic-convention version
+- allowlisted/redacted normalized event contract
+- queue/drop metrics และ backpressure
+- service/deployment/incident correlation windows
+
+FastAPI ไม่จำเป็นต้องเป็น OTLP receiver โดยตรง Collector ควรเป็น protocol
+boundary แล้วส่ง normalized event เข้า API
+
+### SLO และ error budget
+
+- service-level SLI/SLO definition
+- availability/latency/error-rate windows
+- error budget before/after deployment
+- regression detection tied to change/deployment
+- SLO evidence เป็น input ของ deterministic risk policy
+
+### Collaboration integrations
+
+- Slack/Teams notification delivery
+- PagerDuty/Opsgenie incident link
+- Jira/Linear action items
+- delivery preference, quiet hours, severity routing
+- connection health, last success/error และ test connection
+
+External notification ต้องเป็น allowlisted integration ไม่ใช่ arbitrary webhook
+URL
+
+### Search และ saved views
+
+- search commit SHA, PR, service, incident และ event
+- filters: time, severity, environment, source, status
+- saved views และ deep links
+- keyboard command palette
+- pagination/cursor contract สำหรับ large workspace
+
+## P2 — Evidence quality และ evaluation
+
+### Versioned evaluation harness
+
+- dataset/scenario/scoring/graph schema versions
 - frozen core/held-out suites
-- checksums และ machine-readable run manifest
-- aggregate Top-K/MRR/graph correctness runner
+- checksums และ run manifest
+- Top-K/MRR/graph correctness metrics
 - confidence intervals และ failure slices
+- public/real-dataset provenance และ license inventory
 
-Exit gate:
+ผล benchmark ทุกชุดต้อง pin commit, dataset และ configuration และต้องไม่ปน
+unit-test count กับ model accuracy
 
-- result ทุกชุด pin commit, dataset และ configuration
-- README/UI อ้างเฉพาะผลที่มี artifact
-- ไม่มี fabricated benchmark result
+### Risk calibration
 
-## Week 8 — Public and out-of-distribution benchmarks ⬜
+- compare predicted risk กับ deployment outcomes
+- false-positive/false-negative slices
+- policy simulation ก่อน activate
+- historical replay
+- model/weight version comparison
+- workspace feedback analytics โดยไม่ใช้ author identity เป็น risk signal
 
-Deliver:
+### Service graph scale decision
 
-- RCAEval adapter และ pinned dataset archive
-- license/provenance inventory
-- deterministic baselines
-- OpenTelemetry Demo synthetic OOD plan
+เริ่มด้วย relational adjacency/recursive CTE ก่อนเพิ่ม graph database พิจารณา
+graph store เฉพาะเมื่อ benchmark บน workload จริงแสดงว่า PostgreSQL ไม่ผ่าน
+latency/maintainability target
 
-Exit gate:
+## Deferred — Evidence-grounded LLM
 
-- public benchmark reproduction command ใช้ได้
-- รายงาน sample count, split, prevalence และ limitations
-- ไม่ปน engineering test count กับ model accuracy
+เปิดพิจารณาเมื่อ:
 
-## Week 9 — Migrations and PostgreSQL hardening ⬜
-
-Deliver:
-
-- Alembic migrations
-- clean upgrade/downgrade policy
-- PostgreSQL integration/concurrency tests
-- normalize/index graph/evidence fields ที่จำเป็น
-- backup/restore smoke test
-
-Exit gate:
-
-- SQLite/PostgreSQL contract behavior ตรงกัน
-- migration จาก empty/current schema ผ่าน
-- backup/restore ผ่านบน reference environment
-
-## Week 10 — Authentication, tenancy and security ⬜
-
-Deliver:
-
-- authenticated session
-- viewer/investigator/admin roles
-- tenant/workspace keys ทุก query/FK
-- PostgreSQL RLS
-- audit trail, retention และ deletion workflow
-- secret manager integration
-
-Exit gate:
-
-- cross-tenant negative tests ผ่านทุก endpoint
-- authorization matrix ผ่าน
-- local unauthenticated mode ไม่สามารถเปิดใน production profile
-
-## Week 11 — Connected sandbox ⬜
-
-Deliver:
-
-- GitHub App webhook adapter หลัง feature flag
-- HMAC verification, delivery dedupe, reconciliation และ rate-limit handling
-- OpenTelemetry normalization sandbox
-- explicit `synthetic`/`connected` isolation
-
-Exit gate:
-
-- least-privilege review ผ่าน
-- invalid signature/replay tests ผ่าน
-- disconnected integrations ไม่ทำให้ synthetic demo เสีย
-- ยังไม่อ้าง production readiness
-
-## Week 12 — Container release and LLM decision ⬜
-
-Deliver:
-
-- Docker Linux image build
-- Compose healthcheck/browser verification
-- image/dependency scan และ pinned release artifacts
-- clean-machine reproduction
-- bounded LLM experiment เฉพาะเมื่อ evidence/security gates ผ่าน
-
-Exit gate:
-
-- containers build/run/healthchecks ผ่านจริง
-- no critical security/accessibility finding
-- demo ไม่ต้องใช้ external credentials
-- LLM ที่ไม่ผ่าน groundedness gate ปิดโดย default
-
-## LLM decision gate
-
-เพิ่ม LLM ได้หลังจาก:
-
-1. deterministic explanation เป็น baseline
-2. evidence-only typed contract มี version
-3. unsupported-claim/citation validator มี tests
+1. evidence-only typed contract มี version
+2. deterministic explanation เป็น baseline
+3. unsupported-claim และ citation validator มี tests
 4. prompt-injection corpus มี tests
-5. auth/tenant/redaction boundary พร้อม
-6. latency, cost และ provider-retention policy ถูกกำหนด
-7. blind review แสดงประโยชน์เหนือ template
+5. tenant/redaction/retention boundary ผ่าน review
+6. provider region/retention/cost policy ถูกกำหนด
+7. blind evaluation แสดงประโยชน์เหนือ deterministic template
 
-LLM ไม่ได้รับสิทธิ์ให้คะแนน, เพิ่ม candidate โดยไม่มี evidence, execute tool, deploy หรือ remediate
+LLM จะไม่มีสิทธิ์ให้คะแนน, สร้าง evidence, execute tool, deploy, rollback หรือ
+remediate
 
 ## Definition of done
 
-ทุก capability เปลี่ยนจาก roadmap เป็น verified ได้ต่อเมื่อมี:
+Capability จะเปลี่ยนเป็น implemented/verified ได้เมื่อมี:
 
-- automated test result
-- runtime/browser verification ที่เหมาะกับ capability
-- API/data contract evidence
-- security/accessibility check
-- reproducible command
-- documentation ของ known limitations
+- typed API และ data contract
+- authorization/tenant negative tests
+- deterministic/idempotency tests ตามความเสี่ยง
+- migration และ operational failure behavior
+- frontend loading/error/empty/accessibility behavior ถ้ามี UI
+- reproducible verification command
+- documentation ของ credential requirements และ known limitations
+
+Deployment runbook อยู่ใน [OPERATIONS.md](OPERATIONS.md) และ threat controls อยู่
+ใน [SECURITY.md](SECURITY.md)

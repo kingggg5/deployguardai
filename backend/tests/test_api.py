@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 
 from app.config import Settings
 from app.main import create_app
+from app.models import LEGACY_REPOSITORY_ID, LEGACY_WORKSPACE_ID
 
 
 ANALYZE_PAYLOAD = {
@@ -71,6 +72,8 @@ def test_analyze_change_persists_bounded_explainable_result(
     assert second.status_code == 201
     payload = first.json()
     assert payload["id"] == second.json()["id"]
+    assert payload["workspace_id"] == LEGACY_WORKSPACE_ID
+    assert payload["repository_id"] == LEGACY_REPOSITORY_ID
     assert 0 <= payload["risk"]["overall_score"] <= 100
     assert len(payload["risk"]["dimensions"]) == 6
     assert payload["risk"]["recommendations"]

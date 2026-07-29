@@ -1,0 +1,489 @@
+<!--
+THESIS: Operations is a registered control ledger where teams close service ownership, policy, event, incident, and notification gaps without scanning a generic card wall.
+OWN-WORLD: Cool instrument-paper rows, obsidian operating surfaces, cobalt focus, semantic square marks, and precise mono measurements.
+STORY: Confirm live connections, choose a workspace, register services, tune explicit policy, inspect accepted events, coordinate the active incident, and clear the inbox.
+FIRST VIEWPORT: A truth-based connection register leads into a narrow operation index, a dominant task ledger, and a persistent notification pane.
+FORM: Split operations ledger extending the established investigation cockpit.
+-->
+
+<section class="operations-center" [attr.aria-busy]="isLoading() || isBusy()">
+  <header class="operations-heading">
+    <div class="operations-intro">
+      <p class="system-kicker">Operations Center</p>
+      <h1>{{ copy('Run the system from evidence, not assumptions', 'ควบคุมระบบจากหลักฐาน ไม่ใช่การคาดเดา') }}</h1>
+      <p>
+        {{ copy(
+          'Register ownership, make risk policy explicit, inspect accepted events, and coordinate incident work in one tenant-scoped ledger.',
+          'กำหนดผู้รับผิดชอบ ตั้งนโยบายความเสี่ยง ตรวจ event ที่รับเข้าจริง และประสานงาน incident ภายใน workspace เดียว'
+        ) }}
+      </p>
+    </div>
+
+    <div class="workspace-command">
+      <label class="workspace-field">
+        <span>{{ copy('Workspace', 'พื้นที่ทำงาน') }}</span>
+        <select
+          [value]="activeWorkspace()?.id ?? ''"
+          [disabled]="isLoading() || !workspaces().length"
+          (change)="selectWorkspaceId($any($event.target).value)"
+        >
+          @for (workspace of workspaces(); track workspace.id) {
+            <option [value]="workspace.id">{{ workspace.name }} · {{ workspace.role }}</option>
+          }
+        </select>
+      </label>
+      <button
+        type="button"
+        class="button button--secondary"
+        [disabled]="isLoading() || isBusy()"
+        (click)="refresh()"
+      >
+        {{ isLoading() ? copy('Loading…', 'กำลังโหลด…') : copy('Refresh ledger', 'รีเฟรชข้อมูล') }}
+      </button>
+    </div>
+  </header>
+
+  @if (error()) {
+    <div class="operations-alert" data-tone="error" role="alert">
+      <span aria-hidden="true">!</span>
+      <p>{{ error() }}</p>
+      <button type="button" class="text-action" (click)="refresh()">{{ copy('Retry', 'ลองอีกครั้ง') }}</button>
+    </div>
+  }
+
+  @if (notice()) {
+    <div class="operations-alert" data-tone="success" role="status">
+      <span aria-hidden="true">✓</span>
+      <p>{{ notice() }}</p>
+    </div>
+  }
+
+  @if (isLoading() && !activeWorkspace()) {
+    <div class="operations-loading" aria-label="Loading workspace operations">
+      @for (row of [1, 2, 3, 4]; track row) {
+        <span class="operations-skeleton"></span>
+      }
+    </div>
+  } @else if (!activeWorkspace()) {
+    <section class="access-state">
+      <p class="system-kicker">{{ copy('Workspace required', 'ต้องมี Workspace') }}</p>
+      <h2>{{ copy('Start with an authenticated workspace', 'เริ่มจาก Workspace ที่ยืนยันตัวตนแล้ว') }}</h2>
+      <p>
+        {{ copy(
+          'Sign in and create or join a workspace before operational data can be read. No provider is shown as connected until its API confirms it.',
+          'เข้าสู่ระบบและสร้างหรือเข้าร่วม Workspace ก่อนอ่านข้อมูลปฏิบัติการ ระบบจะไม่แสดงผู้ให้บริการว่าเชื่อมต่อจนกว่า API จะยืนยัน'
+        ) }}
+      </p>
+      <button
+        type="button"
+        class="button button--primary"
+        (click)="workspaceSetupRequested.emit()"
+      >
+        {{ copy('Open workspace setup', 'เปิดการตั้งค่า Workspace') }}
+      </button>
+    </section>
+  } @else {
+    <dl class="connection-register" aria-label="Connection and coverage status">
+      <div class="connection-reading">
+        <dt>{{ copy('Identity boundary', 'การยืนยันตัวตน') }}</dt>
+        <dd [attr.data-state]="capabilities()?.auth_provider === 'disabled' ? 'blocked' : 'ready'">
+          <i aria-hidden="true"></i>
+          {{ capabilities()?.auth_provider === 'oidc'
+            ? 'OIDC'
+            : capabilities()?.development_identity
+              ? 'Development identity'
+              : copy('Unavailable', 'ไม่พร้อมใช้งาน') }}
+        </dd>
+        <small>{{ activeWorkspace()!.role }} access</small>
+      </div>
+      <div class="connection-reading">
+        <dt>{{ copy('Repository records', 'ข้อมูล Repository') }}</dt>
+        <dd [attr.data-state]="repositories().length ? 'ready' : 'waiting'">
+          <i aria-hidden="true"></i>
+          {{ repositories().length }} available
+        </dd>
+        <small>
+          {{ capabilities()?.github_app
+            ? 'GitHub App enabled'
+            : copy('No GitHub App configured', 'ยังไม่ได้ตั้งค่า GitHub App') }}
+        </small>
+      </div>
+      <div class="connection-reading">
+        <dt>{{ copy('Telemetry intake', 'การรับ Telemetry') }}</dt>
+        <dd [attr.data-state]="capabilities()?.connected_telemetry ? 'ready' : 'waiting'">
+          <i aria-hidden="true"></i>
+          {{ capabilities()?.connected_telemetry
+            ? events().length
+              ? copy('Receiving events', 'กำลังรับ Event')
+              : copy('Enabled · no events yet', 'เปิดใช้แล้ว · ยังไม่มี Event')
+            : copy('Not configured', 'ยังไม่ได้ตั้งค่า') }}
+        </dd>
+        <small>{{ events().length }} accepted records in view</small>
+      </div>
+      <div class="connection-reading">
+        <dt>{{ copy('Operating coverage', 'ความครบถ้วนการปฏิบัติการ') }}</dt>
+        <dd [attr.data-state]="catalogCoverage() === 100 ? 'ready' : services().length ? 'waiting' : 'blocked'">
+          <i aria-hidden="true"></i>
+          {{ catalogCoverage() }}% documented
+        </dd>
+        <small>{{ services().length }} registered services · owner + runbook</small>
+      </div>
+    </dl>
+
+    <div class="operations-grid">
+      <nav class="operations-index" aria-label="Operations sections">
+        <button
+          type="button"
+          class="index-row"
+          [attr.aria-current]="activeSection() === 'catalog' ? 'page' : null"
+          [attr.data-state]="activeSection() === 'catalog' ? 'active' : null"
+          (click)="setSection('catalog')"
+        >
+          <span>{{ copy('Service catalog', 'Service catalog') }}</span>
+          <b>{{ services().length }}</b>
+        </button>
+        <button
+          type="button"
+          class="index-row"
+          [attr.aria-current]="activeSection() === 'events' ? 'page' : null"
+          [attr.data-state]="activeSection() === 'events' ? 'active' : null"
+          (click)="setSection('events')"
+        >
+          <span>{{ copy('Event ledger', 'Event ledger') }}</span>
+          <b>{{ events().length }}</b>
+        </button>
+        <button
+          type="button"
+          class="index-row"
+          [attr.aria-current]="activeSection() === 'policy' ? 'page' : null"
+          [attr.data-state]="activeSection() === 'policy' ? 'active' : null"
+          (click)="setSection('policy')"
+        >
+          <span>{{ copy('Risk policy', 'นโยบายความเสี่ยง') }}</span>
+          <b>v{{ riskPolicy()?.version ?? '—' }}</b>
+        </button>
+        <button
+          type="button"
+          class="index-row"
+          [attr.aria-current]="activeSection() === 'incident' ? 'page' : null"
+          [attr.data-state]="activeSection() === 'incident' ? 'active' : null"
+          (click)="setSection('incident')"
+        >
+          <span>{{ copy('Incident control', 'ควบคุม Incident') }}</span>
+          <b>{{ incident() ? '1' : '0' }}</b>
+        </button>
+
+      </nav>
+
+      <main class="operations-work">
+        @if (activeSection() === 'catalog') {
+          <header class="ledger-heading">
+            <div>
+              <p class="system-kicker">Ownership register</p>
+              <h2>{{ copy('Service catalog', 'Service catalog') }}</h2>
+              <p>{{ copy('Owner, tier, dependency, repository, and runbook metadata used by blast-radius analysis.', 'ข้อมูล owner, tier, dependency, repository และ runbook ที่ใช้วิเคราะห์ blast radius') }}</p>
+            </div>
+            <button
+              type="button"
+              class="button button--primary"
+              [disabled]="!canManage() || isBusy()"
+              [attr.aria-expanded]="showServiceForm()"
+              (click)="showServiceForm.set(!showServiceForm())"
+            >
+              {{ showServiceForm() ? copy('Close form', 'ปิดแบบฟอร์ม') : copy('Register service', 'ลงทะเบียน Service') }}
+            </button>
+          </header>
+
+          @if (showServiceForm()) {
+            <form class="registered-form" [formGroup]="serviceForm" (ngSubmit)="createService()">
+              <div class="form-title">
+                <strong>{{ copy('New service record', 'Service record ใหม่') }}</strong>
+                <span>{{ copy('Admin or owner required', 'ต้องเป็น Admin หรือ Owner') }}</span>
+              </div>
+              <label class="operations-field">
+                <span>Name</span>
+                <input type="text" formControlName="name" autocomplete="off">
+              </label>
+              <label class="operations-field">
+                <span>Slug</span>
+                <input type="text" formControlName="slug" placeholder="checkout-api" autocomplete="off">
+                @if (serviceForm.controls.slug.touched && serviceForm.controls.slug.invalid) {
+                  <small>Use lowercase words separated by hyphens.</small>
+                }
+              </label>
+              <label class="operations-field">
+                <span>Owner team</span>
+                <input type="text" formControlName="ownerTeam" placeholder="Commerce Platform">
+              </label>
+              <label class="operations-field">
+                <span>Tier</span>
+                <select formControlName="tier">
+                  <option value="tier_1">Tier 1 · critical</option>
+                  <option value="tier_2">Tier 2 · important</option>
+                  <option value="tier_3">Tier 3 · standard</option>
+                  <option value="tier_4">Tier 4 · low criticality</option>
+                </select>
+              </label>
+              <label class="operations-field">
+                <span>Lifecycle</span>
+                <select formControlName="lifecycle">
+                  <option value="active">Active</option>
+                  <option value="experimental">Experimental</option>
+                  <option value="deprecated">Deprecated</option>
+                </select>
+              </label>
+              <label class="operations-field">
+                <span>Repository</span>
+                <select formControlName="repositoryId">
+                  <option value="">Not linked</option>
+                  @for (repository of repositories(); track repository.id) {
+                    <option [value]="repository.id">{{ repository.full_name }}</option>
+                  }
+                </select>
+              </label>
+              <label class="operations-field" data-span="wide">
+                <span>Description</span>
+                <input type="text" formControlName="description">
+              </label>
+              <label class="operations-field">
+                <span>Dependencies</span>
+                <select multiple formControlName="dependencies" size="4">
+                  @for (service of services(); track service.id) {
+                    <option [value]="service.id">{{ service.name }} · {{ service.owner_team }}</option>
+                  }
+                </select>
+                <small>Select existing services in this workspace.</small>
+              </label>
+              <label class="operations-field">
+                <span>Runbook URL</span>
+                <input type="url" formControlName="runbookUrl" placeholder="https://…">
+                @if (serviceForm.controls.runbookUrl.touched && serviceForm.controls.runbookUrl.invalid) {
+                  <small>Enter a complete HTTP or HTTPS URL.</small>
+                }
+              </label>
+              <label class="operations-field">
+                <span>Tags</span>
+                <input type="text" formControlName="tags" placeholder="checkout, customer-path">
+              </label>
+              <footer class="form-command">
+                <button type="button" class="button button--secondary" (click)="showServiceForm.set(false)">Cancel</button>
+                <button type="submit" class="button button--primary" [disabled]="serviceForm.invalid || isBusy()">
+                  {{ isBusy('create-service') ? 'Registering…' : 'Register service' }}
+                </button>
+              </footer>
+            </form>
+          }
+
+          <div class="catalog-split">
+            <section class="service-ledger" aria-label="Registered services">
+              @for (service of services(); track service.id) {
+                <button
+                  type="button"
+                  class="service-row"
+                  [attr.aria-current]="selectedService()?.id === service.id ? 'true' : null"
+                  [attr.data-state]="selectedService()?.id === service.id ? 'selected' : null"
+                  (click)="selectService(service)"
+                >
+                  <span class="service-state" [attr.data-lifecycle]="service.lifecycle">
+                    <i aria-hidden="true"></i>{{ humanize(service.lifecycle) }}
+                  </span>
+                  <strong>{{ service.name }}</strong>
+                  <span>{{ humanize(service.tier) }} · {{ service.owner_team }}</span>
+                  <small>{{ service.dependencies.length }} dependencies · {{ service.runbook_url ? 'runbook linked' : 'runbook missing' }}</small>
+                </button>
+              } @empty {
+                <div class="ledger-empty">
+                  <strong>{{ copy('No services registered', 'ยังไม่มี Service') }}</strong>
+                  <p>{{ canManage() ? copy('Register the first service to make ownership and dependencies inspectable.', 'ลงทะเบียน Service แรกเพื่อให้ตรวจสอบ owner และ dependency ได้') : copy('An admin or owner must register the first service.', 'Admin หรือ Owner ต้องลงทะเบียน Service แรก') }}</p>
+                </div>
+              }
+            </section>
+
+            @if (selectedService(); as service) {
+              <form class="service-inspector" [formGroup]="serviceEditForm" (ngSubmit)="saveService()">
+                <header class="inspector-heading">
+                  <div>
+                    <span>{{ service.slug }}</span>
+                    <h3>{{ service.name }}</h3>
+                  </div>
+                  <code>{{ service.id }}</code>
+                </header>
+                <label class="operations-field"><span>Name</span><input type="text" formControlName="name" [readOnly]="!canManage()"></label>
+                <label class="operations-field"><span>Description</span><textarea formControlName="description" [readOnly]="!canManage()"></textarea></label>
+                <div class="inspector-pair">
+                  <label class="operations-field"><span>Tier</span><select formControlName="tier" [attr.disabled]="!canManage() ? true : null"><option value="tier_1">Tier 1</option><option value="tier_2">Tier 2</option><option value="tier_3">Tier 3</option><option value="tier_4">Tier 4</option></select></label>
+                  <label class="operations-field"><span>Lifecycle</span><select formControlName="lifecycle" [attr.disabled]="!canManage() ? true : null"><option value="active">Active</option><option value="experimental">Experimental</option><option value="deprecated">Deprecated</option></select></label>
+                </div>
+                <label class="operations-field"><span>Owner team</span><input type="text" formControlName="ownerTeam" [readOnly]="!canManage()"></label>
+                <label class="operations-field"><span>Repository</span><select formControlName="repositoryId" [attr.disabled]="!canManage() ? true : null"><option value="">Not linked</option>@for (repository of repositories(); track repository.id) {<option [value]="repository.id">{{ repository.full_name }}</option>}</select></label>
+                <label class="operations-field">
+                  <span>Dependencies</span>
+                  <select multiple formControlName="dependencies" size="5" [attr.disabled]="!canManage() ? true : null">
+                    @for (dependency of services(); track dependency.id) {
+                      @if (dependency.id !== service.id) {
+                        <option [value]="dependency.id">{{ dependency.name }} · {{ dependency.owner_team }}</option>
+                      }
+                    }
+                  </select>
+                  <small>Cycles and cross-workspace links are rejected by the API.</small>
+                </label>
+                <label class="operations-field"><span>Runbook URL</span><input type="url" formControlName="runbookUrl" [readOnly]="!canManage()"></label>
+                <label class="operations-field"><span>Tags</span><input type="text" formControlName="tags" [readOnly]="!canManage()"></label>
+                <button type="submit" class="button button--primary" [disabled]="!canManage() || serviceEditForm.invalid || isBusy()">
+                  {{ isBusy('save-service') ? 'Saving…' : 'Save service record' }}
+                </button>
+              </form>
+            } @else {
+              <aside class="inspector-empty">
+                <strong>{{ copy('No service selected', 'ยังไม่ได้เลือก Service') }}</strong>
+                <p>{{ copy('Select a registered row to inspect its operating metadata.', 'เลือกแถว Service เพื่อตรวจข้อมูลการปฏิบัติการ') }}</p>
+              </aside>
+            }
+          </div>
+        } @else if (activeSection() === 'events') {
+          <header class="ledger-heading">
+            <div>
+              <p class="system-kicker">Accepted evidence</p>
+              <h2>{{ copy('Event ledger', 'Event ledger') }}</h2>
+              <p>{{ copy('Filter normalized events or record explicit operator evidence. Repeated event IDs are handled idempotently by the API.', 'กรอง Event ที่ normalize แล้วหรือบันทึกหลักฐานจากผู้ปฏิบัติงาน โดย API จัดการ event ID ที่ซ้ำแบบ idempotent') }}</p>
+            </div>
+            <button type="button" class="button button--primary" [disabled]="!canRespond() || isBusy()" [attr.aria-expanded]="showEventForm()" (click)="showEventForm.set(!showEventForm())">
+              {{ showEventForm() ? 'Close form' : 'Record evidence' }}
+            </button>
+          </header>
+
+          <form class="event-filters" [formGroup]="eventFilterForm" (ngSubmit)="applyEventFilters()">
+            <label class="filter-field"><span>Source</span><input type="text" formControlName="source" list="event-sources">@if (eventSources().length) {<datalist id="event-sources">@for (source of eventSources(); track source) {<option [value]="source"></option>}</datalist>}</label>
+            <label class="filter-field"><span>Event type</span><input type="text" formControlName="eventType"></label>
+            <label class="filter-field"><span>Severity</span><select formControlName="severity"><option value="">All severities</option><option value="debug">Debug</option><option value="info">Info</option><option value="warning">Warning</option><option value="error">Error</option><option value="critical">Critical</option></select></label>
+            <label class="filter-field"><span>Correlation</span><select formControlName="ingestionStatus"><option value="">All states</option><option value="accepted">Accepted</option><option value="correlated">Correlated</option></select></label>
+            <button type="submit" class="button button--secondary" [disabled]="isBusy()">{{ isBusy('filter-events') ? 'Filtering…' : 'Apply filters' }}</button>
+            <button type="button" class="text-action" [disabled]="isBusy()" (click)="clearEventFilters()">Clear</button>
+          </form>
+
+          @if (showEventForm()) {
+            <form class="registered-form" [formGroup]="eventForm" (ngSubmit)="createEvent()">
+              <div class="form-title"><strong>Operational evidence</strong><span>Source is manual; provenance and a unique event ID are recorded automatically.</span></div>
+              <label class="operations-field"><span>Event type</span><input type="text" formControlName="eventType" placeholder="deployment.reviewed"></label>
+              <label class="operations-field"><span>Severity</span><select formControlName="severity"><option value="debug">Debug</option><option value="info">Info</option><option value="warning">Warning</option><option value="error">Error</option><option value="critical">Critical</option></select></label>
+              <label class="operations-field"><span>Occurred at</span><input type="datetime-local" formControlName="occurredAt"></label>
+              <label class="operations-field"><span>Repository</span><select formControlName="repositoryId"><option value="">Not linked</option>@for (repository of repositories(); track repository.id) {<option [value]="repository.id">{{ repository.full_name }}</option>}</select></label>
+              <label class="operations-field"><span>Service</span><select formControlName="serviceId"><option value="">Not linked</option>@for (service of services(); track service.id) {<option [value]="service.id">{{ service.name }}</option>}</select></label>
+              <label class="operations-field" data-span="wide"><span>Summary</span><input type="text" formControlName="summary"></label>
+              <footer class="form-command"><button type="button" class="button button--secondary" (click)="showEventForm.set(false)">Cancel</button><button type="submit" class="button button--primary" [disabled]="eventForm.invalid || isBusy()">{{ isBusy('create-event') ? 'Recording…' : 'Record evidence' }}</button></footer>
+            </form>
+          }
+
+          <section class="event-ledger" aria-live="polite">
+            <header class="register-header">
+              <span>{{ events().length }} records in current query</span>
+              <span>Newest first · API-backed</span>
+            </header>
+            @for (event of events(); track event.id) {
+              <article class="event-row">
+                <time [attr.datetime]="event.occurred_at">{{ event.occurred_at | date:'MMM d, HH:mm:ss':'UTC' }} UTC</time>
+                <span class="severity-state" [attr.data-severity]="event.severity">{{ event.severity }}</span>
+                <div class="event-copy"><strong>{{ event.summary }}</strong><span>{{ event.source }} · {{ event.event_type }}</span></div>
+                <code>{{ event.provider_event_id }}</code>
+                <span class="correlation-state" [attr.data-state]="event.ingestion_status">{{ event.ingestion_status }}</span>
+              </article>
+            } @empty {
+              <div class="ledger-empty"><strong>No events match this query</strong><p>Clear the filters, or send the first event after configuring an intake path.</p></div>
+            }
+          </section>
+        } @else if (activeSection() === 'policy') {
+          <header class="ledger-heading">
+            <div>
+              <p class="system-kicker">Explicit decision support</p>
+              <h2>{{ copy('Risk policy', 'นโยบายความเสี่ยง') }}</h2>
+              <p>{{ copy('Versioned workspace thresholds guide human review. They do not deploy, block, or roll back software by themselves.', 'Threshold แบบมีเวอร์ชันใช้ช่วยการตรวจสอบโดยมนุษย์ และจะไม่ deploy, block หรือ rollback ด้วยตัวเอง') }}</p>
+            </div>
+            <span class="policy-version">v{{ riskPolicy()?.version ?? '—' }}</span>
+          </header>
+
+          @if (riskPolicy(); as policy) {
+            <form class="policy-sheet" [formGroup]="policyForm" (ngSubmit)="savePolicy()">
+              <fieldset class="policy-controls" [disabled]="!canManage()">
+                <label class="switch-row">
+                  <input type="checkbox" formControlName="enabled">
+                  <span><strong>Policy evaluation enabled</strong><small>Apply these settings when computing workspace risk.</small></span>
+                </label>
+                <div class="policy-fields">
+                  <label class="operations-field"><span>Warn threshold</span><input type="number" min="0" max="100" formControlName="warnThreshold"><small>Review is recommended at this score.</small></label>
+                  <label class="operations-field"><span>Block threshold</span><input type="number" min="0" max="100" formControlName="blockThreshold"><small>Marks a policy violation for human review.</small></label>
+                  <label class="operations-field"><span>Maximum blast radius</span><input type="number" min="1" formControlName="maxBlastRadius"><small>Maximum impacted services before a violation.</small></label>
+                </div>
+                @if (policyForm.hasError('thresholdOrder')) {
+                  <p class="validation-message" role="alert">Warn threshold must be lower than block threshold.</p>
+                }
+                <label class="check-row"><input type="checkbox" formControlName="requireTests"><span><strong>Require test evidence</strong><small>Missing test evidence is reported in the decision ledger.</small></span></label>
+                <label class="check-row"><input type="checkbox" formControlName="requireRollback"><span><strong>Require rollback readiness</strong><small>Rollback evidence must be present before review.</small></span></label>
+              </fieldset>
+              <footer class="policy-command">
+                <div><span>Current version</span><strong>v{{ policy.version }}</strong><small>Updated {{ policy.updated_at | date:'medium' }}</small></div>
+                <button type="submit" class="button button--primary" [disabled]="!canManage() || policyForm.invalid || isBusy()">{{ isBusy('save-policy') ? 'Publishing…' : 'Publish next version' }}</button>
+              </footer>
+              @if (!canManage()) {
+                <p class="permission-warning">Your {{ activeWorkspace()!.role }} role can inspect this policy but cannot publish a new version.</p>
+              }
+            </form>
+          } @else {
+            <div class="ledger-empty"><strong>No policy returned</strong><p>Retry the workspace connection. A risk policy must come from the API before it can be edited.</p></div>
+          }
+        } @else {
+          <header class="ledger-heading">
+            <div>
+              <p class="system-kicker">Human-controlled response</p>
+              <h2>{{ copy('Incident lifecycle', 'วงจร Incident') }}</h2>
+              <p>{{ copy('Acknowledge, investigate, mitigate, and resolve with an append-only note trail. No remediation runs from this surface.', 'รับทราบ ตรวจสอบ บรรเทา และปิดเหตุการณ์พร้อมบันทึกแบบ append-only โดยหน้านี้ไม่สั่ง remediation') }}</p>
+            </div>
+          </header>
+
+          @if (incident(); as activeIncident) {
+            <section class="incident-register">
+              <header class="incident-identity">
+                <div><span>{{ activeIncident.id }}</span><h3>{{ activeIncident.title }}</h3><p>{{ activeIncident.summary }}</p></div>
+                <strong>{{ humanize(incidentStatus() ?? activeIncident.status) }}</strong>
+              </header>
+              <form class="lifecycle-command" [formGroup]="lifecycleForm" (ngSubmit)="updateLifecycle()">
+                <label class="operations-field"><span>Status</span><select formControlName="status" [attr.disabled]="!canRespond() ? true : null"><option value="open">Open</option><option value="acknowledged">Acknowledged</option><option value="investigating">Investigating</option><option value="mitigated">Mitigated</option><option value="resolved">Resolved</option></select></label>
+                <label class="operations-field"><span>Severity</span><select formControlName="severity" [attr.disabled]="!canRespond() ? true : null"><option value="sev1">SEV1 · critical</option><option value="sev2">SEV2 · high</option><option value="sev3">SEV3 · moderate</option><option value="sev4">SEV4 · low</option></select></label>
+                <button type="submit" class="button button--primary" [disabled]="!canRespond() || lifecycleForm.invalid || isBusy()">{{ isBusy('update-lifecycle') ? 'Updating…' : 'Update lifecycle' }}</button>
+              </form>
+              <form class="note-command" [formGroup]="noteForm" (ngSubmit)="addNote()">
+                <label class="operations-field"><span>Incident note</span><textarea formControlName="note" [readOnly]="!canRespond()" placeholder="Record what changed, what evidence was checked, and what should happen next."></textarea></label>
+                <div class="note-footer"><small>Notes are appended to the incident timeline and notify workspace members.</small><button type="submit" class="button button--secondary" [disabled]="!canRespond() || noteForm.invalid || isBusy()">{{ isBusy('add-note') ? 'Appending…' : 'Append note' }}</button></div>
+              </form>
+              <div class="incident-timeline">
+                @for (entry of incidentTimeline(); track entry.id) {
+                  <article class="timeline-row"><time [attr.datetime]="entry.timestamp">{{ entry.timestamp | date:'MMM d, HH:mm':'UTC' }} UTC</time><span>{{ humanize(entry.type) }}</span><div><strong>{{ entry.title }}</strong><p>{{ entry.detail }}</p></div></article>
+                }
+              </div>
+            </section>
+          } @else {
+            <div class="ledger-empty"><strong>No active incident context</strong><p>Open a repository scenario with an incident before using lifecycle controls.</p></div>
+          }
+        }
+      </main>
+
+      <aside class="notification-pane" aria-label="Notification inbox">
+        <header class="inbox-heading">
+          <div><span>{{ copy('Operator inbox', 'กล่องข้อความผู้ปฏิบัติงาน') }}</span><strong>{{ unreadCount() }} unread</strong></div>
+          <button type="button" class="text-action" [attr.aria-pressed]="unreadOnly()" (click)="toggleUnreadOnly()">{{ unreadOnly() ? 'Show all' : 'Unread only' }}</button>
+        </header>
+        <div class="notification-list" aria-live="polite">
+          @for (notification of visibleNotifications(); track notification.id) {
+            <article class="notification-row" [attr.data-state]="notification.read_at ? 'read' : 'unread'">
+              <header class="notification-meta"><span>{{ humanize(notification.kind) }}</span><time [attr.datetime]="notification.created_at">{{ notification.created_at | date:'MMM d, HH:mm' }}</time></header>
+              <strong>{{ notification.title }}</strong>
+              <p>{{ notification.message }}</p>
+              <footer class="notification-action"><code>{{ notification.resource_id }}</code>@if (!notification.read_at) {<button type="button" [disabled]="isBusy()" (click)="markRead(notification)">{{ isBusy('notification-' + notification.id) ? 'Saving…' : 'Mark read' }}</button>}</footer>
+            </article>
+          } @empty {
+            <div class="inbox-empty"><span aria-hidden="true">✓</span><strong>{{ unreadOnly() ? 'No unread notifications' : 'Inbox is empty' }}</strong><p>Incident lifecycle and note notifications for this workspace will appear here.</p></div>
+          }
+        </div>
+      </aside>
+    </div>
+  }
+</section>

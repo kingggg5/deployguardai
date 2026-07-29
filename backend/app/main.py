@@ -9,6 +9,7 @@ from .auth.oidc import OIDCVerifier
 from .config import Settings, get_settings
 from .database import Database
 from .errors import DomainError, domain_error_handler
+from .operations_api import router as operations_router
 from .provider_api import router as provider_router
 from .seed import seed_database
 from .workspace_api import router as workspace_router
@@ -55,6 +56,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(router)
     application.include_router(workspace_router)
     application.include_router(provider_router)
+    application.include_router(operations_router)
     return application
 
 

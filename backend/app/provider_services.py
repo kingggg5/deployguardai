@@ -3,18 +3,22 @@ from datetime import UTC, datetime, timedelta
 from urllib.parse import urlencode
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .errors import DomainError
 from .github_client import GitHubAppClient
-from .models import Repository, Scenario, User
+from .models import ChangeRecord, Repository, Scenario, User
+from .operations_models import WorkspaceRiskPolicy
 from .provider_models import (
+    GitHubCheckPublication,
     ProviderAuthorizationState,
     ProviderConnection,
     WebhookDelivery,
 )
 from .provider_schemas import (
     GitHubConnectionSummary,
+    GitHubCheckRunResponse,
     GitHubInstallStart,
     GitHubRepositoryCandidate,
     GitHubRepositorySyncResponse,
@@ -29,8 +33,16 @@ def capabilities(settings) -> ProductCapabilities:
         auth_provider=settings.auth_provider,
         development_identity=settings.development_auth_available(),
         github_app=settings.github_app_available(),
+        github_checks=(
+            settings.github_app_available() and settings.github_checks_enabled
+        ),
         email_delivery=settings.email_delivery_mode(),
         connected_telemetry=bool(settings.telemetry_ingest_token),
+        telemetry_scope=(
+            "workspace_credential"
+            if settings.telemetry_ingest_token
+            else "disabled"
+        ),
         oidc_authority=(
             settings.oidc_issuer if settings.auth_provider == "oidc" else None
         ),
@@ -426,6 +438,410 @@ def disconnect_github(
     )
     session.commit()
     return connection_summary(connection)
+
+
+GITHUB_CHECK_RETRYABLE_ERRORS = {
+    "github_api_error",
+    "github_api_invalid_response",
+    "github_api_unavailable",
+    "github_check_publish_failed",
+    "github_rate_limited",
+    "github_token_exchange_failed",
+}
+
+
+def _github_check_publication(
+    session: Session,
+    *,
+    connection: ProviderConnection,
+    repository: Repository,
+    change: ChangeRecord,
+    conclusion: str,
+    details_url: str,
+) -> GitHubCheckPublication:
+    publication = session.scalar(
+        select(GitHubCheckPublication)
+        .where(
+            GitHubCheckPublication.repository_id == repository.id,
+            GitHubCheckPublication.head_sha == change.commit_sha,
+        )
+        .with_for_update()
+    )
+    timestamp = datetime.now(UTC)
+    if publication is None:
+        publication_id = new_id()
+        publication = GitHubCheckPublication(
+            id=publication_id,
+            workspace_id=connection.workspace_id,
+            repository_id=repository.id,
+            change_id=change.id,
+            head_sha=change.commit_sha,
+            external_id=publication_id,
+            provider_check_id=None,
+            status="pending",
+            conclusion=conclusion,
+            details_url=details_url,
+            attempt_count=0,
+            last_error_code=None,
+            next_retry_at=None,
+            created_at=timestamp,
+            updated_at=timestamp,
+            published_at=None,
+        )
+        session.add(publication)
+        try:
+            session.commit()
+        except IntegrityError:
+            session.rollback()
+            publication = session.scalar(
+                select(GitHubCheckPublication).where(
+                    GitHubCheckPublication.repository_id == repository.id,
+                    GitHubCheckPublication.head_sha == change.commit_sha,
+                )
+            )
+            if publication is None:
+                raise
+    publication.change_id = change.id
+    publication.conclusion = conclusion
+    publication.details_url = details_url
+    publication.updated_at = timestamp
+    session.commit()
+    return publication
+
+
+def _github_check_retry_delay(attempt_count: int) -> timedelta:
+    seconds = min(3_600, 30 * (2 ** min(max(attempt_count - 1, 0), 7)))
+    return timedelta(seconds=seconds)
+
+
+def _publish_github_change_check(
+    session: Session,
+    *,
+    connection: ProviderConnection,
+    repository: Repository,
+    change: ChangeRecord,
+    actor_user_id: str | None,
+    request_id: str,
+    settings,
+) -> GitHubCheckRunResponse:
+    score = int((change.risk or {}).get("overall_score", 0))
+    level = str((change.risk or {}).get("level", "unknown"))
+    quality = float((change.risk or {}).get("data_quality", 0.0))
+    recommendations = [
+        str(item)
+        for item in (change.risk or {}).get("recommendations", [])
+    ]
+    policy = session.get(WorkspaceRiskPolicy, connection.workspace_id)
+    policy_enabled = policy.enabled if policy is not None else True
+    warn_threshold = policy.warn_threshold if policy is not None else 60
+    block_threshold = policy.block_threshold if policy is not None else 80
+    policy_version = policy.version if policy is not None else 1
+    require_tests = policy.require_tests if policy is not None else True
+    require_rollback = policy.require_rollback if policy is not None else True
+    max_blast_radius = policy.max_blast_radius if policy is not None else 10
+    policy_findings: list[str] = []
+    if policy_enabled:
+        if score >= block_threshold:
+            policy_findings.append(
+                f"Risk score meets the escalation threshold ({block_threshold})."
+            )
+        elif score >= warn_threshold:
+            policy_findings.append(
+                f"Risk score meets the review threshold ({warn_threshold})."
+            )
+        if require_tests and change.test_coverage <= 0:
+            policy_findings.append("Required test coverage evidence is missing.")
+        if require_rollback and not change.rollback_ready:
+            policy_findings.append("Required rollback readiness is missing.")
+        impacted_services = len(
+            [
+                item
+                for item in (change.blast_radius or {}).get("nodes", [])
+                if int(item.get("impact_score", 0)) > 0
+            ]
+        )
+        if (
+            impacted_services > max_blast_radius
+        ):
+            policy_findings.append(
+                "Blast radius exceeds the workspace maximum "
+                f"({impacted_services}/{max_blast_radius} services)."
+            )
+    conclusion = "neutral" if policy_findings else "success"
+    if score >= block_threshold and policy_enabled:
+        title = f"Escalated review · risk {score}/100"
+    elif conclusion == "neutral":
+        title = f"Review recommended · risk {score}/100"
+    else:
+        title = f"Normal review · risk {score}/100"
+    summary_lines = [
+        f"Deterministic change risk: **{score}/100 ({level})**.",
+        f"Evidence quality: **{quality:.0%}**.",
+        (
+            f"Workspace policy: **v{policy_version} "
+            f"({'enabled' if policy_enabled else 'disabled'})**."
+        ),
+        *(
+            ["", "### Policy findings", *[f"- {item}" for item in policy_findings]]
+            if policy_findings
+            else []
+        ),
+        "",
+        "### Verify next",
+        *(
+            [f"- {item}" for item in recommendations]
+            or ["- Continue with the normal review path."]
+        ),
+        "",
+        (
+            "DeployGuard provides decision support only. This check does not "
+            "deploy, roll back, or remediate infrastructure."
+        ),
+    ]
+    details_url = (
+        f"{settings.frontend_public_url.rstrip('/')}/?"
+        + urlencode(
+            {
+                "view": "change_risk",
+                "workspace": connection.workspace_id,
+                "repository": repository.id,
+                "scenario": change.scenario_id,
+                "change": change.id,
+            }
+        )
+    )
+    publication = _github_check_publication(
+        session,
+        connection=connection,
+        repository=repository,
+        change=change,
+        conclusion=conclusion,
+        details_url=details_url,
+    )
+    previous_attempts = publication.attempt_count
+    publication.status = "publishing"
+    publication.attempt_count += 1
+    publication.last_error_code = None
+    publication.next_retry_at = None
+    publication.updated_at = datetime.now(UTC)
+    session.commit()
+
+    client = github_client(settings)
+    try:
+        provider_check_id = publication.provider_check_id
+        if provider_check_id is None and previous_attempts > 0:
+            recovered = client.find_check_run(
+                installation_id=connection.installation_id,
+                repository_full_name=repository.full_name,
+                head_sha=change.commit_sha,
+                external_id=publication.external_id,
+            )
+            if recovered is not None:
+                provider_check_id = str(recovered.get("id") or "")
+        request_payload = {
+            "installation_id": connection.installation_id,
+            "repository_full_name": repository.full_name,
+            "head_sha": change.commit_sha,
+            "external_id": publication.external_id,
+            "conclusion": conclusion,
+            "title": title,
+            "summary": "\n".join(summary_lines),
+            "details_url": details_url,
+        }
+        if provider_check_id:
+            result = client.update_check_run(
+                provider_check_id=provider_check_id,
+                **request_payload,
+            )
+        else:
+            result = client.create_check_run(**request_payload)
+        provider_check_id = str(result.get("id") or provider_check_id or "")
+        if not provider_check_id:
+            raise DomainError(
+                "GitHub did not return a Check Run ID",
+                "github_check_publish_failed",
+                502,
+            )
+    except DomainError as error:
+        session.rollback()
+        failed = session.get(GitHubCheckPublication, publication.id)
+        if failed is not None:
+            retryable = error.code in GITHUB_CHECK_RETRYABLE_ERRORS
+            failed.status = (
+                "retryable_failed" if retryable else "permanent_failed"
+            )
+            failed.last_error_code = error.code
+            failed.next_retry_at = (
+                datetime.now(UTC)
+                + _github_check_retry_delay(failed.attempt_count)
+                if retryable
+                else None
+            )
+            failed.updated_at = datetime.now(UTC)
+        persisted_connection = session.get(
+            ProviderConnection, connection.id
+        )
+        if persisted_connection is not None:
+            persisted_connection.error_code = error.code
+            persisted_connection.updated_at = datetime.now(UTC)
+            audit(
+                session,
+                workspace_id=persisted_connection.workspace_id,
+                actor_user_id=actor_user_id,
+                action="provider.github.check_publish_failed",
+                resource_type="change",
+                resource_id=change.id,
+                request_id=request_id,
+                metadata={
+                    "error_code": error.code,
+                    "retryable": error.code
+                    in GITHUB_CHECK_RETRYABLE_ERRORS,
+                    "publication_id": publication.id,
+                },
+            )
+        session.commit()
+        raise
+
+    published_at = datetime.now(UTC)
+    persisted_publication = session.get(
+        GitHubCheckPublication, publication.id
+    )
+    if persisted_publication is None:
+        raise DomainError(
+            "GitHub Check publication state was lost",
+            "github_check_publication_missing",
+            500,
+        )
+    persisted_publication.provider_check_id = provider_check_id
+    persisted_publication.status = "published"
+    persisted_publication.conclusion = conclusion
+    persisted_publication.details_url = details_url
+    persisted_publication.last_error_code = None
+    persisted_publication.next_retry_at = None
+    persisted_publication.updated_at = published_at
+    persisted_publication.published_at = published_at
+    persisted_connection = session.get(ProviderConnection, connection.id)
+    if persisted_connection is not None:
+        persisted_connection.error_code = None
+        persisted_connection.updated_at = published_at
+    audit(
+        session,
+        workspace_id=publication.workspace_id,
+        actor_user_id=actor_user_id,
+        action="provider.github.check_published",
+        resource_type="change",
+        resource_id=change.id,
+        request_id=request_id,
+        metadata={
+            "provider_check_id": provider_check_id,
+            "publication_id": publication.id,
+            "conclusion": conclusion,
+            "risk_score": score,
+            "attempt_count": persisted_publication.attempt_count,
+        },
+    )
+    session.commit()
+    return GitHubCheckRunResponse(
+        provider_check_id=provider_check_id,
+        change_id=change.id,
+        status=str(result.get("status") or "completed"),
+        conclusion=conclusion,
+        details_url=details_url,
+        published_at=published_at,
+    )
+
+
+def publish_github_change_check(
+    session: Session,
+    user: User,
+    *,
+    workspace_id: str,
+    repository_id: str,
+    change_id: str,
+    request_id: str,
+    settings,
+) -> GitHubCheckRunResponse:
+    membership_for(session, user, workspace_id, "responder")
+    if not settings.github_checks_enabled:
+        raise DomainError(
+            "GitHub Check publishing is disabled",
+            "github_checks_disabled",
+            409,
+        )
+    connection = github_connection(session, user, workspace_id)
+    if connection.connection_state != "connected":
+        raise DomainError(
+            "GitHub connection needs attention",
+            "github_connection_unavailable",
+            409,
+        )
+    if str((connection.permissions or {}).get("checks", "")).lower() != "write":
+        raise DomainError(
+            "The GitHub App needs Checks: write permission",
+            "github_checks_permission_missing",
+            409,
+        )
+    repository = session.scalar(
+        select(Repository).where(
+            Repository.id == repository_id,
+            Repository.workspace_id == workspace_id,
+            Repository.provider == "github",
+            Repository.selected.is_(True),
+        )
+    )
+    if repository is None:
+        raise DomainError("Repository not found", "repository_not_found", 404)
+    change = session.scalar(
+        select(ChangeRecord).where(
+            ChangeRecord.id == change_id,
+            ChangeRecord.workspace_id == workspace_id,
+            ChangeRecord.repository_id == repository_id,
+            ChangeRecord.data_mode == "connected",
+        )
+    )
+    if change is None:
+        raise DomainError("Change not found", "change_not_found", 404)
+    return _publish_github_change_check(
+        session,
+        connection=connection,
+        repository=repository,
+        change=change,
+        actor_user_id=user.id,
+        request_id=request_id,
+        settings=settings,
+    )
+
+
+def publish_github_change_check_from_webhook(
+    session: Session,
+    *,
+    connection: ProviderConnection,
+    repository: Repository,
+    change: ChangeRecord,
+    request_id: str,
+    settings,
+) -> GitHubCheckRunResponse | None:
+    if (
+        not settings.github_checks_enabled
+        or connection.connection_state != "connected"
+        or str((connection.permissions or {}).get("checks", "")).lower()
+        != "write"
+    ):
+        return None
+    try:
+        return _publish_github_change_check(
+            session,
+            connection=connection,
+            repository=repository,
+            change=change,
+            actor_user_id=None,
+            request_id=request_id,
+            settings=settings,
+        )
+    except DomainError as error:
+        if error.code in GITHUB_CHECK_RETRYABLE_ERRORS:
+            raise
+        return None
 
 
 def _visibility(repository: dict) -> str:

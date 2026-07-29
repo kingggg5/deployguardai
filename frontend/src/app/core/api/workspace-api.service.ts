@@ -15,6 +15,7 @@ import {
   RepositorySummary,
   WorkspaceRole,
   WorkspaceSummary,
+  UserContext,
   UserSummary
 } from '../models/workspace.models';
 
@@ -72,6 +73,28 @@ export class WorkspaceApiService {
     return this.http.get<WorkspaceSummary[]>(`${this.apiBase}/workspaces`, {
       headers: this.headers()
     });
+  }
+
+  currentContext(): Observable<UserContext> {
+    return this.http.get<UserContext>(`${this.apiBase}/me/context`, {
+      headers: this.headers()
+    });
+  }
+
+  selectContext(
+    workspaceId: string,
+    repositoryId: string | null = null,
+    scenarioId: string | null = null
+  ): Observable<UserContext> {
+    return this.http.put<UserContext>(
+      `${this.apiBase}/me/context`,
+      {
+        workspace_id: workspaceId,
+        repository_id: repositoryId,
+        scenario_id: scenarioId
+      },
+      { headers: this.headers() }
+    );
   }
 
   createWorkspace(name: string, slug: string): Observable<WorkspaceSummary> {

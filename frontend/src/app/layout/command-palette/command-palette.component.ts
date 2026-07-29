@@ -37,6 +37,7 @@ const COPY = {
     empty: 'ไม่พบคำสั่งที่ตรงกัน',
     investigation: 'เปิดการสืบสวน',
     open: 'เปิด Command palette',
+    operations: 'เปิดศูนย์ปฏิบัติการ',
     placeholder: 'ค้นหาหน้า Repository หรือคำสั่ง…',
     repositories: 'Repository',
     risk: 'เปิดการประเมิน Change risk',
@@ -55,6 +56,7 @@ const COPY = {
     empty: 'No matching command',
     investigation: 'Open investigation',
     open: 'Open command palette',
+    operations: 'Open operations center',
     placeholder: 'Search pages, repositories, or commands…',
     repositories: 'Repositories',
     risk: 'Open change risk',
@@ -115,6 +117,13 @@ export class CommandPaletteComponent {
         meta: labels.commands,
         keywords: 'synthetic demo lab',
         action: { type: 'navigate', view: 'scenarios' }
+      },
+      {
+        id: 'operations',
+        label: labels.operations,
+        meta: labels.commands,
+        keywords: 'operations service catalog risk policy events incident notifications',
+        action: { type: 'navigate', view: 'operations' }
       },
       {
         id: 'workspace',

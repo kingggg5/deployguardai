@@ -1,122 +1,155 @@
 # สถาปัตยกรรม DeployGuard AI
 
-> สถานะ: **Synthetic MVP implement และตรวจแล้ว** — Angular 22 รันที่ `127.0.0.1:4300`, FastAPI รันที่ `127.0.0.1:8100`, SQLite เป็นค่าเริ่มต้น และรองรับ PostgreSQL URL ผ่าน configuration ส่วน GitHub App, OpenTelemetry ingestion, authentication/tenancy, migrations, real-dataset benchmarks และ LLM ยังเป็น roadmap
+DeployGuard AI เป็น investigation ledger สำหรับเชื่อม change, deployment,
+service dependency, operational evidence และ incident เข้าด้วยกัน โดยให้
+deterministic engines เป็นเจ้าของ risk scoring, blast-radius traversal และ
+hypothesis ranking ระบบให้คำแนะนำเพื่อการตรวจสอบ แต่ไม่มีสิทธิ์ deploy,
+rollback, รัน shell หรือเข้าถึง cluster
 
-## Verified implementation snapshot
+## สถานะของ capability
 
-### Workspace activation vertical slice
+เอกสารนี้ใช้คำต่อไปนี้อย่างเคร่งครัด:
 
-The Angular workspace activation feature calls a typed workspace API. FastAPI
-resolves bearer sessions to `User`, enforces role policy against
-`WorkspaceMembership`, commits tenant mutations with `AuditEvent` records, and
-persists through SQLAlchemy/Alembic on SQLite or PostgreSQL. Repository
-connection is an explicitly synthetic development adapter until a GitHub App is
-configured; invitation delivery is a local outbox until an email provider is
-configured.
+- **ใช้งานได้ใน local/synthetic mode** — รันได้โดยไม่ต้องมี external
+  credential และข้อมูลทุกชุดติดป้าย `data_mode = "synthetic"`
+- **implemented แต่ต้องตั้งค่า credential** — code path มีอยู่จริง แต่จะทำงาน
+  เมื่อกำหนด OIDC, GitHub App, SMTP หรือ telemetry token ที่เกี่ยวข้อง
+- **ยังไม่เป็น production control** — มี contract หรือบางส่วนของระบบแล้ว แต่
+  ยังขาด operational hardening เช่น queue, retention job, rate limiting,
+  PostgreSQL RLS หรือ backup/restore drill
+- **deferred** — ไม่มี runtime path ในปัจจุบัน
 
-- 10 routes ภายใต้ `/api/v1`
-- 3 seeded synthetic scenarios
-- deterministic risk engine 6 dimensions
-- BFS blast radius แบบ bounded traversal และ cycle-safe
-- deterministic RCA Top 3 พร้อม evidence/counter-evidence
-- persistent human feedback
-- backend 13 tests ผ่าน
-- frontend 7 testsและ production build ผ่าน
-- CORS และ desktop/mobile browser flow ผ่านการตรวจ
-- `docker compose config` ผ่าน แต่ Docker image build ยังไม่ยืนยัน เพราะ Linux daemon ไม่พร้อม
+สถานะปัจจุบัน:
 
-## เป้าหมายทางสถาปัตยกรรม
-
-- ทำให้เส้นทาง `change → risk → blast radius → incident → hypothesis → human verdict` ตรวจสอบย้อนกลับได้
-- แยก deterministic analysis ออกจาก presentation และ future LLM synthesis
-- รัน synthetic demo ได้โดยไม่ต้องมี external credentials
-- รองรับ SQLite สำหรับ local demo และ PostgreSQL ผ่าน configuration
-- เก็บ external integration ไว้หลัง adapter boundary
-- ไม่เปิดช่องให้ระบบวิเคราะห์ deploy, rollback, รัน shell หรือเข้าถึง cluster
+| Capability | สถานะจริง |
+|---|---|
+| Synthetic scenarios, risk ledger, blast radius และ deterministic RCA | ใช้งานได้ใน local mode |
+| Development bearer session, workspace, repository, invitation และ RBAC | ใช้งานได้ใน non-production |
+| OIDC JWT verification ผ่าน issuer JWKS | Implemented; ต้องตั้งค่า OIDC |
+| GitHub App install, repository sync, signed webhook และ optional Check Run | Implemented; ต้องตั้งค่า GitHub App และเปิด write flag |
+| Invitation email ผ่าน SMTP | Implemented; local ใช้ development outbox |
+| Normalized telemetry event endpoint | Implemented; ใช้ workspace-derived collector bearer และ tenant-scoped ledger |
+| OTLP protocol receiver | ไม่มีใน FastAPI; ใช้ Collector แปลงเป็น normalized event |
+| Alembic schema migration | ใช้งานแล้วตอน application startup |
+| PostgreSQL | รองรับผ่าน SQLAlchemy/psycopg; production verification ยังต้องทำ |
+| LLM synthesis | Deferred; endpoint ปัจจุบันคืน `501` |
 
 ## System context
 
-เส้นทึบคือ runnable synthetic MVP เส้นประคือ roadmap และยังไม่ใช่ capability ที่ใช้งานได้
-
 ```mermaid
 flowchart LR
-    User["Platform engineer / SRE<br/>หรือ portfolio reviewer"]
-    DG["DeployGuard AI<br/>Runnable Investigation Ledger"]
-    Seed["3 seeded synthetic scenarios"]
-    GH["GitHub App<br/>Roadmap"]
-    OTEL["OpenTelemetry source<br/>Roadmap"]
-    LLM["Bounded LLM provider<br/>Deferred roadmap"]
+    User["Platform engineer / SRE"]
+    UI["Angular web application"]
+    API["FastAPI API"]
+    Core["Deterministic analysis core"]
+    DB["SQLite local / PostgreSQL configured"]
+    Seed["Repository-bundled synthetic fixtures"]
+    OIDC["OIDC issuer + JWKS"]
+    GH["GitHub App"]
+    SMTP["SMTP provider"]
+    Collector["OpenTelemetry Collector"]
+    Gateway["Trusted normalization / redaction gateway"]
+    LLM["Bounded LLM summarizer<br/>deferred"]
 
-    User -->|"ตรวจ risk, graph, incident<br/>และบันทึก verdict"| DG
-    Seed -->|"reproducible change,<br/>telemetry evidence, incident"| DG
-    GH -.->|"PR, workflow, deployment metadata"| DG
-    OTEL -.->|"traces, metrics, logs"| DG
-    DG -.->|"evidence-only prompt"| LLM
-    LLM -.->|"structured summary only"| DG
+    User --> UI --> API --> Core
+    Core --> DB
+    Seed --> API
+    UI --> OIDC
+    API --> OIDC
+    GH --> API
+    API --> GH
+    API --> SMTP
+    Collector -->|"OTLP"| Gateway
+    Gateway -->|"normalized event + workspace bearer"| API
+    Core -.->|"evidence-only contract; not implemented"| LLM
 ```
 
-## Container/component view
+Synthetic fixtures และ connected data ใช้ domain contract ชุดเดียวกัน แต่ไม่
+ถูกทำให้ดูเหมือนเป็นแหล่งข้อมูลเดียวกัน UI และ API ต้องแสดง `data_mode` และ
+connection state ตามจริงเสมอ
+
+## Container และ component view
 
 ```mermaid
 flowchart TB
-    Browser["Angular 22 web application<br/>Verified local runtime"]
+    Browser["Angular 22 standalone application"]
 
-    subgraph API["FastAPI application — Verified local runtime"]
-        HTTP["Typed API routes<br/>/api/v1"]
-        Scenario["Scenario activation service"]
-        Change["Change analysis service"]
-        Incident["Incident investigation service"]
-        Feedback["Human feedback service"]
+    subgraph Backend["FastAPI application"]
+        Routes["Typed HTTP routes<br/>/api/v1"]
+        Auth["Development auth / OIDC verifier"]
+        Tenant["Workspace context + RBAC"]
+        Workspace["Workspace and provider services"]
+        Operations["Service catalog, risk policy,<br/>events, incidents, notifications"]
         Risk["Deterministic risk engine"]
-        Graph["Bounded graph engine"]
-        RCA["Deterministic hypothesis ranker"]
-        Adapters["External adapter ports<br/>Disabled in synthetic mode"]
+        Graph["Bounded BFS graph engine"]
+        RCA["Deterministic RCA ranker"]
+        Adapters["GitHub, SMTP and telemetry adapters"]
     end
 
-    subgraph Data["Persistence"]
-        ORM["SQLAlchemy 2.x repositories"]
-        SQLite["SQLite<br/>verified default"]
-        Postgres["PostgreSQL URL<br/>configuration supported"]
+    subgraph Persistence["Persistence"]
+        ORM["SQLAlchemy 2.x"]
+        Migration["Alembic migrations"]
+        SQLite["SQLite local"]
+        Postgres["PostgreSQL configured"]
     end
 
-    Seeder["Versioned scenario seed loader"]
-    GitHub["GitHub adapter<br/>Roadmap"]
-    Collector["OpenTelemetry adapter<br/>Roadmap"]
-    Synth["LLM synthesis adapter<br/>Deferred"]
-
-    Browser --> HTTP
-    HTTP --> Scenario
-    HTTP --> Change
-    HTTP --> Incident
-    HTTP --> Feedback
-    Scenario --> Seeder
-    Change --> Risk
-    Change --> Graph
-    Incident --> RCA
-    Risk --> ORM
-    Graph --> ORM
-    RCA --> ORM
-    Feedback --> ORM
+    Browser --> Routes
+    Routes --> Auth
+    Routes --> Tenant
+    Tenant --> Workspace
+    Tenant --> Operations
+    Operations --> Risk
+    Operations --> Graph
+    Operations --> RCA
+    Workspace --> Adapters
+    Workspace --> ORM
+    Operations --> ORM
     ORM --> SQLite
-    ORM -.-> Postgres
-    Adapters -.-> GitHub
-    Adapters -.-> Collector
-    Adapters -.-> Synth
+    ORM --> Postgres
+    Migration --> SQLite
+    Migration --> Postgres
 ```
 
 ### Responsibility boundaries
 
 | Component | รับผิดชอบ | ไม่รับผิดชอบ |
 |---|---|---|
-| Angular 22 UI | Visualization, scenario switching, Evidence X-ray, incident replay, loading/error/empty states และ responsive panes | คำนวณคะแนนหรือจัดอันดับ hypothesis |
-| FastAPI routes | Validation, HTTP contract, domain error mapping | ฝัง scoring weights ใน controller |
-| Risk engine | คะแนน 0–100 จาก explicit weights | อนุมัติ/ปฏิเสธ deployment |
-| Graph engine | Blast radius แบบ bounded traversal | General graph database query endpoint |
-| RCA ranker | จัดอันดับจาก evidence/counter-evidence | สร้างหลักฐานที่ไม่มีอยู่ |
-| Scenario loader | Seed 3 scenarios แบบ idempotent และติดป้าย synthetic | เลียนแบบ production customer |
-| Future LLM adapter | สรุป evidence ที่ถูกจำกัดขอบเขต | ให้คะแนน, execute tool หรือ remediation |
+| Angular UI | Navigation, forms, connected/synthetic labels, loading/error/empty states และ responsive presentation | คำนวณคะแนนหรือบังคับ authorization |
+| FastAPI routes | HTTP validation, dependency injection, typed response และ domain-error mapping | ฝัง scoring weights หรือ query ข้าม workspace |
+| Tenant/RBAC layer | Resolve principal, workspace context และ minimum role | ใช้ UI hiding เป็น security control |
+| Operations services | Service catalog, policy versioning, event dedupe, incident lifecycle, notes และ notification fan-out | ส่ง deployment command หรือ arbitrary outgoing webhook |
+| Deterministic engines | Risk, graph traversal, evidence weighting และ hypothesis ranking | สร้าง evidence ที่ไม่มี provenance |
+| Provider adapters | แปลง external data เป็น normalized domain input | เปลี่ยน deterministic score โดยตรง |
+| Database/Alembic | System of record และ schema evolution | แทนที่ backup, restore หรือ retention operation |
 
-## Change analysis sequence
+## Identity, tenant และ RBAC flow
+
+Production รับ bearer token จาก OIDC issuer เท่านั้น FastAPI ตรวจ signature,
+issuer, audience, expiry และ verified email ผ่าน JWKS แล้ว map `(issuer,
+subject)` เป็น local user ส่วน development session สร้าง opaque bearer token
+ที่เก็บเฉพาะ SHA-256 digest และถูกปิดใน production profile
+
+เพื่อรักษา synthetic demo flow Investigation routes เดิมบางส่วนสามารถ resolve
+configured development user เมื่อไม่มี bearer ได้เฉพาะ non-production
+Operations/workspace routes ต้องมี bearer และ production ไม่มี fallback นี้
+
+ทุก protected operation resolve `WorkspaceMembership` ก่อน query หรือ mutation
+ข้อมูล tenant role เรียงระดับเป็น:
+
+```text
+viewer < responder < admin < owner
+```
+
+- `viewer` อ่าน workspace, catalog, policy, events, incidents และ notification
+  ของตนเอง
+- `responder` เพิ่ม operational event, เปลี่ยน incident lifecycle และเขียน note
+- `admin` จัดการ service catalog, risk policy, repository, provider และ invitation
+- `owner` มีสิทธิ์ระดับสูงสุด รวมถึงเชิญสมาชิก role `admin`
+
+Application-level tenant filtering ใช้งานแล้ว แต่ PostgreSQL RLS ยังไม่มี จึง
+ต้องถือ RLS เป็น defense-in-depth ที่ยังค้าง ไม่ใช่ control ที่มีอยู่แล้ว
+
+## Change analysis
 
 ```mermaid
 sequenceDiagram
@@ -126,141 +159,182 @@ sequenceDiagram
     participant API as FastAPI
     participant Risk as Risk engine
     participant Graph as Graph engine
-    participant DB as SQLAlchemy repository
+    participant DB as SQLAlchemy
 
-    User->>UI: กรอก GitHub-style change
+    User->>UI: Submit change metadata
     UI->>API: POST /api/v1/changes/analyze
-    API->>API: Validate typed request
-    API->>Risk: Calculate explicit weighted dimensions
+    API->>API: Resolve workspace/repository context
+    API->>Risk: Calculate explicit dimensions
     Risk-->>API: Score, level, reasons, evidence IDs
-    API->>Graph: Traverse from changed services
-    Graph-->>API: Nodes, edges, hop distance, impact
-    API->>DB: Persist change + analysis atomically
-    DB-->>API: Stored identifiers
+    API->>Graph: Traverse changed services
+    Graph-->>API: Nodes, edges and hop distance
+    API->>DB: Persist analysis snapshot
     API-->>UI: ChangeDetail
-    UI-->>User: Risk ledger + blast radius + Synthetic label
 ```
 
-คุณสมบัติสำคัญ:
+Risk และ blast radius เป็น deterministic snapshots การส่ง input เดิมภายใต้
+weights และ graph เดิมต้องได้ผลเดิม แต่ snapshot ยังไม่มี explicit schema/scoring
+version จึงยังไม่เหมาะกับ historical model comparison ระยะยาว
 
-- request เดียวกันภายใต้ scoring version และ graph snapshot เดียวกันต้องให้ผลเดิม
-- score contribution ทุก dimension ต้องอ้าง evidence ID
-- graph traversal ต้องมี maximum depth และ cycle protection
-- persistence ล้มเหลวต้องไม่คืนผลเหมือนบันทึกสำเร็จ
-
-## Synthetic incident investigation sequence
+## Connected GitHub flow
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor User
-    participant UI as Investigation Ledger
-    participant API as FastAPI
-    participant Scenario as Scenario service
-    participant RCA as Deterministic ranker
-    participant DB as Repository
+    actor Admin
+    participant UI
+    participant API
+    participant GitHub
+    participant DB
 
-    User->>UI: เลือก scenario
-    UI->>API: POST /api/v1/scenarios/{id}/activate
-    API->>Scenario: Load versioned seed
-    Scenario->>RCA: Rank from evidence snapshot
-    RCA-->>Scenario: Top hypotheses + counter-evidence
-    Scenario->>DB: Persist active scenario state
-    API-->>UI: Overview(data_mode="synthetic")
-    User->>UI: Replay timeline / เปิด Evidence X-ray
-    UI->>API: GET /api/v1/incidents/{id}
-    API-->>UI: Timeline, evidence, hypotheses, feedback
-    User->>UI: Confirm / reject / partial cause
-    UI->>API: POST /incidents/{id}/feedback
-    API->>DB: Append human verdict
-    API-->>UI: Updated feedback
+    Admin->>API: Start GitHub App installation
+    API->>DB: Store hashed, expiring, single-use state
+    API-->>Admin: GitHub installation URL
+    GitHub->>API: Callback with installation_id + state
+    API->>GitHub: Read installation metadata
+    API->>DB: Map installation to workspace
+    GitHub->>API: Signed webhook + delivery ID
+    API->>API: Verify raw-body HMAC and deduplicate
+    API->>DB: Persist delivery and normalized connected change
+    opt Checks feature enabled and permission granted
+        API->>GitHub: Neutral/success decision-support Check Run
+    end
 ```
 
-Feedback ต้องไม่ rewrite evidence, rank เดิม หรือ timestamp ย้อนหลัง การเรียนรู้จาก feedback เป็น pipeline ในอนาคตและต้อง version dataset ใหม่
+Webhook delivery ID มี unique constraint และ signature ถูกตรวจบน raw body
+การ publish GitHub Check มี durable publication state, stable external identity,
+attempt/error/next-retry metadata และ create-or-PATCH recovery ต่อ repository/head
+SHA อย่างไรก็ตาม webhook processing ยัง synchronous และยังไม่มี durable work
+queue, dead-letter queue หรือ background retry scheduler การเขียน GitHub Check
+ปิดโดย default และไม่ใช่ deployment gate Responder สามารถ retry ผ่าน explicit
+endpoint ได้เมื่อ workspace/repository/change scope ถูกต้อง
 
-## Connected incident sequence — roadmap
+PR delivery เดินสถานะ `processing → processed|failed` Signed retry ที่มี
+installation/repository identity ตรงกับ delivery เดิมสามารถประมวลผล PR ที่ยัง
+ไม่ `processed` ใหม่ได้ ส่วน workflow/deployment retry ตรวจ normalized
+operational event แยกต่างหากและสร้าง event ที่หายไปแบบ idempotent
+
+## Operational event และ incident flow
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant GitHub as GitHub App
-    participant Hook as Webhook gateway
-    participant Jobs as Idempotent worker
-    participant OTel as OTel adapter
-    participant Core as Correlation engine
-    participant Store as Evidence store
-    participant UI as Investigation Ledger
+    actor Responder
+    participant Source as CI/CD or telemetry source
+    participant API
+    participant Ops as Operations service
+    participant DB
+    participant UI
 
-    GitHub-->>Hook: Signed deployment event
-    Hook->>Hook: Verify signature + deduplicate delivery
-    Hook-->>GitHub: Fast 2xx acknowledgement
-    Hook->>Jobs: Enqueue normalized work
-    OTel-->>Jobs: Telemetry envelope
-    Jobs->>Core: Correlate commit, deployment, service, time window
-    Core->>Store: Persist evidence with provenance
-    Store-->>UI: Incident becomes available
+    Source->>API: POST tenant-scoped operational event
+    API->>Ops: Validate repository/service/incident ownership
+    Ops->>DB: Insert workspace + source + provider_event_id
+    alt Idempotent replay
+        DB-->>API: Existing event
+        API-->>Source: 201 with existing representation
+    else Accepted event
+        Ops->>DB: Persist accepted/correlated status
+        API-->>Source: Stored event
+        Responder->>API: Lifecycle transition or incident note
+        API->>DB: Append durable state/note
+        Ops->>DB: Fan out in-app notification to workspace members
+        UI->>API: Read current incident and notification state
+    end
 ```
 
-Sequence นี้เป็น roadmap เท่านั้น GitHub และ OTel ยังไม่ implement ดู security gate ที่ [SECURITY.md](SECURITY.md)
+Operational event เป็น durable normalized record ไม่ใช่ raw OTLP storage
+การรับ event ใช้ tenant context จาก authenticated request หรือ workspace-derived
+collector credential และตรวจ foreign key ทุกตัวให้อยู่ใน workspace เดียวกัน
+Replay ที่ canonical payload/origin เดิมไม่สร้าง row, audit หรือ notification ซ้ำ
+แต่ identity เดิมที่ content/origin ต่างกันคืน `409` Member provenance ถูก discard
+และ Server สร้าง trust statement ใหม่พร้อม reserved `_ingestion` เพื่อแยก
+`member_api` จาก provider adapter ที่ผ่าน trusted mapping แล้ว
+
+Concurrency control ใช้คนละแบบตาม aggregate: service graph และ incident mutation
+lock rows บน database ที่รองรับ `FOR UPDATE`, risk policy ใช้ optimistic
+compare-and-swap ด้วย version และ event dedupe พึ่ง unique constraint
+
+## Data source contract
+
+### Synthetic/local
+
+- seed loader สร้าง scenario, change, graph, incident และ evidence แบบ idempotent
+- development repository เป็น fixture adapter ไม่ใช่ GitHub connection จริง
+- development invitation คืน claim token เพียงครั้งเดียวผ่าน response แบบ
+  `Cache-Control: no-store`
+- development fallback ถูกปิดใน production
+
+### Credential-gated connected
+
+- OIDC ต้องมี issuer, audience และ JWKS URL
+- GitHub ต้องมี App ID, slug, private key และ webhook secret
+- SMTP ต้องมี host และ sender configuration
+- telemetry ingest ต้องมี bearer token
+- capability endpoint บอก UI ตาม runtime configuration ว่า provider ใดพร้อมใช้
 
 ## Architecture decisions
 
 ### ADR-001 — Deterministic first
 
-Risk scoring, graph traversal, ranking และ explanation template ต้อง deterministic และทดสอบได้ก่อนเพิ่ม LLM เหตุผลคือคะแนนและสาเหตุจำเป็นต้อง reproduce, audit และเปรียบเทียบ baseline ได้
+Risk scoring, graph traversal, ranking และ explanation template ต้อง reproduce
+และ audit ได้ LLM จึงไม่เป็นเจ้าของคะแนน ไม่เพิ่ม candidate ที่ไม่มี evidence
+และไม่อยู่ใน execution path ปัจจุบัน
 
-### ADR-002 — SQLite local, PostgreSQL configured
+### ADR-002 — Workspace เป็น tenant boundary
 
-SQLite เป็น default runtime ที่ตรวจแล้ว ส่วน configuration layer แปลง `postgres://`/`postgresql://` เป็น SQLAlchemy psycopg URL ได้และมี automated test รองรับ อย่างไรก็ตาม ยังไม่มี PostgreSQL integration test หรือ migration framework จึงยังไม่ถือว่า PostgreSQL deployment ผ่านการยืนยัน
+ข้อมูลธุรกิจทุกชุดต้อง resolve ผ่าน membership และมี `workspace_id` ใน query
+หรือ relationship ที่พากลับไปยัง workspace ได้ การคืน `404 workspace_not_found`
+เมื่อผู้ใช้ไม่มี membership ลดการเปิดเผยว่าทรัพยากรของ tenant อื่นมีอยู่จริง
 
-### ADR-003 — Application BFS บน JSON snapshot; PostgreSQL adjacency ก่อน graph database
+### ADR-003 — SQLite local, PostgreSQL สำหรับ deployment
 
-MVP ปัจจุบันเก็บ service graph/blast-radius เป็น JSON snapshots และคำนวณ BFS ใน deterministic Python engine วิธีนี้เพียงพอกับ 3 bounded synthetic scenarios แต่ยังไม่ใช่ graph store สำหรับ connected telemetry
+SQLite เหมาะกับ local development ส่วน production target คือ PostgreSQL ผ่าน
+psycopg Alembic เป็นเจ้าของ schema lifecycle ทั้งสองแบบ ห้ามใช้
+`Base.metadata.create_all()` เป็น production migration strategy
 
-เมื่อ normalize graph แล้ว ให้ประเมิน PostgreSQL adjacency/recursive CTE ก่อนเพิ่ม database ใหม่ ตาม [PostgreSQL recursive-query documentation](https://www.postgresql.org/docs/current/queries-with.html)
+### ADR-004 — Relational source of truth, JSON analysis snapshots
 
-พิจารณา Neo4j เมื่อ:
+Identity, tenancy, provider, catalog, policy, event, lifecycle assignee,
+feedback และ notification ใช้ relational records ส่วน risk, blast radius,
+timeline (รวม responder notes), evidence และ hypothesis ยังเป็น JSON snapshots
+เพื่อคืน aggregate ให้ UI ได้รวดเร็ว ข้อแลกเปลี่ยนคือ database ยัง enforce
+reference ภายใน JSON ไม่ได้
 
-- traversal ลึกหรือ variable-length เป็น workload หลัก
-- graph algorithms กลายเป็น product capability
-- benchmark บน reference dataset ไม่ผ่าน p95 target
-- ทีมยอมรับภาระ sync, backup และ authorization เพิ่ม
+### ADR-005 — At-least-once input, idempotent persistence
 
-Decision benchmark ใน roadmap: 100k nodes, 1m edges, 3-hop traversal p95 ไม่เกิน 200 ms บน reference environment
+GitHub webhook และ operational event อาจถูกส่งซ้ำ ระบบใช้ provider delivery ID
+หรือ `(workspace_id, source, provider_event_id)` เป็น dedupe key Replay คืนผล
+เดิมและต้องไม่สร้าง side effect ซ้ำ Delivery ledger กับ normalized event ledger
+มี dedupe คนละชั้นเพื่อให้ signed provider retry ซ่อม event ที่หายหลัง partial
+processing ได้
 
-### ADR-004 — External systems behind ports
+### ADR-006 — No autonomous remediation
 
-Synthetic scenario loader, GitHub adapter, OTel adapter และ future LLM adapter ต้อง implement interface เดียวกับ normalized domain inputs ทำให้ demo ไม่ต้องมี credentials และ integration failure ไม่เปลี่ยน deterministic core
+ไม่มี deployment token, cluster credential, shell execution, rollback API หรือ
+arbitrary outgoing webhook ใน process ของ DeployGuard
 
-### ADR-005 — No autonomous remediation
+## Reliability boundary
 
-Recommendation แสดง “verify next” เท่านั้น ไม่มี shell, deployment token, rollback API หรือ cluster credential ใน process นี้
+มีอยู่แล้ว:
 
-## Reliability and observability
+- `/api/v1/health` ตรวจ database ด้วย `SELECT 1`
+- typed response models และ stable domain error envelope
+- Alembic upgrade ตอน application startup
+- idempotent synthetic seed
+- provider webhook และ operational-event dedupe
+- signed webhook retry reconciliation สำหรับ PR/workflow/deployment records
+- tenant-scoped reads/writes และ role checks ที่ service layer
 
-ตรวจแล้ว:
+ยังต้องทำก่อนเรียก production-ready:
 
-- `/api/v1/health` ตรวจ database ด้วย `SELECT 1` และคืน `status`, `database`, `service`, `data_mode`
-- FastAPI ใช้ typed response models และ domain error envelope
-- CORS อนุญาต local UI ทั้ง `127.0.0.1:4300` และ `localhost:4300`
-- scenario seeding เป็น idempotent
-- risk, BFS และ RCA มี deterministic tests
-- UI มี loading/error/empty states และ human feedback persistence
+- แยก liveness กับ readiness
+- background queue, retry policy, dead-letter queue และ reconciliation
+- rate limit, request-body limit และ per-workspace quota
+- automated retention/deletion
+- PostgreSQL RLS และ concurrency/integration test
+- backup/restore drill และ migration rollback procedure
+- telemetry/alerts สำหรับตัว DeployGuard เอง
 
-ยังเป็น roadmap:
-
-- scoring/scenario/graph snapshot version ใน audit record
-- external-delivery inbox/replay
-- production telemetry ของตัว DeployGuard เอง
-- migration, backup/restore และ retention operations
-
-## Deployment views
-
-| Phase | Runtime | Data source | สถานะ |
-|---|---|---|---|
-| Local synthetic MVP | Angular 22 + FastAPI + SQLite | 3 seeded scenarios | ✅ Runnable และตรวจ browser/CORS แล้ว |
-| Local PostgreSQL configuration | FastAPI + PostgreSQL URL | Synthetic seeds | ⚠️ Config/test ระดับ URL เท่านั้น ยังไม่มี migration/integration run |
-| Docker Compose definition | Web + API + PostgreSQL | Synthetic seeds | ⚠️ `config` ผ่าน; image build ยังไม่ยืนยัน |
-| Reproducible portfolio | Automated tests/build + docs | Synthetic fixtures | ✅ Core checks ผ่าน; real benchmark ยังไม่มี |
-| Connected sandbox | GitHub App + OTel adapter | Explicit opt-in sandbox | Later roadmap |
-| LLM-assisted summary | Bounded evidence-only adapter | Redacted evidence | Deferred จน evaluation gate ผ่าน |
+Runbook สำหรับ deployment และ failure handling อยู่ใน
+[OPERATIONS.md](OPERATIONS.md) ส่วน security controls และ known gaps อยู่ใน
+[SECURITY.md](SECURITY.md)

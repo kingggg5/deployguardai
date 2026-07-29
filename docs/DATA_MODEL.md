@@ -1,214 +1,343 @@
 # Data model
 
-## Workspace access domain
+SQLAlchemy 2.x models เป็น source of truth ฝั่ง application และ Alembic เป็น
+เจ้าของ schema lifecycle ระบบใช้ SQLite สำหรับ local development และรองรับ
+PostgreSQL ผ่าน `DATABASE_URL`
 
-```text
-User
-  ├─ AccessToken (hashed, expiring, revocable)
-  └─ WorkspaceMembership ── Workspace
-                              ├─ Repository
-                              ├─ Invitation (hashed one-time token)
-                              └─ AuditEvent (append-only API)
-```
+## Modeling principles
 
-Workspace slug, user email/provider subject, membership
-`(workspace_id, user_id)`, and provider repository identity are unique. All
-workspace-management queries resolve membership before returning tenant-owned
-records.
+- `workspace_id` เป็น tenant partition key หลัก
+- external identifiers ไม่ได้รับความเชื่อถือจน map เข้ากับ workspace/repository
+  ฝั่ง server
+- synthetic และ connected records แยกด้วย `data_mode`
+- risk, blast radius, timeline, evidence และ hypotheses เป็น JSON snapshots
+- identity, membership, provider, catalog, policy, event, feedback และ
+  notification เป็น relational records ส่วน responder note อยู่ใน incident
+  timeline JSON
+- token ที่ระบบออกเองเก็บเฉพาะ SHA-256 digest
+- timestamp ใช้ timezone-aware UTC ใน API contract
+- duplicate external delivery ต้องถูกหยุดด้วย database unique constraint ไม่ใช่
+  in-memory check
 
-> สถานะ: **SQLAlchemy schema ใช้งานแล้ว** บน SQLite default และรับ PostgreSQL URL ผ่าน configuration ปัจจุบันสร้าง schema ด้วย `Base.metadata.create_all()` และยังไม่มี Alembic migrations หรือ PostgreSQL integration run
-
-## หลักการ
-
-- ทุก timestamp เป็น ISO 8601 UTC
-- score อยู่ในช่วง 0–100
-- confidence และ quality อยู่ในช่วง 0–1
-- seeded record ใช้ `data_mode = "synthetic"`
-- risk, blast radius, timeline, evidence และ hypotheses ถูก persist เป็น typed JSON snapshots
-- evidence และ counter-evidence ถูกอ้างด้วย stable IDs ภายใน incident JSON
-- feedback เป็น record แยกใน `incident_feedback`
-- scoring/scenario/graph versioning ยังเป็น roadmap
-
-## Physical schema ที่ implement แล้ว
+## Domain map
 
 ```mermaid
 erDiagram
-    SCENARIO ||--o{ CHANGE_RECORD : contains
-    SCENARIO ||--o{ INCIDENT_RECORD : contains
-    CHANGE_RECORD ||--o{ INCIDENT_RECORD : correlated_with
-    INCIDENT_RECORD ||--o{ FEEDBACK_RECORD : receives
-
-    SCENARIO {
-        string id PK
-        string name
-        text description
-        string data_mode
-        boolean is_active
-        int sort_order
-        string active_change_id
-        string active_incident_id
-        json service_graph
-    }
-    CHANGE_RECORD {
-        string id PK
-        string scenario_id FK
-        string data_mode
-        string title
-        string repository
-        string author
-        string commit_sha
-        string branch
-        datetime created_at
-        string deployment_status
-        string deployment_environment
-        json changed_services
-        int files_changed
-        int lines_added
-        int lines_deleted
-        json flags
-        float test_coverage
-        boolean rollback_ready
-        float observability_score
-        int previous_failures
-        json risk
-        json blast_radius
-    }
-    INCIDENT_RECORD {
-        string id PK
-        string scenario_id FK
-        string data_mode
-        string title
-        string severity
-        string status
-        datetime started_at
-        datetime resolved_at
-        json affected_services
-        string correlated_change_id FK
-        text summary
-        json timeline
-        json evidence
-        json hypotheses
-    }
-    FEEDBACK_RECORD {
-        int id PK
-        string incident_id FK
-        string hypothesis_id
-        string verdict
-        text note
-        datetime submitted_at
-    }
+    USER ||--o{ WORKSPACE_MEMBERSHIP : joins
+    WORKSPACE ||--o{ WORKSPACE_MEMBERSHIP : has
+    USER ||--o| USER_CONTEXT : selects
+    WORKSPACE ||--o{ REPOSITORY : owns
+    WORKSPACE ||--o{ SERVICE : catalogs
+    WORKSPACE ||--o| RISK_POLICY : configures
+    WORKSPACE ||--o{ OPERATIONAL_EVENT : receives
+    WORKSPACE ||--o{ INCIDENT : owns
+    INCIDENT ||--o{ FEEDBACK : receives
+    USER ||--o{ NOTIFICATION : receives
+    WORKSPACE ||--o{ NOTIFICATION : scopes
+    WORKSPACE ||--o{ AUDIT_EVENT : records
+    WORKSPACE ||--o{ PROVIDER_CONNECTION : connects
+    PROVIDER_CONNECTION ||--o{ REPOSITORY : discovers
+    REPOSITORY ||--o{ CHANGE : contains
+    CHANGE ||--o{ INCIDENT : correlates
 ```
 
-เหตุผลที่ MVP ใช้ JSON snapshots:
+เส้นในภาพแสดง domain ownership ความสัมพันธ์บางจุดใน physical schema อาจเป็น
+optional foreign key หรือ resolve ผ่าน workspace context
 
-- API คืน risk/graph/incident เป็น aggregate เดียว
-- seeded scenarios อ่านและสร้างซ้ำได้ง่าย
-- deterministic engine เขียนผล snapshot ที่ UI ใช้โดยตรง
+## Identity และ tenant tables
 
-ข้อจำกัด:
+### `users`
 
-- query/analytics ราย evidence หรือ edge ทำได้ยากกว่าสchema แบบ normalized
-- database ไม่ enforce evidence-reference integrity ภายใน JSON
-- migration/versioning ของ JSON shape ยังไม่มี
-- multi-tenant keys และ RLS ยังไม่มี
+เก็บ local projection ของ identity:
 
-ก่อนรับ connected telemetry หรือ real datasets ต้องประเมินการ normalize service edges, evidence และ hypothesis links
+- `email` และ `provider_subject` unique
+- `auth_provider` แยก development/OIDC/system identity
+- OIDC subject ถูก derive จาก issuer + subject โดยไม่เชื่อ email เป็น stable ID
+- `is_active` ปิด principal ได้โดยไม่ลบ historical record
 
-## Conceptual investigation graph
+### `access_tokens`
 
-Relational entities เป็น system of record ส่วน graph เป็น projection สำหรับ blast radius และ explanation
+ใช้เฉพาะ development auth:
 
-```mermaid
-flowchart LR
-    PR["Change / Commit"]
-    Deploy["Deployment"]
-    S1["Service: checkout-api"]
-    S2["Service: payment-adapter"]
-    DB["Database"]
-    Inc["Incident"]
-    Hyp["Root-cause hypothesis"]
-    Ev1["Evidence"]
-    Ev2["Counter-evidence"]
-    Verdict["Human verdict"]
+- เก็บ `token_hash` ไม่เก็บ raw bearer token
+- มี `expires_at` และ `revoked_at`
+- production profile ไม่อนุญาต development provider
 
-    PR -->|"DEPLOYED_AS"| Deploy
-    Deploy -->|"UPDATES"| S1
-    S1 -->|"CALLS"| S2
-    S2 -->|"DEPENDS_ON"| DB
-    Deploy -->|"PRECEDES"| Inc
-    Inc -->|"AFFECTS"| S1
-    Inc -->|"HAS_CANDIDATE"| Hyp
-    Hyp -->|"SUPPORTED_BY"| Ev1
-    Hyp -->|"CONTRADICTED_BY"| Ev2
-    Hyp -->|"REVIEWED_AS"| Verdict
+### `workspaces` และ `workspace_memberships`
+
+- workspace slug unique
+- membership unique ที่ `(workspace_id, user_id)`
+- role เป็น `viewer`, `responder`, `admin` หรือ `owner`
+- query ข้อมูล tenant ต้องเริ่มจาก membership หรือ `TenantScope`
+
+### `user_contexts`
+
+เก็บ active `workspace_id`, `repository_id` และ `scenario_id` ต่อ user เพื่อให้
+หน้า investigation เปลี่ยน context ได้โดยไม่ใช้ global active state ข้ามผู้ใช้
+การ select context ตรวจว่า repository/scenario อยู่ใน workspace ที่ user เป็น
+สมาชิก
+
+### `workspace_invitations`
+
+- token เก็บเป็น digest และ unique
+- bind กับ normalized email
+- lifecycle: `pending → accepted|revoked|expired`
+- `expires_at`, `accepted_at`, `revoked_at` ทำให้ตรวจย้อนหลังได้
+
+`invitation_deliveries` แยกผลการส่ง SMTP/development outbox ออกจาก invitation
+state และไม่เก็บ claim token
+
+## Repository และ provider tables
+
+### `repositories`
+
+Repository identity unique ที่:
+
+```text
+(workspace_id, provider, provider_repository_id)
 ```
 
-## Aggregate boundaries
+`provider` แยก `development` กับ `github`, `data_mode` แยก `synthetic` กับ
+`connected`, และ `connection_state`/`selected` บอกว่ายังเป็นแหล่งข้อมูลที่ใช้
+งานอยู่หรือไม่
 
-### Scenario
+### `provider_connections`
 
-Scenario เป็น synthetic seed boundary:
+เก็บ GitHub App installation ที่ map กับ workspace:
 
-- มี 3 embedded scenario specs และ automated idempotent-seed test
-- activation เปลี่ยน `is_active` และ active change/incident
-- scenario, change และ incident records ติดป้าย `synthetic`
-- explicit seed version/checksum ยังไม่มี
+- หนึ่ง provider connection ต่อ workspace
+- `installation_id` unique ข้าม workspace
+- permissions และ repository selection เป็น snapshot จาก GitHub
+- `pending_verification`, `connected` และ `revoked` เป็น connection states ที่
+  สำคัญต่อ data trust
 
-### Change analysis
+### `provider_authorization_states`
 
-`ChangeRecord` เก็บ deterministic risk และ blast-radius snapshot ใน record เดียว `POST /changes/analyze` คำนวณและ persist aggregate ก่อนคืน `ChangeDetail`
+เก็บ hashed state สำหรับ install callback:
 
-### Incident investigation
+- unique, expiring และ single-use
+- bind กับ provider, workspace และ initiating user
 
-`IncidentRecord` เก็บ timeline, evidence และ ranked hypotheses เป็น JSON snapshot ส่วน `FeedbackRecord` ถูกเพิ่มภายหลังและ survive page refresh การ version incident snapshot ยังเป็น roadmap
+### `webhook_deliveries`
 
-## API-to-model mapping
+Dedupe key:
 
-| API field | Physical persistence |
+```text
+(provider, delivery_id)
+```
+
+record เก็บ event type, installation, mapped workspace/repository, status และ
+เวลา ingest แต่ไม่ได้เก็บ raw webhook body จึงเป็น delivery ledger ไม่ใช่ raw
+event archive PR ที่ monitor ใช้ `processing`, `processed`, `failed` เพื่อให้
+signed retry เดินงานที่ไม่จบต่อได้ Workflow/deployment retry ตรวจ normalized
+event ledger อีกชั้นและสร้าง event ที่หายไปใหม่โดยใช้ delivery ID เดิม
+
+## Service catalog และ policy
+
+### `services`
+
+Service เป็น first-class workspace resource ไม่ได้อนุมานจากชื่อ repository
+เพียงอย่างเดียว ข้อมูลหลักประกอบด้วย:
+
+- workspace-scoped slug และ display metadata
+- owning team, criticality และ lifecycle/status metadata
+- repository association เมื่อทราบ
+- dependency IDs ที่ต้องอ้าง service ภายใน workspace เดียวกัน
+
+Service slug unique ภายใน workspace Graph validation ปฏิเสธ self-dependency,
+unknown/cross-workspace dependency และ cycle การ validate ที่ application layer
+ทำให้ API คืน domain error ที่อ่านได้ แต่ database ยังไม่ได้แทน graph-cycle
+constraint บน PostgreSQL การแก้ graph lock service rows ใน workspace ระหว่าง
+validate/commit เพื่อลด concurrent cycle race ตอนวิเคราะห์ change ระบบ overlay
+catalog nodes/dependencies ลง deterministic analysis graph, map repository-linked
+service เป็น root และรวม canonical topology ใน analysis digest ดังนั้น tier และ
+dependency ที่เปลี่ยนจะสร้าง risk/blast-radius snapshot ใหม่
+
+### `workspace_risk_policies`
+
+หนึ่ง policy ต่อ workspace และเก็บ explicit version:
+
+- client update ต้องส่ง version ถัดไปจาก current version
+- `warn_threshold < block_threshold`
+- field ปัจจุบันคือ `enabled`, warn/block thresholds, `require_tests`,
+  `require_rollback` และ `max_blast_radius`
+- update เป็น admin-only, ใช้ optimistic predicate บน current version และสร้าง
+  audit event
+
+Policy เป็น configuration ของการตีความความเสี่ยง ไม่ให้สิทธิ์ระบบ deploy หรือ
+block pipeline เอง Optional GitHub Check ใช้ policy นี้สร้าง findings และเลือก
+ผล `success` หรือ `neutral` เท่านั้น
+
+### `github_check_publications`
+
+เก็บ durable publication state แยกจาก webhook delivery:
+
+- unique `(repository_id, head_sha)` ป้องกัน duplicate Check ต่อ commit
+- `external_id` คงที่ใช้ recover provider Check หลัง ambiguous failure
+- `provider_check_id` ใช้ PATCH Check เดิมเมื่อ publish/retry ซ้ำ
+- status: `pending`, `publishing`, `published`, `retryable_failed`,
+  `permanent_failed`
+- เก็บ attempt count, last error, next retry, details URL และ timestamps
+
+ตารางนี้ทำให้ signed webhook retry หรือ explicit responder retry เดินต่อได้โดย
+ไม่สร้าง Check ซ้ำ แต่ยังไม่มี background scheduler/worker
+
+## Investigation domain
+
+### `scenarios`
+
+Scenario เป็น context ของ synthetic fixture หรือ connected repository:
+
+- มี `workspace_id` และ `repository_id`
+- `data_mode` ระบุ provenance class
+- `service_graph` เป็น JSON snapshot
+- active change/incident IDs ช่วยประกอบ overview
+
+Synthetic seed ทำงานแบบ idempotent แต่ explicit seed checksum/schema version
+ยังไม่มี
+
+### `changes`
+
+`ChangeRecord` เก็บ input และผล deterministic analysis ใน record เดียว:
+
+- repository/commit/deployment metadata
+- change statistics และ explicit evidence inputs
+- `risk` JSON snapshot
+- `blast_radius` JSON snapshot
+
+JSON ช่วยคืน `ChangeDetail` aggregate ได้เร็ว แต่ database ยังตรวจ reference
+ภายใน `evidence_ids` หรือ node/edge ไม่ได้ และ snapshot ยังไม่มี schema/scoring
+version
+
+### `incidents`
+
+Incident มี workspace/repository/scenario context, severity, lifecycle status,
+time range, affected services, correlated change และ optional assignee
+
+`timeline`, `evidence` และ `hypotheses` ยังเป็น JSON snapshots Responder note
+ถูก append เป็น typed timeline entry ที่มี `actor_user_id` ส่วน human feedback
+เป็น relational record แยก การเพิ่มทั้งสองแบบไม่ rewrite evidence เดิม
+`resolved` เป็น terminal lifecycle state และ assignee ต้องเป็น workspace member
+Incident lifecycle/note mutation lock incident row บน PostgreSQL
+
+### `incident_feedback`
+
+Feedback อ้าง `incident_id` และ `hypothesis_id` พร้อม verdict/note/timestamp
+ข้อจำกัดปัจจุบันคือ foreign key บังคับ incident ได้ แต่ hypothesis ID อยู่ใน
+JSON จึงตรวจ referential integrity ที่ service layer
+
+### Responder notes ใน `incidents.timeline`
+
+Migration `0004` ไม่ได้สร้าง `incident_notes` table Responder note ถูก persist
+เป็น `TimelineEvent(type="incident_note")` ใน JSON list พร้อม author และ
+timestamp วิธีนี้ durable แต่ยังไม่มี database-level referential integrity,
+pagination หรือ independent retention ต่อ note Lifecycle ของ incident ที่
+resolved เปลี่ยนต่อไม่ได้ แต่ยังเพิ่ม post-resolution/postmortem note ได้
+
+## Operational events และ notifications
+
+### `operational_events`
+
+Operational event เป็น normalized durable envelope สำหรับ CI/CD, GitHub หรือ
+telemetry source:
+
+- tenant key: `workspace_id`
+- dedupe key: `(workspace_id, source, provider_event_id)`
+- optional links: repository, service และ incident
+- `ingestion_status`: `accepted` หรือ `correlated`
+- payload/summary ที่ผ่าน typed input contract
+
+ทุก optional foreign ID ถูกตรวจให้เป็น resource ของ workspace เดียวกันก่อน
+commit การรับซ้ำคืน row เดิมแบบ idempotent และไม่สร้าง audit/notification ซ้ำ
+เมื่อ canonical payload และ origin ตรงกันเท่านั้น ถ้า key เดิมแต่ material
+ต่างกันคืน `409` Member provenance ถูก discard ทั้ง object ส่วน trusted adapter
+เก็บ provider metadata ได้ Server เขียน reserved `provenance._ingestion` ด้วย
+channel `member_api|trusted_internal`, actor และ request ID
+
+ตารางนี้ไม่ใช่ raw logs/traces store และยังไม่มี background retention job
+
+### `notifications`
+
+Notification ผูกกับ `user_id` และ `workspace_id`:
+
+- อ่านได้เฉพาะ recipient
+- มี unread/read state และ `read_at`
+- ใช้ deep-link/resource metadata เพื่อกลับไปยัง incident/event ที่เกี่ยวข้อง
+- เป็น in-app notification เท่านั้น
+
+ระบบไม่ส่ง notification ไป arbitrary URL และยังไม่มี Slack/Teams/PagerDuty
+delivery records
+
+## Audit events
+
+`audit_events` เป็น application audit ledger ของ tenant mutation สำคัญ:
+
+- actor, action, resource type/id
+- request ID
+- redacted metadata
+- workspace และ creation timestamp
+
+Audit API เป็น append-only แต่ database user ที่ application ใช้อยู่ยังสามารถ
+แก้/ลบ row ได้ จึงไม่ควรเรียกว่า tamper-proof จนกว่าจะมี database privilege,
+WORM export หรือ external audit sink
+
+## Key invariants
+
+| Invariant | Enforcement |
 |---|---|
-| `ChangeDetail.risk` | `ChangeRecord.risk` JSON |
-| `risk.dimensions[]` | nested in `ChangeRecord.risk` |
-| `blast_radius.nodes[]` | `ChangeRecord.blast_radius` JSON |
-| `blast_radius.edges[]` | `ChangeRecord.blast_radius` JSON |
-| `IncidentDetail.timeline[]` | `IncidentRecord.timeline` JSON |
-| `IncidentDetail.evidence[]` | `IncidentRecord.evidence` JSON |
-| `IncidentDetail.hypotheses[]` | `IncidentRecord.hypotheses` JSON |
-| `IncidentDetail.feedback[]` | query from `FeedbackRecord` |
+| Membership unique ต่อ user/workspace | Database unique constraint |
+| Provider repository unique ต่อ workspace | Database unique constraint |
+| GitHub delivery ไม่ process ซ้ำ | Database unique constraint |
+| Operational event ไม่ ingest ซ้ำ | Database unique constraint |
+| Tenant resource IDs อยู่ workspace เดียวกัน | Service-layer query validation + foreign keys |
+| Service graph ไม่มี self/cycle | Service-layer graph validation + PostgreSQL row lock |
+| Risk policy update ไม่ทับ version ปัจจุบัน | Compare-and-swap ด้วย explicit version |
+| `warn_threshold < block_threshold` | Typed/domain validation |
+| Incident assignee เป็น active workspace member | Service-layer validation |
+| Resolved incident ไม่ transition ต่อ | Lifecycle service + incident row lock |
+| Notification อ่านได้เฉพาะ recipient | Recipient-scoped query |
+| GitHub Check ไม่ซ้ำต่อ repository/head | Unique constraint + stable external ID + create-or-PATCH |
+| Risk score อยู่ 0–100 | Pydantic + deterministic engine clamp |
+| Confidence/quality อยู่ 0–1 | Pydantic + engine bounds |
 
-## Invariants
+## Migration lifecycle
 
-ตรวจโดย engine/schema/tests แล้ว:
+Application startup เรียก Alembic upgrade ถึง `head`
 
-1. `overall_score` และ dimension score ถูก clamp ที่ 0–100
-2. confidence, quality และ data quality ถูกจำกัดที่ 0–1
-3. risk ใช้ 6 dimensions และ fixed weights
-4. RCA คืนสูงสุด 3 hypotheses และจัด rank ใหม่ 1–3
-5. BFS มี cycle protection และ default maximum 4 hops
-6. feedback อ้าง incident/hypothesis และ persist แยกจาก incident JSON
-7. seeded records ใช้ `data_mode = "synthetic"`
+| Revision | Scope |
+|---|---|
+| `0001` | Core scenario/change/incident และ workspace access platform |
+| `0002` | Tenant keys บน investigation records และ per-user context |
+| `0003` | GitHub provider state, webhook delivery และ invitation delivery |
+| `0004` | Service catalog, risk policy, operational events, notifications และ incident assignee |
+| `0005` | Durable GitHub Check publication identity, retry และ provider state |
 
-ยังควรเพิ่มก่อน connected mode:
+- empty database ถูกสร้างจาก migration chain
+- production ปฏิเสธ non-empty database ที่ไม่มี `alembic_version`
+- development/test/container อนุญาต legacy bootstrap แบบจำกัด โดยตรวจ table
+  allowlist ก่อน stamp/upgrade
+- `Base.metadata.create_all()` ไม่ใช่ startup path ปกติ
 
-1. database-level JSON/evidence-reference validation
-2. `resolved_at >= started_at` constraint
-3. explicit uniqueness/idempotency key สำหรับ analyze/feedback
-4. scenario/scoring/graph schema versions
-5. synthetic/connected separation ที่ tenant/workspace level
+ก่อน production migration:
 
-## Tenant and connected-data evolution
+1. สำรองฐานข้อมูลและตรวจ restore
+2. รัน `alembic current` และ `alembic history`
+3. ทดลอง upgrade บน snapshot ที่ไม่ใช่ production
+4. ตรวจ application compatibility ระหว่าง rollout
+5. รัน smoke queries และตรวจ `alembic_version`
 
-MVP ปัจจุบันเป็น unauthenticated single-workspace local demo ไม่มี `tenant_id`/`installation_id` ก่อนรับข้อมูลจริง schema ต้องเพิ่ม keys เหล่านี้ใน primary, foreign และ unique constraints พร้อม PostgreSQL row-level security และ negative isolation tests
+รายละเอียดอยู่ใน [OPERATIONS.md](OPERATIONS.md)
 
-ห้าม expose runtime ปัจจุบันต่อ internet หรือถือว่า authentication/tenant isolation มีอยู่แล้ว
+## Current limitations
 
-## Retention roadmap
-
-| Data | ค่าเริ่มต้นที่เสนอ | หมายเหตุ |
-|---|---:|---|
-| Synthetic seeds | อยู่กับ repository version | ไม่มี customer data |
-| Raw GitHub webhooks | 30 วัน | Roadmap; encrypted และ replay-controlled |
-| Raw logs/traces | 7 วัน | Roadmap; redact secrets/PII |
-| Aggregated evidence | 90 วัน | Configurable |
-| Feedback/audit | ตาม policy ของ workspace | ต้องลบได้เมื่อ uninstall/delete |
-
-ตัวเลขเหล่านี้เป็น proposed defaults ไม่ใช่ current implementation
+- PostgreSQL RLS ยังไม่มี; tenant isolation พึ่ง application query + FK
+- JSON snapshots ยังไม่มี schema/scoring/graph version
+- ไม่มี automated retention, workspace deletion cascade workflow หรือ legal hold
+- ไม่มี raw telemetry store และไม่มี field-level encryption
+- ไม่มี backup/restore automation ใน repository
+- audit ledger ยังไม่ tamper-proof
+- service dependency DAG ตรวจใน application ไม่ได้ enforce ด้วย database
+- SQLite ไม่ใช่ production concurrency target
+- revision `0003` กับ model metadata มี unique-index representation drift บน
+  provider installation/state fields; ต้อง review/reconcile ก่อนเชื่อ
+  autogenerate diff แบบอัตโนมัติ

@@ -115,6 +115,15 @@ FORM: Investigation cockpit, pinned by the product brief; direction seed intenti
         </button>
         <button
           type="button"
+          [class.is-active]="activeTab() === 'operations'"
+          [attr.aria-current]="activeTab() === 'operations' ? 'page' : null"
+          (click)="setActiveTab('operations')"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h16v5H4V3Zm2 2v1h12V5H6ZM4 10h16v5H4v-5Zm2 2v1h12v-1H6ZM4 17h10v4H4v-4Zm2 2h6v-1H6v1Zm11-2h3v4h-3v-4Z"/></svg>
+          <span>{{ t('tab_operations') }}</span>
+        </button>
+        <button
+          type="button"
           [class.is-active]="activeTab() === 'workspace'"
           [attr.aria-current]="activeTab() === 'workspace' ? 'page' : null"
           (click)="setActiveTab('workspace')"
@@ -153,6 +162,7 @@ FORM: Investigation cockpit, pinned by the product brief; direction seed intenti
                 @case ('change_risk') { {{ t('tab_change_risk') }} }
                 @case ('dora') { {{ t('tab_dora') }} }
                 @case ('scenarios') { {{ t('tab_scenarios') }} }
+                @case ('operations') { {{ t('tab_operations') }} }
                 @case ('workspace') { {{ t('tab_workspace') }} }
                 @default { {{ t('tab_investigation') }} }
               }
@@ -741,7 +751,13 @@ FORM: Investigation cockpit, pinned by the product brief; direction seed intenti
                 <small>/100 · {{ readableStatus(change.risk.level) }}</small>
               </div>
               <div class="risk-command__change">
-                <p class="system-kicker">{{ analysisResult() ? t('manual_analysis_result') : t('active_scenario_change') }}</p>
+                <p class="system-kicker">
+                  {{ analysisResult()
+                    ? t('manual_analysis_result')
+                    : linkedChange()
+                      ? t('linked_change_result')
+                      : t('active_scenario_change') }}
+                </p>
                 <h2>{{ change.title }}</h2>
                 <p>{{ change.repository }} · {{ change.branch }} · <code>{{ change.commit_sha }}</code></p>
                 <div class="change-state-row">
@@ -836,6 +852,19 @@ FORM: Investigation cockpit, pinned by the product brief; direction seed intenti
           />
         } @else if (activeTab() === 'workspace') {
           <app-workspace-setup [language]="lang()" />
+        } @else if (activeTab() === 'operations') {
+          @defer (on immediate) {
+            <app-operations-center
+              [language]="lang()"
+              [incident]="activeIncident()"
+              (workspaceSetupRequested)="setActiveTab('workspace')"
+              (contextChanged)="handleOperationsContextChanged($event)"
+            />
+          } @placeholder {
+            <div class="empty-state" aria-busy="true">
+              <strong>{{ t('loading_operations') }}</strong>
+            </div>
+          }
         }
       </main>
     </div>

@@ -6,18 +6,18 @@
 
 | Check | ผลที่ยืนยันแล้ว |
 |---|---|
-| Backend | 13 tests ผ่าน |
-| Frontend | 7 tests ผ่าน |
+| Backend | 40 tests ผ่าน |
+| Frontend | 37 tests ผ่าน |
 | Angular | Production build ผ่าน |
 | npm production dependencies | `npm audit --omit=dev` = 0 vulnerabilities |
-| API | 10 routes; health, scenario, analysis, incident, feedback และ error/CORS flows มี tests |
+| API | Investigation, workspace/RBAC, provider, webhook, telemetry และ operations flows มี integration tests |
 | Deterministic engines | 6-dimension risk, BFS/cycle handling และ Top-3 RCA มี automated tests |
-| Browser | Desktop/mobile flow, Evidence X-ray, scenario switching และ feedback interaction ผ่าน |
+| Browser | Desktop/mobile flow รวม Operations service/event/incident/notification interactions ผ่าน |
 | CORS | `127.0.0.1:4300` และ `localhost:4300` ผ่าน |
 | Compose | `docker compose config` ผ่าน |
 | Docker images | **ยังไม่ยืนยัน** เพราะ Docker Linux daemon ไม่พร้อม |
 
-ยังไม่มีผล PR-AUC, Top-K บน RCAEval, MRR บน real/public dataset, calibration หรือ production incident outcome ห้ามอนุมานผลเหล่านี้จาก 13/7 automated tests
+ยังไม่มีผล PR-AUC, Top-K บน RCAEval, MRR บน real/public dataset, calibration หรือ production incident outcome ห้ามอนุมานผลเหล่านี้จาก automated engineering tests
 
 ## คำถามวิจัย
 
@@ -35,8 +35,8 @@
 | DeployGuard embedded scenarios | Synthetic | Unit, integration, demo และ deterministic regression | Implemented: 3 scenarios + idempotent seed test |
 | [RCAEval](https://github.com/phamquiluan/RCAEval) | Public benchmark | RCA Top-K/MRR และ baseline comparison | Candidate; ยังไม่ integrate |
 | [RCAEval archived data](https://zenodo.org/records/14590730) | Public benchmark archive | Pinned evaluation snapshot/checksum | Candidate; ยังไม่ download |
-| [OpenTelemetry Demo](https://opentelemetry.io/docs/demo/) | Public synthetic system | Controlled traces/metrics/logs และ fault scenarios | Later roadmap |
-| Opt-in GitHub sandbox | Connected metadata | Integration reliability ไม่ใช่ accuracy claim | Later roadmap |
+| [OpenTelemetry Demo](https://opentelemetry.io/docs/demo/) | Public synthetic system | Controlled traces/metrics/logs และ fault scenarios | Later roadmap; event ledger ไม่ใช่ native OTLP receiver |
+| Opt-in GitHub sandbox | Connected metadata | Webhook, repository sync และ Check Run reliability ไม่ใช่ accuracy claim | Integration implemented; credentialed sandbox run pending |
 | Production incidents | Real/private | ไม่อยู่ใน MVP | ไม่มีข้อมูล |
 
 RCAEval ระบุ 735 failure cases จาก 3 microservice systems และหลาย telemetry modalities แต่ต้องตรวจ license, version, checksum และ reproducibility ใน evaluation manifest ก่อนใช้งาน ห้ามนำตัวเลขจาก paper มาอ้างว่าเป็นผลของ DeployGuard
@@ -186,7 +186,7 @@ Accuracy ไม่เหมาะกับ class imbalance และห้าม
 | Root cause อยู่ Top 3 ใน core synthetic suite | ≥ 90% | Not measured |
 | Critical unsupported claims | 0 | Not measured |
 | Explanation citation coverage | ≥ 95% | Not measured |
-| Cross-mode synthetic/connected contamination | 0 | Connected mode ยังไม่มี |
+| Cross-mode synthetic/connected contamination | 0 | Models and UI label data mode; credentialed sandbox evaluation pending |
 | Desktop/mobile primary browser flow | Manual/browser verification | ✅ ผ่าน |
 | 3-hop graph query บน reference dataset | p95 ≤ 200 ms | Not measured |
 | Docker Compose definition | Parse/validation | ✅ ผ่าน |

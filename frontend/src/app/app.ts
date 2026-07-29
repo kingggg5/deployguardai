@@ -12,8 +12,18 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { finalize, forkJoin } from 'rxjs';
+import {
+  Observable,
+  finalize,
+  firstValueFrom,
+  forkJoin,
+  map,
+  of,
+  switchMap,
+  throwError
+} from 'rxjs';
 import { DeployGuardApiService } from './core/api/deployguard-api.service';
+import { WorkspaceApiService } from './core/api/workspace-api.service';
 import { Language, TRANSLATIONS } from './core/i18n';
 import {
   AnalyzeChangeRequest,
@@ -29,9 +39,14 @@ import {
   TopologyPoint
 } from './core/models/deployguard.models';
 import {
+  WorkspaceLinkTarget,
   WorkspaceLinkService,
   WorkspaceView
 } from './core/navigation/workspace-link.service';
+import {
+  RepositorySummary,
+  UserContext
+} from './core/models/workspace.models';
 import {
   CommandPaletteAction,
   CommandPaletteComponent
@@ -40,6 +55,7 @@ import { ScopeSwitcherComponent } from './layout/scope-switcher/scope-switcher.c
 import { DoraDashboardComponent } from './features/dora/dora-dashboard.component';
 import { ScenarioLabComponent } from './features/scenario-lab/scenario-lab.component';
 import { WorkspaceSetupComponent } from './features/workspace-setup/workspace-setup.component';
+import { OperationsCenterComponent } from './features/operations/operations-center.component';
 
 type WorkspaceTab = WorkspaceView;
 
@@ -56,6 +72,12 @@ interface AnalysisDraft {
   rollbackReady: boolean;
   observabilityPercent: number;
   previousFailures: number;
+}
+
+interface DashboardLoadResult {
+  scenarios: ScenarioSummary[];
+  overview: Overview;
+  linkedChange: ChangeDetail | null;
 }
 
 const EMPTY_ANALYSIS_DRAFT: AnalysisDraft = {
@@ -83,13 +105,15 @@ const EMPTY_ANALYSIS_DRAFT: AnalysisDraft = {
     ScopeSwitcherComponent,
     DoraDashboardComponent,
     ScenarioLabComponent,
-    WorkspaceSetupComponent
+    WorkspaceSetupComponent,
+    OperationsCenterComponent
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
 export class App implements OnInit, OnDestroy {
   private readonly api = inject(DeployGuardApiService);
+  private readonly workspaceApi = inject(WorkspaceApiService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly document = inject(DOCUMENT);
   private readonly workspaceLinks = inject(WorkspaceLinkService);
@@ -133,12 +157,18 @@ export class App implements OnInit, OnDestroy {
   readonly isAnalyzing = signal(false);
   readonly analysisError = signal('');
   readonly analysisSuccess = signal('');
+  readonly linkedChange = signal<ChangeDetail | null>(null);
+  readonly hasImmutableChangeTarget = signal(false);
 
   readonly activeChange = computed(() => this.overview()?.active_change ?? null);
   readonly activeIncident = computed(() => this.overview()?.active_incident ?? null);
   readonly activeScenarioId = computed(() => this.overview()?.active_scenario_id ?? '');
   readonly displayedRiskChange = computed(
-    () => this.analysisResult() ?? this.activeChange()
+    () =>
+      this.analysisResult() ??
+      (this.hasImmutableChangeTarget()
+        ? this.linkedChange()
+        : this.activeChange())
   );
   readonly lastUpdated = computed(() => this.overview()?.generated_at ?? null);
 
@@ -192,7 +222,7 @@ export class App implements OnInit, OnDestroy {
   });
 
   readonly availableAnalysisNodes = computed(
-    () => this.activeChange()?.blast_radius.nodes ?? []
+    () => this.displayedRiskChange()?.blast_radius.nodes ?? []
   );
 
   readonly canAnalyze = computed(() => {
@@ -227,6 +257,18 @@ export class App implements OnInit, OnDestroy {
     this.document.title = `${this.t(`tab_${tab === 'change_risk' ? 'change_risk' : tab}`)} · DeployGuard AI`;
   }
 
+  handleOperationsContextChanged(context: UserContext): void {
+    this.linkedChange.set(null);
+    this.analysisResult.set(null);
+    this.hasImmutableChangeTarget.set(false);
+    this.workspaceLinks.sync(this.activeTab(), '', 'replace', {
+      changeId: null,
+      workspaceId: context.workspace_id,
+      repositoryId: context.repository_id
+    });
+    this.refreshDashboard(true);
+  }
+
   handlePaletteAction(action: CommandPaletteAction): void {
     if (action.type === 'navigate') {
       this.setActiveTab(action.view);
@@ -246,11 +288,7 @@ export class App implements OnInit, OnDestroy {
   @HostListener('window:popstate')
   restoreViewFromUrl(): void {
     this.activeTab.set(this.workspaceLinks.readView());
-    const scenarioId = this.workspaceLinks.readScenarioId();
-    const scenario = this.scenarios().find((item) => item.id === scenarioId);
-    if (scenario && scenario.id !== this.activeScenarioId()) {
-      this.activateScenario(scenario, false);
-    }
+    this.refreshDashboard(true);
   }
 
   toggleSidebar(): void {
@@ -280,10 +318,7 @@ export class App implements OnInit, OnDestroy {
     this.loadError.set('');
     this.exportError.set('');
 
-    forkJoin({
-      scenarios: this.api.getScenarios(),
-      overview: this.api.getOverview()
-    })
+    this.dashboardRequest()
       .pipe(
         takeUntilDestroyed(this.destroyRef),
         finalize(() => {
@@ -292,8 +327,9 @@ export class App implements OnInit, OnDestroy {
         })
       )
       .subscribe({
-        next: ({ scenarios, overview }) => {
+        next: ({ scenarios, overview, linkedChange }) => {
           this.scenarios.set(scenarios);
+          this.linkedChange.set(linkedChange);
           this.applyOverview(overview);
           const requestedScenarioId = this.workspaceLinks.readScenarioId();
           const requestedScenario = scenarios.find(
@@ -311,6 +347,7 @@ export class App implements OnInit, OnDestroy {
               'replace'
             );
           }
+          this.loadDoraMetrics();
         },
         error: (error: unknown) => {
           this.loadError.set(
@@ -318,8 +355,6 @@ export class App implements OnInit, OnDestroy {
           );
         }
       });
-
-    this.loadDoraMetrics();
   }
 
   loadDoraMetrics(): void {
@@ -347,6 +382,10 @@ export class App implements OnInit, OnDestroy {
     this.loadError.set('');
     this.feedbackSuccess.set('');
     this.analysisResult.set(null);
+    if (updateUrl) {
+      this.linkedChange.set(null);
+      this.hasImmutableChangeTarget.set(false);
+    }
 
     this.api
       .activateScenario(scenario.id)
@@ -364,7 +403,8 @@ export class App implements OnInit, OnDestroy {
             this.workspaceLinks.sync(
               this.activeTab(),
               overview.active_scenario_id,
-              'push'
+              'push',
+              null
             );
           }
           this.loadDoraMetrics();
@@ -381,7 +421,27 @@ export class App implements OnInit, OnDestroy {
     this.shareSuccess.set('');
     this.shareError.set('');
     try {
-      await this.workspaceLinks.copy(this.activeTab(), this.activeScenarioId());
+      let target: WorkspaceLinkTarget | undefined;
+      const change = this.displayedRiskChange();
+      if (this.activeTab() === 'change_risk' && change) {
+        if (this.hasImmutableChangeTarget()) {
+          target = this.workspaceLinks.readTarget();
+        } else {
+          const context = await firstValueFrom(
+            this.workspaceApi.currentContext()
+          );
+          target = {
+            changeId: change.id,
+            workspaceId: context.workspace_id,
+            repositoryId: context.repository_id
+          };
+        }
+      }
+      await this.workspaceLinks.copy(
+        this.activeTab(),
+        this.activeScenarioId(),
+        target
+      );
       this.shareSuccess.set(this.t('view_link_copied'));
     } catch {
       this.shareError.set(this.t('error_copy_link'));
@@ -629,6 +689,181 @@ export class App implements OnInit, OnDestroy {
     return value ? value.replaceAll('_', ' ') : this.t('not_available');
   }
 
+  private dashboardRequest(): Observable<DashboardLoadResult> {
+    const rawTarget = this.workspaceLinks.readTarget();
+    const target: WorkspaceLinkTarget = {
+      changeId: rawTarget.changeId?.trim() || null,
+      workspaceId: rawTarget.workspaceId?.trim() || null,
+      repositoryId: rawTarget.repositoryId?.trim() || null
+    };
+    const changeId = target.changeId;
+    this.hasImmutableChangeTarget.set(Boolean(changeId));
+    this.linkedChange.set(null);
+
+    if (!changeId) {
+      return forkJoin({
+        scenarios: this.api.getScenarios(),
+        overview: this.api.getOverview()
+      }).pipe(
+        map(({ scenarios, overview }) => ({
+          scenarios,
+          overview,
+          linkedChange: null
+        }))
+      );
+    }
+
+    this.analysisResult.set(null);
+    return this.resolveChangeTarget(target).pipe(
+      switchMap((repository) =>
+        forkJoin({
+          scenarios: this.api.getScenarios(),
+          overview: this.api.getOverview(),
+          linkedChange: this.api.getChange(changeId)
+        }).pipe(
+          map((result) => {
+            if (
+              repository &&
+              (
+                result.linkedChange.repository_id
+                  ? result.linkedChange.repository_id !== repository.id
+                  : result.linkedChange.repository !== repository.full_name
+              )
+            ) {
+              throw new Error(
+                'The requested change does not belong to the repository in this link.'
+              );
+            }
+            if (
+              target.workspaceId &&
+              result.linkedChange.workspace_id &&
+              result.linkedChange.workspace_id !== target.workspaceId
+            ) {
+              throw new Error(
+                'The requested change does not belong to the workspace in this link.'
+              );
+            }
+            return result;
+          })
+        )
+      )
+    );
+  }
+
+  private resolveChangeTarget(
+    target: WorkspaceLinkTarget
+  ): Observable<RepositorySummary | null> {
+    const scenarioId = this.workspaceLinks.readScenarioId();
+    if (target.repositoryId && !target.workspaceId) {
+      return throwError(
+        () =>
+          new Error(
+            'This change link includes a repository without its workspace.'
+          )
+      );
+    }
+
+    if (!target.workspaceId) {
+      return this.workspaceApi.currentContext().pipe(
+        switchMap((context) => {
+          if (!context.workspace_id) {
+            return throwError(
+              () =>
+                new Error(
+                  'Select an authenticated workspace before opening this change link.'
+              )
+            );
+          }
+          const currentWorkspaceId = context.workspace_id;
+          return this.workspaceApi.repositories(currentWorkspaceId).pipe(
+            switchMap((repositories) => {
+              const repository = context.repository_id
+                ? repositories.find(
+                    (item) => item.id === context.repository_id
+                  ) ?? null
+                : null;
+              if (context.repository_id && !repository) {
+                return throwError(
+                  () =>
+                    new Error(
+                      'The active repository is no longer available in this workspace.'
+                    )
+                );
+              }
+              if (
+                scenarioId &&
+                scenarioId !== context.scenario_id
+              ) {
+                return this.workspaceApi
+                  .selectContext(
+                    currentWorkspaceId,
+                    repository?.id ?? null,
+                    scenarioId
+                  )
+                  .pipe(map(() => repository));
+              }
+              return of(repository);
+            })
+          );
+        })
+      );
+    }
+
+    return forkJoin({
+      workspaces: this.workspaceApi.workspaces(),
+      context: this.workspaceApi.currentContext()
+    }).pipe(
+      switchMap(({ workspaces, context }) => {
+        const workspace = workspaces.find(
+          (item) => item.id === target.workspaceId
+        );
+        if (!workspace) {
+          return throwError(
+            () =>
+              new Error(
+                'The workspace in this change link is not available to your account.'
+              )
+          );
+        }
+        return this.workspaceApi.repositories(workspace.id).pipe(
+          switchMap((repositories) => {
+            const preferredRepositoryId =
+              target.repositoryId ??
+              (context.workspace_id === workspace.id
+                ? context.repository_id
+                : null);
+            const repository =
+              (preferredRepositoryId
+                ? repositories.find(
+                    (item) => item.id === preferredRepositoryId
+                  )
+                : null) ??
+              (target.repositoryId
+                ? null
+                : repositories.find((item) => item.selected) ??
+                  repositories[0] ??
+                  null);
+            if (target.repositoryId && !repository) {
+              return throwError(
+                () =>
+                  new Error(
+                    'The repository in this change link is not available in the selected workspace.'
+                  )
+              );
+            }
+            return this.workspaceApi
+              .selectContext(
+                workspace.id,
+                repository?.id ?? null,
+                scenarioId
+              )
+              .pipe(map(() => repository));
+          })
+        );
+      })
+    );
+  }
+
   private applyOverview(overview: Overview): void {
     this.resetReplay();
     this.overview.set(overview);
@@ -778,6 +1013,7 @@ export class App implements OnInit, OnDestroy {
       }
       if (error.status === 0) return this.t('error_api_unreachable');
     }
+    if (error instanceof Error && error.message.trim()) return error.message;
     return fallback;
   }
 }

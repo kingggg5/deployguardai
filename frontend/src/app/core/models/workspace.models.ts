@@ -17,6 +17,12 @@ export interface WorkspaceSummary {
   created_at: string;
 }
 
+export interface UserContext {
+  workspace_id: string | null;
+  repository_id: string | null;
+  scenario_id: string | null;
+}
+
 export interface DevelopmentSession {
   access_token: string;
   token_type: 'bearer';
@@ -69,6 +75,7 @@ export interface ProductCapabilities {
   auth_provider: 'development' | 'oidc' | 'disabled';
   development_identity: boolean;
   github_app: boolean;
+  github_checks: boolean;
   email_delivery: 'smtp' | 'development_outbox' | 'disabled';
   connected_telemetry: boolean;
   oidc_authority: string | null;

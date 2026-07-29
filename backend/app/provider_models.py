@@ -1,7 +1,16 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Index, String, UniqueConstraint
+from sqlalchemy import (
+    JSON,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .database import Base
@@ -73,6 +82,73 @@ class WebhookDelivery(Base):
     )
     status: Mapped[str] = mapped_column(String(24), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class GitHubCheckPublication(Base):
+    __tablename__ = "github_check_publications"
+    __table_args__ = (
+        UniqueConstraint(
+            "repository_id",
+            "head_sha",
+            name="uq_github_check_repository_head",
+        ),
+        Index(
+            "ix_github_check_workspace_status",
+            "workspace_id",
+            "status",
+        ),
+        Index(
+            "ix_github_check_retry_due",
+            "status",
+            "next_retry_at",
+        ),
+        CheckConstraint(
+            "status IN ("
+            "'pending', 'publishing', 'published', "
+            "'retryable_failed', 'permanent_failed'"
+            ")",
+            name="ck_github_check_publication_status",
+        ),
+        CheckConstraint(
+            "conclusion IS NULL OR conclusion IN ('neutral', 'success')",
+            name="ck_github_check_publication_conclusion",
+        ),
+        CheckConstraint(
+            "attempt_count >= 0",
+            name="ck_github_check_publication_attempt_count",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(
+        ForeignKey("workspaces.id"), index=True
+    )
+    repository_id: Mapped[str] = mapped_column(
+        ForeignKey("repositories.id"), index=True
+    )
+    change_id: Mapped[str] = mapped_column(
+        ForeignKey("changes.id"), index=True
+    )
+    head_sha: Mapped[str] = mapped_column(String(64))
+    external_id: Mapped[str] = mapped_column(String(160))
+    provider_check_id: Mapped[str | None] = mapped_column(
+        String(120), nullable=True, index=True
+    )
+    status: Mapped[str] = mapped_column(String(32), index=True)
+    conclusion: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    details_url: Mapped[str] = mapped_column(String(2_048))
+    attempt_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_error_code: Mapped[str | None] = mapped_column(
+        String(100), nullable=True
+    )
+    next_retry_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    published_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
 
 class InvitationDelivery(Base):

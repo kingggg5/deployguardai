@@ -39,6 +39,12 @@ class Settings(BaseSettings):
     github_app_private_key: str = ""
     github_api_url: str = "https://api.github.com"
     github_api_version: str = "2026-03-10"
+    github_checks_enabled: bool = False
+    github_webhook_max_body_bytes: int = Field(
+        default=1_048_576,
+        ge=1_024,
+        le=10_485_760,
+    )
     smtp_host: str = ""
     smtp_port: int = Field(default=587, ge=1, le=65535)
     smtp_username: str = ""
@@ -89,6 +95,15 @@ class Settings(BaseSettings):
         if production and self.auth_provider != "oidc":
             raise ValueError(
                 "Production requires AUTH_PROVIDER=oidc"
+            )
+        if (
+            production
+            and self.telemetry_ingest_token
+            and len(self.telemetry_ingest_token) < 32
+        ):
+            raise ValueError(
+                "Production TELEMETRY_INGEST_TOKEN must be at least "
+                "32 characters because it is the collector credential root"
             )
         if self.auth_provider == "oidc":
             if not self.oidc_client_id.strip():

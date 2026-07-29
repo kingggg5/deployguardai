@@ -1,9 +1,10 @@
 import hashlib
+import hmac
 import json
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from .engines import calculate_blast_radius, calculate_change_risk
@@ -12,10 +13,17 @@ from .models import (
     ChangeRecord,
     FeedbackRecord,
     IncidentRecord,
+    LEGACY_REPOSITORY_ID,
+    LEGACY_WORKSPACE_ID,
     Repository,
     Scenario,
+    Workspace,
 )
+from .operations_models import ServiceCatalogEntry
+from .operations_schemas import OperationalEventCreate
+from .operations_services import record_trusted_operational_event
 from .provider_models import ProviderConnection, WebhookDelivery
+from .provider_services import publish_github_change_check_from_webhook
 from .schemas import (
     AnalyzeChangeRequest,
     ChangeDetail,
@@ -43,6 +51,8 @@ def change_detail(record: ChangeRecord) -> ChangeDetail:
     return ChangeDetail.model_validate(
         {
             "id": record.id,
+            "workspace_id": record.workspace_id,
+            "repository_id": record.repository_id,
             "scenario_id": record.scenario_id,
             "data_mode": record.data_mode,
             "title": record.title,
@@ -78,6 +88,7 @@ def incident_detail(session: Session, record: IncidentRecord) -> IncidentDetail:
             "title": record.title,
             "severity": record.severity,
             "status": record.status,
+            "assignee_user_id": record.assignee_user_id,
             "started_at": _utc(record.started_at),
             "resolved_at": _utc(record.resolved_at),
             "affected_services": record.affected_services,
@@ -310,6 +321,122 @@ def activate_scenario(
     return get_overview(session, scenario)
 
 
+def _analysis_graph(
+    session: Session,
+    *,
+    scenario: Scenario,
+    repository_id: str | None,
+    requested_services: list[str],
+) -> tuple[dict, list[str]]:
+    """Overlay the workspace catalog onto provider topology deterministically."""
+    catalog = session.scalars(
+        select(ServiceCatalogEntry)
+        .where(ServiceCatalogEntry.workspace_id == scenario.workspace_id)
+        .order_by(ServiceCatalogEntry.id)
+    ).all()
+    if not catalog:
+        return scenario.service_graph, list(requested_services)
+
+    base_graph = scenario.service_graph or {}
+    nodes_by_id = {
+        str(node["id"]): dict(node)
+        for node in base_graph.get("nodes", [])
+        if isinstance(node, dict) and node.get("id")
+    }
+    edges_by_identity = {
+        (
+            str(edge.get("source")),
+            str(edge.get("target")),
+            str(edge.get("relation") or "runtime-dependency"),
+        ): dict(edge)
+        for edge in base_graph.get("edges", [])
+        if isinstance(edge, dict) and edge.get("source") and edge.get("target")
+    }
+    service_by_reference: dict[str, ServiceCatalogEntry] = {}
+    repository_roots: list[str] = []
+    for service in catalog:
+        nodes_by_id[service.id] = {
+            "id": service.id,
+            "label": service.name,
+            "kind": "service",
+            "team": service.owner_team,
+            "tier": service.tier.replace("_", "-"),
+            "health": "unknown",
+        }
+        for reference in (service.id, service.slug, service.name):
+            service_by_reference[reference.casefold()] = service
+        if repository_id is not None and service.repository_id == repository_id:
+            repository_roots.append(service.id)
+        for dependency_id in sorted(set(service.dependencies or [])):
+            edges_by_identity[
+                (dependency_id, service.id, "catalog-dependency")
+            ] = {
+                "source": dependency_id,
+                "target": service.id,
+                "relation": "catalog-dependency",
+                "confidence": 1.0,
+                "active": True,
+            }
+
+    resolved_roots = {
+        service.id
+        for reference in requested_services
+        if (service := service_by_reference.get(reference.casefold())) is not None
+    }
+    resolved_roots.update(repository_roots)
+    effective_roots = (
+        sorted(resolved_roots)
+        if resolved_roots
+        else list(dict.fromkeys(requested_services))
+    )
+    if len(effective_roots) > 100:
+        raise DomainError(
+            "Repository maps to more than 100 changed services",
+            "analysis_service_limit",
+            422,
+        )
+    graph = {
+        "nodes": [nodes_by_id[key] for key in sorted(nodes_by_id)],
+        "edges": [
+            edges_by_identity[key]
+            for key in sorted(edges_by_identity)
+        ],
+        "updated_at": base_graph.get("updated_at"),
+    }
+    return graph, effective_roots
+
+
+def _canonical_topology(graph: dict) -> dict[str, list[dict]]:
+    """Keep the analysis digest stable while topology evidence is unchanged."""
+    nodes = [
+        {
+            key: node.get(key)
+            for key in ("id", "label", "kind", "team", "tier", "health")
+        }
+        for node in graph.get("nodes", [])
+        if isinstance(node, dict) and node.get("id")
+    ]
+    edges = [
+        {
+            key: edge.get(key)
+            for key in ("source", "target", "relation", "confidence", "active")
+        }
+        for edge in graph.get("edges", [])
+        if isinstance(edge, dict) and edge.get("source") and edge.get("target")
+    ]
+    return {
+        "nodes": sorted(nodes, key=lambda item: str(item["id"])),
+        "edges": sorted(
+            edges,
+            key=lambda item: (
+                str(item["source"]),
+                str(item["target"]),
+                str(item["relation"]),
+            ),
+        ),
+    }
+
+
 def analyze_change(
     session: Session,
     request: AnalyzeChangeRequest,
@@ -324,11 +451,19 @@ def analyze_change(
         repository_id=repository_id,
         scenario_id=scenario_id,
     )
+    graph, effective_changed_services = _analysis_graph(
+        session,
+        scenario=scenario,
+        repository_id=repository_id,
+        requested_services=request.changed_services,
+    )
     canonical = json.dumps(
         {
-            "workspace_id": workspace_id,
-            "repository_id": repository_id,
+            "workspace_id": scenario.workspace_id,
+            "repository_id": scenario.repository_id,
             "request": request.model_dump(mode="json"),
+            "effective_changed_services": effective_changed_services,
+            "topology": _canonical_topology(graph),
         },
         sort_keys=True,
         separators=(",", ":"),
@@ -339,7 +474,6 @@ def analyze_change(
     if existing is not None:
         return change_detail(existing)
 
-    graph = scenario.service_graph
     tiers = {
         str(node["id"]): node.get("tier", "tier-3")
         for node in graph.get("nodes", [])
@@ -348,7 +482,7 @@ def analyze_change(
         files_changed=request.files_changed,
         lines_added=request.lines_added,
         lines_deleted=request.lines_deleted,
-        changed_services=request.changed_services,
+        changed_services=effective_changed_services,
         flags=request.flags,
         test_coverage=request.test_coverage,
         rollback_ready=request.rollback_ready,
@@ -360,7 +494,7 @@ def analyze_change(
     blast_radius = calculate_blast_radius(
         nodes=graph.get("nodes", []),
         edges=graph.get("edges", []),
-        changed_services=request.changed_services,
+        changed_services=effective_changed_services,
         evidence_prefix=change_id,
     )
     record = ChangeRecord(
@@ -372,12 +506,12 @@ def analyze_change(
         title=request.title,
         repository=request.repository,
         author=request.author,
-        commit_sha=digest[:12],
-        branch="analysis/manual",
+        commit_sha=request.commit_sha or digest[:12],
+        branch=request.branch or "analysis/manual",
         created_at=datetime.now(UTC),
         deployment_status="not_deployed",
-        deployment_environment="staging",
-        changed_services=request.changed_services,
+        deployment_environment=request.deployment_environment,
+        changed_services=effective_changed_services,
         files_changed=request.files_changed,
         lines_added=request.lines_added,
         lines_deleted=request.lines_deleted,
@@ -586,6 +720,107 @@ def verify_github_signature(secret: str, raw_body: bytes, signature_header: str)
     return hmac.compare_digest(expected, actual)
 
 
+def _github_operational_event(
+    session: Session,
+    *,
+    event_type: str,
+    delivery_id: str,
+    payload: dict,
+    connection: ProviderConnection,
+    repository: Repository,
+) -> None:
+    action = str(payload.get("action") or "")
+    workflow = payload.get("workflow_run") or {}
+    deployment = payload.get("deployment") or {}
+    deployment_status = payload.get("deployment_status") or {}
+    pull_request = payload.get("pull_request") or {}
+    timestamp = next(
+        (
+            parsed
+            for value in (
+                workflow.get("updated_at"),
+                workflow.get("run_started_at"),
+                deployment_status.get("created_at"),
+                deployment.get("created_at"),
+                pull_request.get("updated_at"),
+            )
+            if (parsed := _timeline_timestamp(value)) is not None
+        ),
+        datetime.now(UTC),
+    )
+    now = datetime.now(UTC)
+    if timestamp > now + timedelta(minutes=5):
+        timestamp = now
+
+    status_value = str(
+        workflow.get("conclusion")
+        or workflow.get("status")
+        or deployment_status.get("state")
+        or action
+        or "received"
+    ).lower()
+    if status_value in {"failure", "failed", "error", "timed_out"}:
+        severity = "error"
+    elif status_value in {"cancelled", "stale", "inactive"}:
+        severity = "warning"
+    else:
+        severity = "info"
+    display_name = str(
+        workflow.get("name")
+        or deployment.get("environment")
+        or (payload.get("repository") or {}).get("full_name")
+        or repository.full_name
+    )[:240]
+    summary = (
+        f"GitHub {event_type.replace('_', ' ')}"
+        f"{f' {action}' if action else ''}: {display_name} ({status_value})."
+    )[:1_000]
+    head = pull_request.get("head") or {}
+    attributes = {
+        key: value
+        for key, value in {
+            "action": action or None,
+            "status": status_value,
+            "workflow_id": workflow.get("id"),
+            "workflow_name": workflow.get("name"),
+            "workflow_url": workflow.get("html_url"),
+            "deployment_id": deployment.get("id"),
+            "environment": deployment.get("environment"),
+            "commit_sha": (
+                workflow.get("head_sha")
+                or deployment.get("sha")
+                or head.get("sha")
+            ),
+            "branch": workflow.get("head_branch") or head.get("ref"),
+        }.items()
+        if value not in {None, ""}
+    }
+    record_trusted_operational_event(
+        session,
+        connection.workspace_id,
+        OperationalEventCreate(
+            provider_event_id=delivery_id,
+            repository_id=repository.id,
+            service_id=None,
+            incident_id=None,
+            source="github",
+            event_type=event_type,
+            occurred_at=timestamp,
+            severity=severity,
+            summary=summary,
+            attributes=attributes,
+            provenance={
+                "provider": "github",
+                "delivery_id": delivery_id,
+                "installation_id": connection.installation_id,
+                "signature_verified": True,
+                "provider_repository_id": repository.provider_repository_id,
+            },
+        ),
+        request_id=f"github:{delivery_id}",
+    )
+
+
 def process_github_webhook(
     session: Session,
     event_type: str,
@@ -595,6 +830,7 @@ def process_github_webhook(
     raw_body: bytes = b"",
     secret: str = "",
     allow_synthetic_fallback: bool = False,
+    settings=None,
 ) -> GitHubWebhookResponse:
     if not secret:
         raise DomainError(
@@ -617,7 +853,16 @@ def process_github_webhook(
             WebhookDelivery.delivery_id == delivery_id,
         )
     )
-    if existing_delivery is not None:
+    reconcilable_events = {
+        "pull_request",
+        "workflow_run",
+        "deployment",
+        "deployment_status",
+    }
+    if (
+        existing_delivery is not None
+        and event_type not in reconcilable_events
+    ):
         return GitHubWebhookResponse(
             status="accepted",
             event=event_type,
@@ -689,8 +934,42 @@ def process_github_webhook(
             detail="Signed GitHub installation state was recorded.",
         )
     if connection is not None:
-        session.add(
-            WebhookDelivery(
+        monitored_pull_request = (
+            event_type == "pull_request"
+            and str(payload.get("action") or "")
+            in {"opened", "reopened", "synchronize", "ready_for_review"}
+        )
+        monitored_event = (
+            monitored_pull_request
+            or event_type in {"workflow_run", "deployment", "deployment_status"}
+        )
+        delivery = existing_delivery
+        if delivery is not None:
+            if (
+                delivery.installation_id != (installation_id or None)
+                or (
+                    delivery.repository_id is not None
+                    and repository is not None
+                    and delivery.repository_id != repository.id
+                )
+            ):
+                raise DomainError(
+                    "GitHub delivery identity does not match the recorded event",
+                    "github_delivery_identity_mismatch",
+                    409,
+                )
+            if (
+                monitored_pull_request
+                and delivery.status == "processed"
+            ):
+                return GitHubWebhookResponse(
+                    status="accepted",
+                    event=event_type,
+                    delivery_id=delivery_id,
+                    detail="Duplicate delivery was already processed.",
+                )
+        else:
+            delivery = WebhookDelivery(
                 id=str(uuid4()),
                 provider="github",
                 delivery_id=delivery_id,
@@ -698,10 +977,16 @@ def process_github_webhook(
                 installation_id=installation_id or None,
                 workspace_id=connection.workspace_id,
                 repository_id=repository.id if repository is not None else None,
-                status="verified" if repository is not None else "ignored",
+                status=(
+                    "processing"
+                    if repository is not None and monitored_event
+                    else "verified"
+                    if repository is not None
+                    else "ignored"
+                ),
                 created_at=datetime.now(UTC),
             )
-        )
+            session.add(delivery)
         session.commit()
         if repository is None:
             return GitHubWebhookResponse(
@@ -710,45 +995,88 @@ def process_github_webhook(
                 delivery_id=delivery_id,
                 detail="Repository is not selected for this workspace.",
             )
-        if event_type == "pull_request" and str(
-            payload.get("action") or ""
-        ) in {"opened", "reopened", "synchronize", "ready_for_review"}:
-            pr_data = payload.get("pull_request") or {}
-            labels = [
-                str(label.get("name"))
-                for label in pr_data.get("labels", [])
-                if isinstance(label, dict) and label.get("name")
-            ]
-            detail = analyze_change(
-                session,
-                AnalyzeChangeRequest(
-                    title=str(pr_data.get("title") or "Untitled pull request")[
-                        :240
-                    ],
-                    repository=repository.full_name,
-                    author=str(
-                        (pr_data.get("user") or {}).get("login") or "unknown"
-                    )[:160],
-                    files_changed=int(pr_data.get("changed_files") or 0),
-                    lines_added=int(pr_data.get("additions") or 0),
-                    lines_deleted=int(pr_data.get("deletions") or 0),
-                    changed_services=[repository.full_name],
-                    flags=labels[:100],
-                    test_coverage=0.0,
-                    rollback_ready=False,
-                    observability_score=0.0,
-                    previous_failures=0,
-                ),
-                workspace_id=connection.workspace_id,
-                repository_id=repository.id,
-            )
-            scenario = active_scenario(
-                session,
-                workspace_id=connection.workspace_id,
-                repository_id=repository.id,
-            )
-            scenario.active_change_id = detail.id
+        if monitored_pull_request:
+            delivery.status = "processing"
             session.commit()
+            try:
+                pr_data = payload.get("pull_request") or {}
+                head_data = pr_data.get("head") or {}
+                labels = [
+                    str(label.get("name"))
+                    for label in pr_data.get("labels", [])
+                    if isinstance(label, dict) and label.get("name")
+                ]
+                detail = analyze_change(
+                    session,
+                    AnalyzeChangeRequest(
+                        title=str(
+                            pr_data.get("title") or "Untitled pull request"
+                        )[:240],
+                        repository=repository.full_name,
+                        author=str(
+                            (pr_data.get("user") or {}).get("login")
+                            or "unknown"
+                        )[:160],
+                        commit_sha=(
+                            str(head_data.get("sha"))[:64]
+                            if head_data.get("sha")
+                            else None
+                        ),
+                        branch=(
+                            str(head_data.get("ref"))[:160]
+                            if head_data.get("ref")
+                            else None
+                        ),
+                        files_changed=int(pr_data.get("changed_files") or 0),
+                        lines_added=int(pr_data.get("additions") or 0),
+                        lines_deleted=int(pr_data.get("deletions") or 0),
+                        changed_services=[repository.full_name],
+                        flags=labels[:100],
+                        test_coverage=0.0,
+                        rollback_ready=False,
+                        observability_score=0.0,
+                        previous_failures=0,
+                    ),
+                    workspace_id=connection.workspace_id,
+                    repository_id=repository.id,
+                )
+                scenario = active_scenario(
+                    session,
+                    workspace_id=connection.workspace_id,
+                    repository_id=repository.id,
+                )
+                scenario.active_change_id = detail.id
+                session.commit()
+                _github_operational_event(
+                    session,
+                    event_type=event_type,
+                    delivery_id=delivery_id,
+                    payload=payload,
+                    connection=connection,
+                    repository=repository,
+                )
+                if settings is not None:
+                    change_record = session.get(ChangeRecord, detail.id)
+                    if change_record is not None:
+                        publish_github_change_check_from_webhook(
+                            session,
+                            connection=connection,
+                            repository=repository,
+                            change=change_record,
+                            request_id=f"github:{delivery_id}",
+                            settings=settings,
+                        )
+                persisted_delivery = session.get(WebhookDelivery, delivery.id)
+                if persisted_delivery is not None:
+                    persisted_delivery.status = "processed"
+                    session.commit()
+            except Exception:
+                session.rollback()
+                failed_delivery = session.get(WebhookDelivery, delivery.id)
+                if failed_delivery is not None:
+                    failed_delivery.status = "failed"
+                    session.commit()
+                raise
             return GitHubWebhookResponse(
                 status="accepted",
                 event=event_type,
@@ -758,6 +1086,37 @@ def process_github_webhook(
                     "Verified pull request evidence was analyzed in its "
                     "connected repository context."
                 ),
+            )
+        if event_type in {"workflow_run", "deployment", "deployment_status"}:
+            _github_operational_event(
+                session,
+                event_type=event_type,
+                delivery_id=delivery_id,
+                payload=payload,
+                connection=connection,
+                repository=repository,
+            )
+            persisted_delivery = session.get(WebhookDelivery, delivery.id)
+            if persisted_delivery is not None:
+                persisted_delivery.status = "processed"
+                session.commit()
+            duplicate_detail = (
+                "Duplicate delivery was reconciled with the event ledger."
+                if existing_delivery is not None
+                else "Verified provider event was durably recorded."
+            )
+            return GitHubWebhookResponse(
+                status="accepted",
+                event=event_type,
+                delivery_id=delivery_id,
+                detail=duplicate_detail,
+            )
+        if existing_delivery is not None:
+            return GitHubWebhookResponse(
+                status="accepted",
+                event=event_type,
+                delivery_id=delivery_id,
+                detail="Duplicate delivery was already recorded.",
             )
         return GitHubWebhookResponse(
             status="accepted",
@@ -812,34 +1171,179 @@ def process_github_webhook(
     )
 
 
+def derive_telemetry_collector_token(
+    master_token: str, workspace_id: str
+) -> str:
+    """Derive a tenant-bound collector credential from the server secret."""
+    signature = hmac.new(
+        master_token.encode("utf-8"),
+        f"deployguard-telemetry:{workspace_id}".encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    return f"dgct_{signature}"
+
+
 def ingest_telemetry_event(
-    session: Session, request: TelemetryIngestRequest
+    session: Session,
+    request: TelemetryIngestRequest,
+    *,
+    master_token: str,
+    presented_token: str,
+    workspace_id: str | None,
+    repository_id: str | None,
+    provider_event_id: str | None,
+    environment: str,
 ) -> dict:
-    scenario = active_scenario(session)
-    incident = session.query(IncidentRecord).filter_by(scenario_id=scenario.id).first()
-    if incident is None:
-        raise DomainError("No active incident record found", "incident_not_found", 404)
+    """Persist collector data in an authenticated tenant event ledger."""
+    legacy_credential = hmac.compare_digest(presented_token, master_token)
+    if legacy_credential:
+        if environment.strip().lower() == "production":
+            raise DomainError(
+                "Use a workspace-scoped telemetry collector credential",
+                "workspace_telemetry_credential_required",
+                401,
+            )
+        if workspace_id not in {None, "", LEGACY_WORKSPACE_ID}:
+            raise DomainError(
+                "Telemetry credential does not match the requested workspace",
+                "invalid_telemetry_token",
+                401,
+            )
+        scoped_workspace_id = LEGACY_WORKSPACE_ID
+        credential_mode = "legacy_workspace"
+    else:
+        if not workspace_id:
+            raise DomainError(
+                "X-DeployGuard-Workspace is required",
+                "telemetry_workspace_required",
+                400,
+            )
+        expected = derive_telemetry_collector_token(
+            master_token, workspace_id
+        )
+        if not hmac.compare_digest(presented_token, expected):
+            raise DomainError(
+                "Invalid telemetry ingestion token",
+                "invalid_telemetry_token",
+                401,
+            )
+        scoped_workspace_id = workspace_id
+        credential_mode = "workspace_derived"
 
-    ev_id = f"ev-ingest-{int(datetime.now(UTC).timestamp())}"
-    new_ev = {
-        "id": ev_id,
-        "type": request.type,
-        "source": request.source,
-        "timestamp": datetime.now(UTC).isoformat(),
-        "summary": request.summary,
-        "value": request.value,
-        "quality": 0.95,
-        "service_id": request.service_id,
-        "supports": request.supports_hypothesis_ids,
-        "contradicts": request.contradicts_hypothesis_ids,
+    if session.get(Workspace, scoped_workspace_id) is None:
+        raise DomainError("Workspace not found", "workspace_not_found", 404)
+
+    repository: Repository | None = None
+    if repository_id:
+        repository = session.scalar(
+            select(Repository).where(
+                Repository.id == repository_id,
+                Repository.workspace_id == scoped_workspace_id,
+                Repository.selected.is_(True),
+            )
+        )
+        if repository is None:
+            raise DomainError(
+                "Repository not found", "repository_not_found", 404
+            )
+
+    service = session.scalar(
+        select(ServiceCatalogEntry).where(
+            ServiceCatalogEntry.workspace_id == scoped_workspace_id,
+            or_(
+                ServiceCatalogEntry.id == request.service_id,
+                ServiceCatalogEntry.slug == request.service_id,
+            ),
+        )
+    )
+    if service is None and scoped_workspace_id != LEGACY_WORKSPACE_ID:
+        raise DomainError("Service not found", "service_not_found", 404)
+    if (
+        service is not None
+        and repository is not None
+        and service.repository_id is not None
+        and service.repository_id != repository.id
+    ):
+        raise DomainError(
+            "Telemetry service and repository scopes do not match",
+            "telemetry_scope_mismatch",
+            422,
+        )
+    if repository is None and service is not None and service.repository_id:
+        repository = session.scalar(
+            select(Repository).where(
+                Repository.id == service.repository_id,
+                Repository.workspace_id == scoped_workspace_id,
+                Repository.selected.is_(True),
+            )
+        )
+        if repository is None:
+            raise DomainError(
+                "Service repository is not selected",
+                "repository_not_found",
+                404,
+            )
+    if repository is None and scoped_workspace_id == LEGACY_WORKSPACE_ID:
+        repository = session.scalar(
+            select(Repository).where(
+                Repository.id == LEGACY_REPOSITORY_ID,
+                Repository.workspace_id == LEGACY_WORKSPACE_ID,
+            )
+        )
+
+    event_key = (
+        provider_event_id.strip()
+        if provider_event_id and provider_event_id.strip()
+        else f"telemetry-{uuid4()}"
+    )
+    if len(event_key) > 160:
+        raise DomainError(
+            "Telemetry event identity is too long",
+            "invalid_telemetry_event_id",
+            400,
+        )
+    timestamp = datetime.now(UTC)
+    event = record_trusted_operational_event(
+        session,
+        scoped_workspace_id,
+        OperationalEventCreate(
+            provider_event_id=event_key,
+            repository_id=repository.id if repository is not None else None,
+            service_id=service.id if service is not None else None,
+            incident_id=None,
+            # Collector-controlled labels stay in provenance. The first-class
+            # source namespace is server-owned so a scoped telemetry credential
+            # cannot pre-claim GitHub or another trusted adapter's idempotency key.
+            source="telemetry",
+            event_type=f"telemetry.{request.type}",
+            occurred_at=timestamp,
+            severity="info",
+            summary=request.summary,
+            attributes={
+                "value": request.value,
+                "supports_hypothesis_ids": request.supports_hypothesis_ids,
+                "contradicts_hypothesis_ids": (
+                    request.contradicts_hypothesis_ids
+                ),
+                "service_reference": request.service_id,
+            },
+            provenance={
+                "provider": request.source,
+                "collector_authenticated": True,
+                "credential_mode": credential_mode,
+                "workspace_id": scoped_workspace_id,
+            },
+        ),
+        request_id=f"telemetry:{event_key}",
+    )
+    return {
+        "status": "ok",
+        "evidence_id": event.id,
+        "workspace_id": scoped_workspace_id,
+        "repository_id": event.repository_id,
+        "service_id": event.service_id,
+        "detail": "Telemetry event was accepted into the workspace ledger.",
     }
-
-    current_evidence = list(incident.evidence or [])
-    current_evidence.append(new_ev)
-    incident.evidence = current_evidence
-    session.add(incident)
-    session.commit()
-    return {"status": "ok", "evidence_id": ev_id, "detail": "Telemetry event ingested successfully."}
 
 
 def export_incident_postmortem(

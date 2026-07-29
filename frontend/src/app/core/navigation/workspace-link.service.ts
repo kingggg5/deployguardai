@@ -6,7 +6,14 @@ export type WorkspaceView =
   | 'change_risk'
   | 'dora'
   | 'scenarios'
+  | 'operations'
   | 'workspace';
+
+export interface WorkspaceLinkTarget {
+  changeId: string | null;
+  workspaceId: string | null;
+  repositoryId: string | null;
+}
 
 @Injectable({ providedIn: 'root' })
 export class WorkspaceLinkService {
@@ -19,6 +26,7 @@ export class WorkspaceLinkService {
       view === 'change_risk' ||
       view === 'dora' ||
       view === 'scenarios' ||
+      view === 'operations' ||
       view === 'workspace'
     ) {
       return view;
@@ -30,14 +38,27 @@ export class WorkspaceLinkService {
     return this.readQueryParam('scenario');
   }
 
+  readTarget(): WorkspaceLinkTarget {
+    return {
+      changeId: this.readQueryParam('change'),
+      workspaceId: this.readQueryParam('workspace'),
+      repositoryId: this.readQueryParam('repository')
+    };
+  }
+
   sync(
     view: WorkspaceView,
     scenarioId: string,
-    mode: 'push' | 'replace'
+    mode: 'push' | 'replace',
+    target: WorkspaceLinkTarget | null | undefined = undefined
   ): void {
     const window = this.document.defaultView;
     if (!window) return;
-    const url = this.createUrl(view, scenarioId);
+    const url = this.createUrl(
+      view,
+      scenarioId,
+      target === undefined ? this.readTarget() : target
+    );
     if (mode === 'push' && window.location.href !== url) {
       window.history.pushState({}, '', url);
       return;
@@ -45,8 +66,16 @@ export class WorkspaceLinkService {
     window.history.replaceState({}, '', url);
   }
 
-  async copy(view: WorkspaceView, scenarioId: string): Promise<void> {
-    const url = this.createUrl(view, scenarioId);
+  async copy(
+    view: WorkspaceView,
+    scenarioId: string,
+    target: WorkspaceLinkTarget | null | undefined = undefined
+  ): Promise<void> {
+    const url = this.createUrl(
+      view,
+      scenarioId,
+      target === undefined ? this.readTarget() : target
+    );
     if (globalThis.navigator?.clipboard?.writeText) {
       await globalThis.navigator.clipboard.writeText(url);
       return;
@@ -54,12 +83,31 @@ export class WorkspaceLinkService {
     this.copyFallback(url);
   }
 
-  private createUrl(view: WorkspaceView, scenarioId: string): string {
+  private createUrl(
+    view: WorkspaceView,
+    scenarioId: string,
+    target: WorkspaceLinkTarget | null
+  ): string {
     const location = this.document.defaultView?.location;
     const url = new URL(location?.href ?? 'http://localhost/');
     url.searchParams.set('view', view);
-    if (scenarioId) url.searchParams.set('scenario', scenarioId);
+    this.writeQueryParam(url, 'scenario', scenarioId);
+    this.writeQueryParam(url, 'change', target?.changeId ?? null);
+    this.writeQueryParam(url, 'workspace', target?.workspaceId ?? null);
+    this.writeQueryParam(url, 'repository', target?.repositoryId ?? null);
     return url.toString();
+  }
+
+  private writeQueryParam(
+    url: URL,
+    key: string,
+    value: string | null
+  ): void {
+    if (value) {
+      url.searchParams.set(key, value);
+      return;
+    }
+    url.searchParams.delete(key);
   }
 
   private readQueryParam(key: string): string | null {

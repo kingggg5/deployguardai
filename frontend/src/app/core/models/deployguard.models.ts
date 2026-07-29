@@ -80,6 +80,8 @@ export interface BlastRadius {
 
 export interface ChangeDetail {
   id: string;
+  workspace_id?: string;
+  repository_id?: string;
   scenario_id: string;
   data_mode: DataMode;
   title: string;
@@ -106,6 +108,7 @@ export interface IncidentTimelineEvent {
   title: string;
   detail: string;
   service_id: string | null;
+  actor_user_id?: string | null;
 }
 
 export interface IncidentEvidence {
@@ -149,6 +152,7 @@ export interface IncidentDetail {
   title: string;
   severity: string;
   status: IncidentStatus;
+  assignee_user_id?: string | null;
   started_at: string;
   resolved_at: string | null;
   affected_services: string[];

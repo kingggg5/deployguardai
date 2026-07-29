@@ -8,6 +8,7 @@ from sqlalchemy import select
 
 from app import provider_services
 from app.models import ChangeRecord
+from app.operations_models import OperationalEvent
 
 
 class FakeGitHubClient:
@@ -19,6 +20,7 @@ class FakeGitHubClient:
                 "metadata": "read",
                 "pull_requests": "read",
                 "deployments": "read",
+                "checks": "write",
             },
             "repository_selection": "selected",
         }
@@ -38,6 +40,18 @@ class FakeGitHubClient:
                 "pushed_at": "2026-07-28T00:00:00Z",
             }
         ]
+
+    def create_check_run(self, **payload) -> dict:
+        assert payload["installation_id"] == "12345"
+        assert payload["repository_full_name"] == "acme/checkout"
+        assert len(payload["head_sha"]) >= 7
+        assert payload["conclusion"] in {"neutral", "success"}
+        assert "decision support only" in payload["summary"]
+        return {
+            "id": 4_242,
+            "status": "completed",
+            "conclusion": payload["conclusion"],
+        }
 
 
 def _session(client: TestClient) -> dict[str, str]:
@@ -197,3 +211,90 @@ def test_github_install_discovery_and_sync(
     )
     assert listed_changes.status_code == 200
     assert listed_changes.json()[0]["id"] == analyzed.json()["change_id"]
+
+    disabled_check = client.post(
+        (
+            f"/api/v1/workspaces/{workspace_id}/repositories/"
+            f"{connected[0]['id']}/changes/"
+            f"{analyzed.json()['change_id']}/github-check"
+        ),
+        headers=headers,
+    )
+    assert disabled_check.status_code == 409
+    assert disabled_check.json()["code"] == "github_checks_disabled"
+
+    settings.github_checks_enabled = True
+    published = client.post(
+        (
+            f"/api/v1/workspaces/{workspace_id}/repositories/"
+            f"{connected[0]['id']}/changes/"
+            f"{analyzed.json()['change_id']}/github-check"
+        ),
+        headers=headers,
+    )
+    assert published.status_code == 200
+    assert published.json()["provider_check_id"] == "4242"
+    assert published.json()["change_id"] == analyzed.json()["change_id"]
+    assert published.json()["status"] == "completed"
+
+    workflow_body = json.dumps(
+        {
+            "action": "completed",
+            "installation": {"id": 12345},
+            "repository": {"id": 701, "full_name": "acme/checkout"},
+            "workflow_run": {
+                "id": 8_801,
+                "name": "Deploy checkout",
+                "status": "completed",
+                "conclusion": "failure",
+                "head_sha": "b" * 40,
+                "head_branch": "main",
+                "updated_at": "2026-07-28T05:04:03Z",
+                "html_url": "https://github.example/runs/8801",
+            },
+        },
+        separators=(",", ":"),
+    ).encode()
+    workflow_signature = "sha256=" + hmac.new(
+        b"test-github-secret", workflow_body, hashlib.sha256
+    ).hexdigest()
+    workflow_headers = {
+        "X-GitHub-Event": "workflow_run",
+        "X-GitHub-Delivery": "workflow-delivery-1",
+        "X-Hub-Signature-256": workflow_signature,
+        "Content-Type": "application/json",
+    }
+    workflow_event = client.post(
+        "/api/v1/webhooks/github",
+        headers=workflow_headers,
+        content=workflow_body,
+    )
+    assert workflow_event.status_code == 200
+    assert workflow_event.json()["status"] == "accepted"
+    with client.app.state.database.session_factory() as session:
+        stored_event = session.scalar(
+            select(OperationalEvent).where(
+                OperationalEvent.workspace_id == workspace_id,
+                OperationalEvent.source == "github",
+                OperationalEvent.provider_event_id == "workflow-delivery-1",
+            )
+        )
+        assert stored_event is not None
+        session.delete(stored_event)
+        session.commit()
+    workflow_replay = client.post(
+        "/api/v1/webhooks/github",
+        headers=workflow_headers,
+        content=workflow_body,
+    )
+    assert workflow_replay.status_code == 200
+    assert "reconciled" in workflow_replay.json()["detail"]
+    events = client.get(
+        f"/api/v1/workspaces/{workspace_id}/events",
+        headers=headers,
+        params={"source": "github", "event_type": "workflow_run"},
+    )
+    assert events.status_code == 200
+    assert len(events.json()) == 1
+    assert events.json()[0]["severity"] == "error"
+    assert events.json()[0]["attributes"]["workflow_id"] == 8_801

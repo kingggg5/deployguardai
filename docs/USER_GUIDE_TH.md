@@ -329,7 +329,7 @@ Mobile ต้องใช้ single active workspace และ persistent contex
 
 - [ ] แสดงป้าย Synthetic demo ตลอด workflow
 - [ ] ไม่กล่าวอ้าง production accuracy หรือ customer outcome
-- [ ] ไม่กล่าวว่า GitHub/OTel/LLM เชื่อมต่อแล้ว
+- [ ] ระบุสถานะ GitHub/telemetry ตาม capability และ connection ที่ API ยืนยันจริง; ไม่กล่าวว่า LLM เชื่อมต่อแล้ว
 - [ ] เปิด risk dimension และ evidence ได้
 - [ ] เปิด counter-evidence ได้
 - [ ] แสดง uncertainty/data quality
@@ -339,11 +339,12 @@ Mobile ต้องใช้ single active workspace และ persistent contex
 
 ## สถานะการตรวจล่าสุด
 
-- Backend: 13 tests ผ่าน
-- Frontend: 7 tests ผ่าน และ Angular production build ผ่าน
+- Backend: 40 tests ผ่าน
+- Frontend: 37 tests ผ่าน และ Angular production build ผ่านโดยไม่มี budget warning
 - Production dependency audit: 0 vulnerabilities
-- Browser: desktop/mobile flow และ feedback interaction ผ่าน
-- API: 10 routes และ CORS local origins ผ่าน
+- Browser: desktop และ mobile 390×844 ผ่านทั้ง service catalog, event ledger, incident note และ notification flow
+- API: investigation, workspace, GitHub provider และ operations routes ผ่าน automated integration tests
 - Compose: configuration ผ่าน
 - Docker image build: ยังไม่ตรวจ เพราะ Linux daemon ไม่พร้อม
-- GitHub, OTel, auth/tenancy, migrations, public/real benchmarks และ LLM: ยังไม่ implement
+- GitHub App, OIDC auth, tenant RBAC และ Alembic migrations implement แล้ว แต่ต้องมี credential/provider จริงจึงจะเชื่อม production
+- Operational event ledger รับ GitHub workflow/deployment events และ manual evidence แล้ว; native OTLP receiver, public/real benchmarks และ LLM ยังไม่ implement
