@@ -26,7 +26,7 @@ rollback, รัน shell หรือเข้าถึง cluster
 | Synthetic scenarios, risk ledger, blast radius และ deterministic RCA | ใช้งานได้ใน local mode |
 | Development bearer session, workspace, repository, invitation และ RBAC | ใช้งานได้ใน non-production |
 | OIDC JWT verification ผ่าน issuer JWKS | Implemented; ต้องตั้งค่า OIDC |
-| GitHub App install, repository sync, signed webhook และ optional Check Run | Implemented; ต้องตั้งค่า GitHub App และเปิด write flag |
+| GitHub App install, repository sync, signed webhook, canonical deployment และ optional Check Run | Implemented; ต้องตั้งค่า GitHub App และเปิด write flag |
 | Invitation email ผ่าน SMTP | Implemented; local ใช้ development outbox |
 | Normalized telemetry event endpoint | Implemented; ใช้ workspace-derived collector bearer และ tenant-scoped ledger |
 | OTLP protocol receiver | ไม่มีใน FastAPI; ใช้ Collector แปลงเป็น normalized event |
@@ -194,6 +194,7 @@ sequenceDiagram
     API->>GitHub: Read installation metadata
     API->>DB: Map installation to workspace
     GitHub->>API: Signed webhook + delivery ID
+    API->>DB: Upsert canonical deployment by provider deployment ID
     API->>API: Verify raw-body HMAC and deduplicate
     API->>DB: Persist delivery and normalized connected change
     opt Checks feature enabled and permission granted

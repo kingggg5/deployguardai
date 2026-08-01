@@ -51,8 +51,9 @@ DeployGuard does **not** execute shell commands, deploy, roll back, or remediate
 | Change risk | Analyze code size, operational flags, coverage gaps, blast radius, and rollback readiness |
 | DORA metrics | Track deployment frequency, lead time, change failure rate, and mean time to restore |
 | Scenario lab | Run clearly labelled synthetic cases without touching production systems |
-| Operations center | Register services, govern risk policy, inspect accepted events, coordinate incidents, and read notifications |
-| Workspace & team | Create tenants, connect repositories, manage roles, invite teammates, and inspect audit events |
+| Operations center | Register services, govern risk policy, inspect accepted events, coordinate incidents, assign responders, and read notifications |
+| Workspace & team | Create tenants, connect repositories, manage roles, invite teammates, inspect connector health, and inspect audit events |
+| Deployment ledger | Normalize signed GitHub deployment lifecycle events, link exact changes by repository + commit SHA, and preserve DORA-compatible status |
 
 ## Tech stack
 
@@ -401,6 +402,7 @@ More detail:
 - Unknown coverage, rollback, and observability evidence is treated conservatively.
 - SMTP delivery is synchronous in the current MVP.
 - Event processing is in-process; durable queues, retention automation, and outbox delivery remain production-hardening work.
+- Deployment signal grouping/correlation is intentionally not automatic yet; deployment records are canonical, while incident linkage remains human/evidence controlled.
 - PostgreSQL row locks are used where available, but database-enforced row-level security is not included.
 - Provider credentials are not included in this repository.
 - A production deployment still needs HTTPS, rate limiting, managed secrets, backups, monitoring, and a security review.

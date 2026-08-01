@@ -45,7 +45,7 @@ describe('DeployGuard investigation ledger', () => {
               note: 'The lock holder matches the changed transaction.',
               submitted_at: '2026-07-26T12:04:00Z'
             }
-          ]).active_incident
+          ]).active_incident!
         )
       )
     };
@@ -119,6 +119,20 @@ describe('DeployGuard investigation ledger', () => {
     expect(content).toContain('Checkout latency regression');
     expect(content).toContain('Root-cause hypotheses');
     expect(content).toContain('Order persistence lock contention');
+  });
+
+  it('opens workspace activation without requiring an overview first', () => {
+    api.getOverview.mockClear();
+    api.getScenarios.mockClear();
+    component.activeTab.set('workspace');
+    component.overview.set(null);
+    component.isLoading.set(true);
+
+    component.ngOnInit();
+
+    expect(component.isLoading()).toBe(false);
+    expect(api.getOverview).not.toHaveBeenCalled();
+    expect(api.getScenarios).not.toHaveBeenCalled();
   });
 
   it('switches scenario through the API and replaces the active overview', () => {

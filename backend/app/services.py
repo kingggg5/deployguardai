@@ -7,6 +7,7 @@ from uuid import uuid4
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
+from .deployment_services import upsert_github_deployment
 from .engines import calculate_blast_radius, calculate_change_risk
 from .errors import DomainError
 from .models import (
@@ -20,7 +21,10 @@ from .models import (
     Workspace,
 )
 from .operations_models import ServiceCatalogEntry
-from .operations_schemas import OperationalEventCreate
+from .operations_schemas import (
+    OperationalEventCreate,
+    OperationalEventResponse,
+)
 from .operations_services import record_trusted_operational_event
 from .provider_models import ProviderConnection, WebhookDelivery
 from .provider_services import publish_github_change_check_from_webhook
@@ -261,9 +265,9 @@ def get_overview(session: Session, scenario: Scenario | None = None) -> Overview
     if incident is None:
         incident = session.scalars(select(IncidentRecord).where(IncidentRecord.scenario_id == selected.id)).first()
 
-    if change is None or incident is None:
+    if change is None:
         raise DomainError(
-            "Active scenario data is incomplete",
+            "Active scenario has no connected change evidence yet",
             "scenario_data_incomplete",
             409,
         )
@@ -303,7 +307,7 @@ def get_overview(session: Session, scenario: Scenario | None = None) -> Overview
             evidence_quality=round(evidence_quality, 2),
         ),
         active_change=change_detail(change),
-        active_incident=incident_detail(session, incident),
+        active_incident=incident_detail(session, incident) if incident else None,
     )
 
 
@@ -728,7 +732,7 @@ def _github_operational_event(
     payload: dict,
     connection: ProviderConnection,
     repository: Repository,
-) -> None:
+) -> OperationalEventResponse:
     action = str(payload.get("action") or "")
     workflow = payload.get("workflow_run") or {}
     deployment = payload.get("deployment") or {}
@@ -795,7 +799,7 @@ def _github_operational_event(
         }.items()
         if value not in {None, ""}
     }
-    record_trusted_operational_event(
+    return record_trusted_operational_event(
         session,
         connection.workspace_id,
         OperationalEventCreate(
@@ -1088,7 +1092,7 @@ def process_github_webhook(
                 ),
             )
         if event_type in {"workflow_run", "deployment", "deployment_status"}:
-            _github_operational_event(
+            operational_event = _github_operational_event(
                 session,
                 event_type=event_type,
                 delivery_id=delivery_id,
@@ -1096,6 +1100,15 @@ def process_github_webhook(
                 connection=connection,
                 repository=repository,
             )
+            if event_type in {"deployment", "deployment_status"}:
+                upsert_github_deployment(
+                    session,
+                    payload=payload,
+                    workspace_id=connection.workspace_id,
+                    repository=repository,
+                    operational_event=operational_event,
+                    delivery_id=delivery_id,
+                )
             persisted_delivery = session.get(WebhookDelivery, delivery.id)
             if persisted_delivery is not None:
                 persisted_delivery.status = "processed"

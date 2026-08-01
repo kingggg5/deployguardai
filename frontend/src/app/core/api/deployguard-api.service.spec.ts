@@ -61,7 +61,7 @@ describe('DeployGuardApiService', () => {
     );
     expect(request.request.method).toBe('POST');
     expect(request.request.body).toEqual(payload);
-    request.flush(makeOverview().active_incident);
+    request.flush(makeOverview().active_incident!);
   });
 
   it('fetches an immutable change by encoded id', () => {

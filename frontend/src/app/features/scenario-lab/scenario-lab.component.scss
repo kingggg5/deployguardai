@@ -19,7 +19,7 @@
   border-bottom: 1px solid var(--line);
   background: var(--surface-subtle);
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--type-2xs);
   font-weight: 800;
   text-transform: uppercase;
 }
@@ -51,7 +51,7 @@
 .scenario-index {
   color: var(--muted);
   font-family: "Cascadia Code", Consolas, monospace;
-  font-size: 11px;
+  font-size: var(--type-xs);
 }
 
 .scenario-copy {
@@ -75,14 +75,14 @@
   max-width: 68ch;
   margin: 5px 0 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--type-2xs);
 }
 
 .scenario-repository {
   display: inline-block;
   margin-top: 7px;
   color: var(--muted-strong);
-  font-size: 9px;
+  font-size: var(--type-2xs);
 }
 
 .scenario-active {
@@ -90,7 +90,7 @@
   align-items: center;
   gap: 5px;
   color: var(--green);
-  font-size: 9px;
+  font-size: var(--type-2xs);
   font-weight: 800;
 }
 
@@ -103,7 +103,7 @@
 
 .scenario-mode {
   color: var(--cobalt-strong);
-  font-size: 10px;
+  font-size: var(--type-2xs);
   font-weight: 700;
 }
 
@@ -117,7 +117,7 @@
   display: block;
   overflow: hidden;
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--type-2xs);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -128,7 +128,7 @@
   border: 1px solid var(--cobalt);
   border-radius: var(--radius-sm);
   background: var(--cobalt);
-  color: #fff;
+  color: var(--color-on-accent);
   font-weight: 750;
   cursor: pointer;
 }

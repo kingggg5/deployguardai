@@ -164,6 +164,16 @@ def test_github_install_discovery_and_sync(
     ).json()
     assert connected[0]["provider"] == "github"
     assert connected[0]["data_mode"] == "connected"
+    selected_context = client.put(
+        "/api/v1/me/context",
+        headers=headers,
+        json={
+            "workspace_id": workspace_id,
+            "repository_id": connected[0]["id"],
+            "scenario_id": f"github-{connected[0]['id']}",
+        },
+    )
+    assert selected_context.status_code == 200
 
     pull_request_body = json.dumps(
         {
@@ -211,6 +221,11 @@ def test_github_install_discovery_and_sync(
     )
     assert listed_changes.status_code == 200
     assert listed_changes.json()[0]["id"] == analyzed.json()["change_id"]
+    connected_overview = client.get("/api/v1/overview", headers=headers)
+    assert connected_overview.status_code == 200
+    assert connected_overview.json()["data_mode"] == "connected"
+    assert connected_overview.json()["active_change"]["id"] == analyzed.json()["change_id"]
+    assert connected_overview.json()["active_incident"] is None
 
     disabled_check = client.post(
         (

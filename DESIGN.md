@@ -43,10 +43,24 @@ Dark mode:
 
 State is always paired with a label, shape, or icon.
 
+### Token architecture
+
+The system uses a strict three-layer token model:
+
+1. **Primitive tokens** are fixed palette, type, spacing, radius, and motion values. Feature styles never consume primitives directly.
+2. **Semantic tokens** describe purpose, such as `--color-surface`, `--color-text-muted`, `--color-danger`, and `--color-on-danger`. Theme switching happens only at this layer.
+3. **Component tokens** define shared geometry and interaction, such as `--component-control-min-height`, `--component-control-radius`, and `--component-focus-width`.
+
+Legacy short names such as `--surface`, `--cobalt`, and `--radius-sm` are compatibility aliases only. New work uses semantic or component tokens, and migrations remove aliases only after every consumer has moved.
+
+Every filled semantic state has a matching theme-aware foreground token: `--color-on-accent`, `--color-on-success`, `--color-on-warning`, and `--color-on-danger`. Never hard-code white or near-black text on a semantic background.
+
 ## Typography
 
 - UI family: `"Segoe UI Variable", "Noto Sans Thai", "Leelawadee UI", Tahoma, sans-serif`.
 - Measurement/code family: `"Cascadia Code", "SFMono-Regular", Consolas, monospace`.
+- The stable compact scale is `--type-2xs` (12px metadata), `--type-xs` (13px secondary copy), `--type-sm` (14px body), `--type-md` (16px), and `--type-lg` (20px).
+- User-facing text never drops below 12px. Use 12px only for terse instrument metadata; explanatory copy starts at 13px.
 - Headings remain compact (18–28px), with no decorative display face.
 - Evidence IDs, timestamps, commit hashes, and measured values use the measurement family.
 - Labels use sentence case; tracked all-caps is limited to compact physical-instrument tags.
@@ -58,6 +72,7 @@ State is always paired with a label, shape, or icon.
 - Borders carry structure; shadows are reserved for the mobile drawer, raised analysis form, and sticky chrome.
 - Panel radius is 12px; control radius is 8px. Pills are limited to short statuses.
 - Dense content aligns to an 8px base rhythm with 4px substeps.
+- Interactive controls use a 44px minimum height and width where the entire surface is actionable. Compact visual treatments must not reduce the hit area.
 - Desktop keeps topology, risk, and evidence simultaneously visible; tablet stacks evidence below topology; mobile uses a single active workspace with a persistent context switcher.
 
 ## Signature Interaction
@@ -82,7 +97,16 @@ The global `Evidence X-ray` switch keeps the topology spatially fixed while chan
 - Global CSS owns tokens, reset, document base, and primitives only. New feature/layout components colocate their styles with the Angular component.
 - Each element gets one stable semantic class. State uses `aria-*`, `data-state`, or a component-level CSS custom property instead of stacked `.is-*` classes.
 - Feature selectors must stay flat: no selector may depend on more than one DOM relationship, and new components should not require descendant selectors for state.
+- Shared primitives expose `data-variant` and `data-size` instead of multiplying BEM modifier classes. Existing modifier classes are migration aliases, not the target API.
+- Feature styles consume semantic and component tokens only. Literal color, typography, control-height, radius, focus, and transition values are not accepted in new component CSS.
 - React Bits is an interaction reference, not a dependency. Stepper, Animated List, and Spotlight ideas may be translated to Angular/CSS, but React is not added as a second runtime.
+
+### Stylesheet ownership and migration
+
+- `frontend/src/styles.scss` is the source of truth for tokens, reset, document defaults, accessibility primitives, and shared controls.
+- `frontend/src/app/app.scss` owns application shell layout and chrome.
+- Feature component styles own their workspace layout and local presentation.
+- The current global investigation and change-risk rules are legacy migration debt. Move them feature by feature; do not add new feature selectors to the global stylesheet.
 
 ## Motion
 
@@ -90,12 +114,17 @@ The global `Evidence X-ray` switch keeps the topology spatially fixed while chan
 - The one authored motion is incident replay: a time cursor advances across the recorder while affected graph edges illuminate in causal order.
 - Command search uses a single short list-insertion sequence inspired by React Bits Animated List; all other motion communicates selection or state change.
 - `prefers-reduced-motion` disables replay animation and reveals the final state immediately.
+- Reduced motion is selective: stop continuous spinner, shimmer, and edge-flow animation; retain an 80ms state-change transition so focus and selection feedback do not disappear. Never use a blanket `0.01ms` override.
 
 ## Accessibility
 
 - Minimum 4.5:1 text contrast and 3:1 large-text/UI contrast.
 - Visible 2px focus outline with offset.
-- Minimum 44px pointer targets for primary actions.
+- Minimum 44px pointer targets for every action on coarse-pointer and mobile layouts.
+- Filled semantic surfaces always use their `--color-on-*` foreground token and are verified in both themes.
+- Dialogs and off-canvas navigation trap focus, close with Escape, restore focus to the trigger, and keep background content inert while open.
+- Composite widgets implement their declared keyboard model. Do not add `listbox`, `option`, or `listitem` roles to native buttons unless the complete interaction pattern exists.
+- Forms expose visible validation copy, `aria-invalid`, and `aria-describedby`; a disabled submit button is not the only error signal.
 - SVG topology includes a text summary and keyboard-selectable services.
 - Risk is never represented by hue alone.
 

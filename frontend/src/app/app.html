@@ -26,6 +26,14 @@ FORM: Investigation cockpit, pinned by the product brief; direction seed intenti
       </div>
     </div>
   </main>
+} @else if (activeTab() === 'workspace' && !overview()) {
+  <main id="workspace-content" class="workspace" tabindex="-1">
+    <app-workspace-setup
+      [language]="lang()"
+      [activateContextOnLoad]="true"
+      (contextChanged)="handleWorkspaceContextChanged($event)"
+    />
+  </main>
 } @else if (loadError() && !overview()) {
   <main class="fatal-state">
     <span class="fatal-state__mark" aria-hidden="true">!</span>
@@ -37,6 +45,9 @@ FORM: Investigation cockpit, pinned by the product brief; direction seed intenti
         <path d="M18.2 5.8A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.5-4L13 11h8V3l-2.8 2.8Z"/>
       </svg>
       {{ t('retry_connection') }}
+    </button>
+    <button type="button" class="button button--secondary" (click)="setActiveTab('workspace')">
+      Open sign-in and workspace setup
     </button>
   </main>
 } @else if (overview(); as data) {
@@ -292,6 +303,18 @@ FORM: Investigation cockpit, pinned by the product brief; direction seed intenti
                 @if (exportError()) {
                   <span class="action-error" role="alert">{{ exportError() }}</span>
                 }
+              </div>
+            </section>
+          } @else {
+            <section class="incident-command" aria-labelledby="connected-change-title">
+              <div class="incident-command__status">
+                <span class="severity-mark">connected</span>
+                <span class="status-mark"><i aria-hidden="true"></i>Awaiting signals</span>
+              </div>
+              <div class="incident-command__copy">
+                <p class="system-kicker">Connected change evidence</p>
+                <h1 id="connected-change-title">{{ activeChange()?.title }}</h1>
+                <p>No incident has been correlated with this change. Risk and topology evidence remain available without manufacturing an incident record.</p>
               </div>
             </section>
           }
@@ -851,7 +874,10 @@ FORM: Investigation cockpit, pinned by the product brief; direction seed intenti
             (scenarioSelected)="activateScenario($event)"
           />
         } @else if (activeTab() === 'workspace') {
-          <app-workspace-setup [language]="lang()" />
+          <app-workspace-setup
+            [language]="lang()"
+            (contextChanged)="handleWorkspaceContextChanged($event)"
+          />
         } @else if (activeTab() === 'operations') {
           @defer (on immediate) {
             <app-operations-center

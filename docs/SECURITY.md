@@ -24,6 +24,7 @@ telemetry source จึงต้องถือ external content ทุกชน
 - service dependencies และ event foreign IDs ถูกตรวจว่าอยู่ workspace เดียวกัน
 - incident assignee และ notification recipient ถูกจำกัดใน workspace
 - audit event ถูกเพิ่มพร้อม tenant mutation สำคัญ
+- canonical deployment upsert ใช้ provider identity + workspace uniqueness และ exact repository/commit matching; connector health เป็น read-only summary ที่ไม่คืน credential
 - Alembic จัดการ schema; production ปฏิเสธ unversioned non-empty database
 - provider credential ที่ไม่ configured ทำให้ capability ปิดหรือ API คืน `503`
 - LLM runtime ไม่มี และ reserved endpoint คืน `501`

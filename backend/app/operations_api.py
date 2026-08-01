@@ -5,6 +5,8 @@ from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.orm import Session
 
 from .auth.dependencies import get_current_user, get_session
+from .deployment_schemas import DeploymentResponse, DeploymentStatus
+from .deployment_services import get_deployment, list_deployments
 from .models import User
 from .operations_schemas import (
     EventSeverity,
@@ -42,6 +44,46 @@ from .workspace_api import request_id
 
 
 router = APIRouter(prefix="/api/v1")
+
+
+@router.get(
+    "/workspaces/{workspace_id}/deployments",
+    response_model=list[DeploymentResponse],
+)
+def deployments(
+    workspace_id: str,
+    user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_session)],
+    repository_id: str | None = Query(default=None, max_length=36),
+    environment: str | None = Query(
+        default=None, min_length=1, max_length=80
+    ),
+    deployment_status: DeploymentStatus | None = Query(
+        default=None, alias="status"
+    ),
+    limit: int = Query(default=100, ge=1, le=500),
+) -> list[DeploymentResponse]:
+    return list_deployments(
+        session,
+        user,
+        workspace_id,
+        repository_id=repository_id,
+        environment=environment,
+        status=deployment_status,
+        limit=limit,
+    )
+
+
+@router.get(
+    "/deployments/{deployment_id}",
+    response_model=DeploymentResponse,
+)
+def deployment(
+    deployment_id: str,
+    user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_session)],
+) -> DeploymentResponse:
+    return get_deployment(session, user, deployment_id)
 
 
 @router.get(

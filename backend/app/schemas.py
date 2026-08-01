@@ -161,7 +161,7 @@ class Overview(APIModel):
     active_scenario_id: str
     stats: OverviewStats
     active_change: ChangeDetail
-    active_incident: IncidentDetail
+    active_incident: IncidentDetail | None
 
 
 class ScenarioSummary(APIModel):
@@ -171,8 +171,8 @@ class ScenarioSummary(APIModel):
     repository: str
     data_mode: DataMode
     is_active: bool
-    active_change_id: str
-    active_incident_id: str
+    active_change_id: str | None
+    active_incident_id: str | None
 
 
 class AnalyzeChangeRequest(APIModel):

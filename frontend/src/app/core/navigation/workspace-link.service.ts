@@ -20,6 +20,12 @@ export class WorkspaceLinkService {
   private readonly document = inject(DOCUMENT);
 
   readView(): WorkspaceView {
+    const pathname = this.document.defaultView?.location.pathname.replace(
+      /\/+$/,
+      ''
+    );
+    if (pathname === '/accept-invite') return 'workspace';
+
     const view = this.readQueryParam('view');
     if (
       view === 'investigation' ||

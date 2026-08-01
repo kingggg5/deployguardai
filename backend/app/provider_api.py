@@ -3,8 +3,8 @@ from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import RedirectResponse
-from sqlalchemy.orm import Session
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from .errors import DomainError
 from .models import Repository, User
@@ -12,6 +12,7 @@ from .schemas import ChangeDetail
 from .services import list_changes
 from .workspace_services import membership_for
 from .provider_schemas import (
+    ConnectorHealthSummary,
     GitHubConnectionSummary,
     GitHubCheckRunResponse,
     GitHubInstallStart,
@@ -26,6 +27,7 @@ from .provider_services import (
     capabilities,
     complete_github_installation,
     connection_summary,
+    connector_health,
     disconnect_github,
     github_connection,
     publish_github_change_check,
@@ -40,6 +42,18 @@ router = APIRouter(prefix="/api/v1")
 @router.get("/capabilities", response_model=ProductCapabilities)
 def product_capabilities(request: Request) -> ProductCapabilities:
     return capabilities(request.app.state.settings)
+
+
+@router.get(
+    "/workspaces/{workspace_id}/connectors",
+    response_model=list[ConnectorHealthSummary],
+)
+def workspace_connectors(
+    workspace_id: str,
+    user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_session)],
+) -> list[ConnectorHealthSummary]:
+    return connector_health(session, user, workspace_id)
 
 
 @router.get(

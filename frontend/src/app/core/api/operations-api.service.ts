@@ -17,13 +17,11 @@ import {
   ServiceRecord,
   ServiceUpdateRequest
 } from '../models/operations.models';
-import { WorkspaceApiService } from './workspace-api.service';
 
 @Injectable({ providedIn: 'root' })
 export class OperationsApiService {
   private readonly http = inject(HttpClient);
   private readonly apiBase = inject(DEPLOYGUARD_API_BASE);
-  private readonly workspaceApi = inject(WorkspaceApiService);
 
   services(workspaceId: string): Observable<ServiceRecord[]> {
     return this.http.get<ServiceRecord[]>(
@@ -156,9 +154,6 @@ export class OperationsApiService {
   }
 
   private headers(): HttpHeaders {
-    const token = this.workspaceApi.token();
-    return token
-      ? new HttpHeaders({ Authorization: `Bearer ${token}` })
-      : new HttpHeaders();
+    return new HttpHeaders();
   }
 }

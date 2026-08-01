@@ -1,10 +1,16 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
+import {
+  clearDevelopmentSessionToken,
+  readDevelopmentSessionToken,
+  writeDevelopmentSessionToken
+} from '../auth/development-session-storage';
 import { DEPLOYGUARD_API_BASE } from '../config/deployguard-config';
 import {
   AuditEventSummary,
   ConnectedChangeSummary,
+  ConnectorHealthSummary,
   DevelopmentSession,
   InvitationCreated,
   InvitationSummary,
@@ -23,7 +29,6 @@ import {
 export class WorkspaceApiService {
   private readonly http = inject(HttpClient);
   private readonly apiBase = inject(DEPLOYGUARD_API_BASE);
-  private readonly tokenKey = 'deployguard-development-session';
 
   capabilities(): Observable<ProductCapabilities> {
     return this.http.get<ProductCapabilities>(`${this.apiBase}/capabilities`);
@@ -46,27 +51,15 @@ export class WorkspaceApiService {
   }
 
   storeToken(token: string): void {
-    try {
-      globalThis.localStorage?.setItem(this.tokenKey, token);
-    } catch {
-      // The user can still use the current in-memory response when storage is blocked.
-    }
+    writeDevelopmentSessionToken(token);
   }
 
   token(): string | null {
-    try {
-      return globalThis.localStorage?.getItem(this.tokenKey) ?? null;
-    } catch {
-      return null;
-    }
+    return readDevelopmentSessionToken();
   }
 
   clearToken(): void {
-    try {
-      globalThis.localStorage?.removeItem(this.tokenKey);
-    } catch {
-      // Storage is optional.
-    }
+    clearDevelopmentSessionToken();
   }
 
   workspaces(): Observable<WorkspaceSummary[]> {
@@ -125,6 +118,13 @@ export class WorkspaceApiService {
   githubStatus(workspaceId: string): Observable<GitHubConnectionSummary> {
     return this.http.get<GitHubConnectionSummary>(
       `${this.apiBase}/workspaces/${encodeURIComponent(workspaceId)}/providers/github`,
+      { headers: this.headers() }
+    );
+  }
+
+  connectorHealth(workspaceId: string): Observable<ConnectorHealthSummary[]> {
+    return this.http.get<ConnectorHealthSummary[]>(
+      `${this.apiBase}/workspaces/${encodeURIComponent(workspaceId)}/connectors`,
       { headers: this.headers() }
     );
   }
@@ -232,9 +232,6 @@ export class WorkspaceApiService {
   }
 
   private headers(): HttpHeaders {
-    const token = this.token();
-    return token
-      ? new HttpHeaders({ Authorization: `Bearer ${token}` })
-      : new HttpHeaders();
+    return new HttpHeaders();
   }
 }

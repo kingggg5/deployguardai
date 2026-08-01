@@ -28,6 +28,8 @@ Roadmap นี้เรียงตาม dependency และความเส
 | Service catalog | ✅ | Validated dependency DAG ถูก overlay เข้า deterministic risk/blast-radius analysis |
 | Workspace risk policy | ✅ | Versioned thresholds และ safety requirements |
 | Durable operational events | ✅ | Tenant validation, server-owned provenance และ conflict-safe idempotency |
+| Canonical GitHub deployments | ✅ | Signed deployment/deployment-status webhooks upsert one deployment, link exact repository + SHA changes, and keep legacy DORA fields compatible |
+| Connector health read model | ✅ | Provider, webhook delivery, selected repository and Check publication health are visible without exposing credentials |
 | Incident lifecycle + notes | ✅ | Role-gated transitions, assignee และ append-only notes |
 | In-app notifications | ✅ | Recipient-scoped list/read state |
 | PostgreSQL production verification | 🟡 | Driver/config/migrations รองรับ; reference integration gate ยังเปิด |
@@ -72,7 +74,7 @@ Roadmap นี้เรียงตาม dependency และความเส
 - SMTP invitation delivery
 - normalized telemetry HTTP endpoint
 
-ข้อจำกัด: webhook ยัง synchronous ไม่มี worker/DLQ/background retry scheduler
+ข้อจำกัด: webhook ยัง synchronous ไม่มี worker/DLQ/background retry scheduler และ deployment signal grouping/correlation ยังเป็นงานถัดไป
 แม้ Check publication จะมี durable retry state แล้ว และ telemetry endpoint
 ไม่ใช่ OTLP receiver
 

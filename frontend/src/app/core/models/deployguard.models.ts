@@ -25,8 +25,8 @@ export interface ScenarioSummary {
   repository: string;
   data_mode: DataMode;
   is_active: boolean;
-  active_change_id: string;
-  active_incident_id: string;
+  active_change_id: string | null;
+  active_incident_id: string | null;
 }
 
 export interface OverviewStats {
@@ -170,7 +170,7 @@ export interface Overview {
   active_scenario_id: string;
   stats: OverviewStats;
   active_change: ChangeDetail;
-  active_incident: IncidentDetail;
+  active_incident: IncidentDetail | null;
 }
 
 export interface AnalyzeChangeRequest {

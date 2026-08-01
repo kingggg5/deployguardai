@@ -96,6 +96,25 @@ export interface GitHubConnectionSummary {
   error_code: string | null;
 }
 
+export interface ConnectorHealthSummary {
+  connection_id: string;
+  workspace_id: string;
+  provider: string;
+  status: 'pending' | 'healthy' | 'degraded' | 'revoked';
+  connection_state: string;
+  selected_resource_count: number;
+  last_synced_at: string | null;
+  last_delivery_at: string | null;
+  last_delivery_status: string | null;
+  last_success_at: string | null;
+  last_failure_at: string | null;
+  stuck_delivery_count: number;
+  retrying_publication_count: number;
+  permanent_failure_count: number;
+  error_code: string | null;
+  reasons: string[];
+}
+
 export interface GitHubRepositoryCandidate {
   provider_repository_id: string;
   full_name: string;

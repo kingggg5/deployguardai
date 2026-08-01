@@ -75,6 +75,9 @@ resource ของ tenant อื่น เมื่อมี membership แต�
 | `POST` | `/workspaces/{workspace_id}/providers/github/repositories/sync` | Admin | Import/select repository |
 | `DELETE` | `/workspaces/{workspace_id}/providers/github` | Admin | Revoke local connection state |
 | `POST` | `/webhooks/github` | Signed webhook | Verify, dedupe และ normalize event |
+| `GET` | `/workspaces/{workspace_id}/connectors` | Viewer | Read-only connector health without provider credentials |
+| `GET` | `/workspaces/{workspace_id}/deployments` | Viewer | Canonical deployments with repository/environment/status filters |
+| `GET` | `/deployments/{deployment_id}` | Viewer | Canonical deployment detail after tenant membership check |
 
 GitHub installation token ถูก mint ฝั่ง server และไม่คืนให้ browser Install
 state เก็บแบบ digest, หมดอายุ และใช้ได้ครั้งเดียว ใน production
@@ -168,6 +171,13 @@ Event contract จำกัด:
 - list filters: source, event type, severity, repository, service,
   ingestion status และ occurred-at range
 - list `limit` อยู่ในช่วง 1–500
+
+Deployment webhooks (`deployment` และ `deployment_status`) upsert ด้วย
+`(workspace_id, provider, provider_deployment_id)`, link an exact repository +
+commit SHA change when available, and update legacy deployment fields for DORA
+compatibility. `workflow_run` remains an operational event and is not treated as
+a deployment. Connected scenarios may return `active_incident = null` until a
+real incident is correlated; the API does not fabricate an incident record.
 
 Member endpoint discard client-supplied provenance ทั้ง object เพื่อ compatibility
 แล้วสร้าง provenance ใหม่ฝั่ง Server ส่วน trusted adapter เก็บ provider

@@ -177,6 +177,20 @@ describe('OperationsCenterComponent', () => {
         })
       ),
       repositories: vi.fn(() => of([repository])),
+      members: vi.fn(() =>
+        of([
+          {
+            user: {
+              id: 'user-1',
+              email: 'owner@example.com',
+              display_name: 'Release Owner',
+              auth_provider: 'oidc'
+            },
+            role: 'owner',
+            joined_at: '2026-07-28T08:00:00Z'
+          }
+        ])
+      ),
       token: vi.fn(() => 'session-token')
     };
 
@@ -340,7 +354,7 @@ describe('OperationsCenterComponent', () => {
       operatorNote.id
     );
 
-    const nextIncident = makeOverview('queue-backlog').active_incident;
+    const nextIncident = makeOverview('queue-backlog').active_incident!;
     fixture.componentRef.setInput('incident', nextIncident);
     fixture.detectChanges();
 
@@ -351,7 +365,7 @@ describe('OperationsCenterComponent', () => {
 
   it('renders the authoritative lifecycle timeline returned by the API', () => {
     createComponent();
-    const incident = makeOverview().active_incident;
+    const incident = makeOverview().active_incident!;
     const lifecycleEntry = {
       id: 'lifecycle-1',
       timestamp: '2026-07-29T08:04:00Z',
@@ -374,16 +388,43 @@ describe('OperationsCenterComponent', () => {
 
     component.lifecycleForm.setValue({
       status: 'investigating',
-      severity: 'sev2'
+      severity: 'sev2',
+      assigneeUserId: 'user-1'
     });
     component.updateLifecycle();
     component.setSection('incident');
     fixture.detectChanges();
 
     expect(component.incidentStatus()).toBe('investigating');
+    expect(operationsApi['updateIncidentLifecycle']).toHaveBeenCalledWith(
+      incident.id,
+      expect.objectContaining({ assignee_user_id: 'user-1' })
+    );
     expect(component.incidentTimeline().at(-1)?.id).toBe(lifecycleEntry.id);
     expect(fixture.nativeElement.textContent).toContain(
       'Incident investigating'
+    );
+  });
+
+  it('locks lifecycle mutations after an incident is resolved', () => {
+    const resolved = {
+      ...makeOverview().active_incident,
+      status: 'resolved' as const,
+      resolved_at: '2026-07-29T09:00:00Z'
+    };
+    fixture = TestBed.createComponent(OperationsCenterComponent);
+    component = fixture.componentInstance;
+    fixture.componentRef.setInput('incident', resolved);
+    fixture.detectChanges();
+    component.setSection('incident');
+    fixture.detectChanges();
+
+    component.updateLifecycle();
+
+    expect(component.isIncidentTerminal()).toBe(true);
+    expect(operationsApi['updateIncidentLifecycle']).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.textContent).toContain(
+      'Lifecycle fields are locked'
     );
   });
 
@@ -395,7 +436,7 @@ describe('OperationsCenterComponent', () => {
       component.incidentTimeline().filter((entry) => entry.id === operatorNote.id)
     ).toHaveLength(1);
 
-    const refreshed = makeOverview().active_incident;
+    const refreshed = makeOverview().active_incident!;
     fixture.componentRef.setInput('incident', {
       ...refreshed,
       timeline: [...refreshed.timeline, operatorNote]

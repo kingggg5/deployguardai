@@ -241,6 +241,13 @@ export class App implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.applyPreferences();
+    if (globalThis.location?.pathname.replace(/\/+$/, '') === '/accept-invite') {
+      this.activeTab.set('workspace');
+    }
+    if (this.activeTab() === 'workspace') {
+      this.isLoading.set(false);
+      return;
+    }
     this.refreshDashboard();
   }
 
@@ -267,6 +274,10 @@ export class App implements OnInit, OnDestroy {
       repositoryId: context.repository_id
     });
     this.refreshDashboard(true);
+  }
+
+  handleWorkspaceContextChanged(context: UserContext): void {
+    this.handleOperationsContextChanged(context);
   }
 
   handlePaletteAction(action: CommandPaletteAction): void {
@@ -876,7 +887,7 @@ export class App implements OnInit, OnDestroy {
       );
     }
 
-    const hypotheses = [...overview.active_incident.hypotheses].sort(
+    const hypotheses = [...(overview.active_incident?.hypotheses ?? [])].sort(
       (a, b) => a.rank - b.rank
     );
     const currentHypothesisExists = hypotheses.some(

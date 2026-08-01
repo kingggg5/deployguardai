@@ -15,6 +15,16 @@ describe('WorkspaceLinkService', () => {
     expect(service.readScenarioId()).toBe('checkout');
   });
 
+  it('routes invitation claim links directly to workspace activation', () => {
+    window.history.replaceState(
+      {},
+      '',
+      '/accept-invite?token=one-time-token'
+    );
+
+    expect(service.readView()).toBe('workspace');
+  });
+
   it('keeps the operations view when replacing scenario scope', () => {
     service.sync('operations', 'payments', 'replace');
 

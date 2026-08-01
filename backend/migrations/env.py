@@ -5,7 +5,12 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from app.database import Base
-from app import models, operations_models, provider_models  # noqa: F401
+from app import (  # noqa: F401
+    deployment_models,
+    models,
+    operations_models,
+    provider_models,
+)
 
 
 config = context.config

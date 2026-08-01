@@ -2,7 +2,7 @@ import secrets
 from datetime import UTC, datetime, timedelta
 from urllib.parse import urlencode
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -17,6 +17,7 @@ from .provider_models import (
     WebhookDelivery,
 )
 from .provider_schemas import (
+    ConnectorHealthSummary,
     GitHubConnectionSummary,
     GitHubCheckRunResponse,
     GitHubInstallStart,
@@ -258,6 +259,148 @@ def connection_summary(connection: ProviderConnection) -> GitHubConnectionSummar
         last_synced_at=connection.last_synced_at,
         error_code=connection.error_code,
     )
+
+
+def connector_health(
+    session: Session,
+    user: User,
+    workspace_id: str,
+) -> list[ConnectorHealthSummary]:
+    membership_for(session, user, workspace_id)
+    connections = session.scalars(
+        select(ProviderConnection)
+        .where(ProviderConnection.workspace_id == workspace_id)
+        .order_by(ProviderConnection.provider, ProviderConnection.id)
+    ).all()
+    result: list[ConnectorHealthSummary] = []
+    stale_cutoff = datetime.now(UTC) - timedelta(minutes=5)
+    successful_delivery_states = ("processed", "verified", "ignored")
+    for connection in connections:
+        latest_delivery = session.scalar(
+            select(WebhookDelivery)
+            .where(
+                WebhookDelivery.workspace_id == workspace_id,
+                WebhookDelivery.provider == connection.provider,
+            )
+            .order_by(
+                WebhookDelivery.created_at.desc(),
+                WebhookDelivery.id.desc(),
+            )
+        )
+        last_success_at = session.scalar(
+            select(func.max(WebhookDelivery.created_at)).where(
+                WebhookDelivery.workspace_id == workspace_id,
+                WebhookDelivery.provider == connection.provider,
+                WebhookDelivery.status.in_(successful_delivery_states),
+            )
+        )
+        last_failure_at = session.scalar(
+            select(func.max(WebhookDelivery.created_at)).where(
+                WebhookDelivery.workspace_id == workspace_id,
+                WebhookDelivery.provider == connection.provider,
+                WebhookDelivery.status == "failed",
+            )
+        )
+        stuck_delivery_count = int(
+            session.scalar(
+                select(func.count(WebhookDelivery.id)).where(
+                    WebhookDelivery.workspace_id == workspace_id,
+                    WebhookDelivery.provider == connection.provider,
+                    WebhookDelivery.status == "processing",
+                    WebhookDelivery.created_at < stale_cutoff,
+                )
+            )
+            or 0
+        )
+        selected_resource_count = int(
+            session.scalar(
+                select(func.count(Repository.id)).where(
+                    Repository.workspace_id == workspace_id,
+                    Repository.provider == connection.provider,
+                    Repository.selected.is_(True),
+                    Repository.connection_state == "connected",
+                )
+            )
+            or 0
+        )
+        retrying_publication_count = 0
+        permanent_failure_count = 0
+        if connection.provider == "github":
+            retrying_publication_count = int(
+                session.scalar(
+                    select(func.count(GitHubCheckPublication.id)).where(
+                        GitHubCheckPublication.workspace_id == workspace_id,
+                        GitHubCheckPublication.status == "retryable_failed",
+                    )
+                )
+                or 0
+            )
+            permanent_failure_count = int(
+                session.scalar(
+                    select(func.count(GitHubCheckPublication.id)).where(
+                        GitHubCheckPublication.workspace_id == workspace_id,
+                        GitHubCheckPublication.status == "permanent_failed",
+                    )
+                )
+                or 0
+            )
+
+        reasons: list[str] = []
+        state = connection.connection_state
+        if state == "pending_verification":
+            health_status = "pending"
+            reasons.append("provider_verification_pending")
+        elif state == "revoked":
+            health_status = "revoked"
+            reasons.append("provider_access_revoked")
+        else:
+            if state != "connected":
+                reasons.append("provider_connection_unavailable")
+            if connection.error_code:
+                reasons.append("provider_error_recorded")
+            if (
+                last_failure_at is not None
+                and (
+                    last_success_at is None
+                    or last_failure_at > last_success_at
+                )
+            ):
+                reasons.append("latest_delivery_failed")
+            if stuck_delivery_count:
+                reasons.append("stuck_webhook_delivery")
+            if permanent_failure_count:
+                reasons.append("permanent_publication_failure")
+            health_status = "degraded" if reasons else "healthy"
+
+        result.append(
+            ConnectorHealthSummary(
+                connection_id=connection.id,
+                workspace_id=workspace_id,
+                provider=connection.provider,
+                status=health_status,
+                connection_state=state,
+                selected_resource_count=selected_resource_count,
+                last_synced_at=connection.last_synced_at,
+                last_delivery_at=(
+                    latest_delivery.created_at
+                    if latest_delivery is not None
+                    else None
+                ),
+                last_delivery_status=(
+                    latest_delivery.status
+                    if latest_delivery is not None
+                    else None
+                ),
+                last_success_at=last_success_at,
+                last_failure_at=last_failure_at,
+                stuck_delivery_count=stuck_delivery_count,
+                retrying_publication_count=retrying_publication_count,
+                permanent_failure_count=permanent_failure_count,
+                error_code=connection.error_code,
+                reasons=reasons,
+            )
+        )
+    return result
 
 
 def github_connection(

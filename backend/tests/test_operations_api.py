@@ -742,6 +742,7 @@ def test_operations_migration_is_at_head_and_schema_is_complete(
     inspector = inspect(client.app.state.database.engine)
     tables = set(inspector.get_table_names())
     assert {
+        "deployments",
         "services",
         "workspace_risk_policies",
         "operational_events",

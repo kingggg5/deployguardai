@@ -5,7 +5,6 @@ import {
 } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { DEPLOYGUARD_API_BASE } from '../config/deployguard-config';
-import { WorkspaceApiService } from './workspace-api.service';
 import { OperationsApiService } from './operations-api.service';
 
 describe('OperationsApiService', () => {
@@ -17,10 +16,6 @@ describe('OperationsApiService', () => {
       providers: [
         OperationsApiService,
         { provide: DEPLOYGUARD_API_BASE, useValue: '/test-api/v1' },
-        {
-          provide: WorkspaceApiService,
-          useValue: { token: vi.fn(() => 'session-token') }
-        },
         provideHttpClient(),
         provideHttpClientTesting()
       ]
@@ -31,7 +26,7 @@ describe('OperationsApiService', () => {
 
   afterEach(() => http.verify());
 
-  it('uses tenant-scoped service endpoints and the authenticated session', () => {
+  it('uses tenant-scoped service endpoints', () => {
     const payload = {
       name: 'Checkout API',
       slug: 'checkout-api',
@@ -51,9 +46,6 @@ describe('OperationsApiService', () => {
     );
     expect(create.request.method).toBe('POST');
     expect(create.request.body).toEqual(payload);
-    expect(create.request.headers.get('Authorization')).toBe(
-      'Bearer session-token'
-    );
     create.flush({});
 
     service.updateService('service/one', { owner_team: 'SRE' }).subscribe();

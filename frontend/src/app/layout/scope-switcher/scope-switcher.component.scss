@@ -19,7 +19,7 @@
 .scope-option-mode,
 .scope-search-label {
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--type-xs);
   letter-spacing: 0.04em;
 }
 
@@ -65,7 +65,7 @@
   align-items: center;
   gap: 7px;
   color: var(--muted-strong);
-  font-size: 11px;
+  font-size: var(--type-xs);
 }
 
 .scope-mode-mark {
@@ -119,7 +119,7 @@
 
 .scope-heading-label {
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--type-xs);
 }
 
 .scope-heading-title {
@@ -127,8 +127,8 @@
 }
 
 .scope-close {
-  width: 34px;
-  height: 34px;
+  width: var(--component-control-min-width);
+  height: var(--component-control-min-height);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--surface-subtle);
@@ -145,7 +145,7 @@
 
 .scope-search-input {
   width: 100%;
-  height: 42px;
+  min-height: var(--component-control-min-height);
   padding: 0 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);

@@ -44,6 +44,7 @@ import {
 } from '../../core/models/operations.models';
 import {
   ProductCapabilities,
+  MembershipSummary,
   RepositorySummary,
   UserContext,
   WorkspaceSummary
@@ -83,6 +84,7 @@ export class OperationsCenterComponent implements OnInit {
   readonly workspaces = signal<WorkspaceSummary[]>([]);
   readonly activeWorkspace = signal<WorkspaceSummary | null>(null);
   readonly repositories = signal<RepositorySummary[]>([]);
+  readonly members = signal<MembershipSummary[]>([]);
   readonly services = signal<ServiceRecord[]>([]);
   readonly selectedService = signal<ServiceRecord | null>(null);
   readonly riskPolicy = signal<RiskPolicy | null>(null);
@@ -149,6 +151,9 @@ export class OperationsCenterComponent implements OnInit {
       ? lifecycle.status
       : incident?.status ?? null;
   });
+  readonly isIncidentTerminal = computed(
+    () => this.incidentStatus() === 'resolved'
+  );
 
   readonly serviceForm = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(120)]],
@@ -207,7 +212,11 @@ export class OperationsCenterComponent implements OnInit {
     source: [''],
     eventType: [''],
     severity: [''],
-    ingestionStatus: ['']
+    ingestionStatus: [''],
+    repositoryId: [''],
+    serviceId: [''],
+    occurredAfter: [''],
+    occurredBefore: ['']
   });
 
   readonly eventForm = this.fb.nonNullable.group({
@@ -221,7 +230,8 @@ export class OperationsCenterComponent implements OnInit {
 
   readonly lifecycleForm = this.fb.nonNullable.group({
     status: ['open' as IncidentLifecycleStatus, [Validators.required]],
-    severity: ['sev3' as IncidentSeverity, [Validators.required]]
+    severity: ['sev3' as IncidentSeverity, [Validators.required]],
+    assigneeUserId: ['']
   });
 
   readonly noteForm = this.fb.nonNullable.group({
@@ -230,6 +240,7 @@ export class OperationsCenterComponent implements OnInit {
 
   private incidentKey: string | null = null;
   private incidentSnapshot: IncidentDetail | null = null;
+  private workspaceRequestId = 0;
 
   constructor() {
     effect(() => {
@@ -406,6 +417,14 @@ export class OperationsCenterComponent implements OnInit {
       severity: (value.severity as EventSeverity) || undefined,
       ingestion_status:
         (value.ingestionStatus as EventIngestionStatus) || undefined,
+      repository_id: value.repositoryId || undefined,
+      service_id: value.serviceId || undefined,
+      occurred_after: value.occurredAfter
+        ? new Date(value.occurredAfter).toISOString()
+        : undefined,
+      occurred_before: value.occurredBefore
+        ? new Date(value.occurredBefore).toISOString()
+        : undefined,
       limit: 100
     };
     this.begin('filter-events');
@@ -423,7 +442,11 @@ export class OperationsCenterComponent implements OnInit {
       source: '',
       eventType: '',
       severity: '',
-      ingestionStatus: ''
+      ingestionStatus: '',
+      repositoryId: '',
+      serviceId: '',
+      occurredAfter: '',
+      occurredBefore: ''
     });
     this.applyEventFilters();
   }
@@ -486,14 +509,20 @@ export class OperationsCenterComponent implements OnInit {
     if (
       !incident ||
       !this.canRespond() ||
+      this.isIncidentTerminal() ||
       this.lifecycleForm.invalid ||
       this.isBusy()
     ) {
       return;
     }
     this.begin('update-lifecycle');
+    const value = this.lifecycleForm.getRawValue();
     this.api
-      .updateIncidentLifecycle(incident.id, this.lifecycleForm.getRawValue())
+      .updateIncidentLifecycle(incident.id, {
+        status: value.status,
+        severity: value.severity,
+        assignee_user_id: value.assigneeUserId || undefined
+      })
       .pipe(finalize(() => this.busyAction.set('')))
       .subscribe({
         next: (lifecycle) => {
@@ -558,6 +587,13 @@ export class OperationsCenterComponent implements OnInit {
       });
   }
 
+  openNotification(notification: OperatorNotification): void {
+    if (notification.resource_type === 'incident') {
+      this.setSection('incident');
+    }
+    if (!notification.read_at) this.markRead(notification);
+  }
+
   humanize(value: string): string {
     return value.replaceAll('_', ' ');
   }
@@ -597,6 +633,7 @@ export class OperationsCenterComponent implements OnInit {
   }
 
   private selectWorkspace(workspace: WorkspaceSummary): void {
+    this.workspaceRequestId += 1;
     this.isLoading.set(true);
     this.error.set('');
     this.workspaceApi
@@ -624,6 +661,7 @@ export class OperationsCenterComponent implements OnInit {
   }
 
   private loadWorkspaceContext(workspace: WorkspaceSummary): void {
+    const requestId = ++this.workspaceRequestId;
     this.isLoading.set(true);
     this.error.set('');
     this.notice.set('');
@@ -632,16 +670,25 @@ export class OperationsCenterComponent implements OnInit {
       policy: this.api.riskPolicy(workspace.id),
       events: this.api.events(workspace.id, { limit: 100 }),
       notifications: this.api.notifications(workspace.id, false, 100),
-      repositories: this.workspaceApi.repositories(workspace.id)
+      repositories: this.workspaceApi.repositories(workspace.id),
+      members: this.workspaceApi.members(workspace.id)
     })
-      .pipe(finalize(() => this.isLoading.set(false)))
+      .pipe(
+        finalize(() => {
+          if (requestId === this.workspaceRequestId) {
+            this.isLoading.set(false);
+          }
+        })
+      )
       .subscribe({
         next: (context) => {
+          if (requestId !== this.workspaceRequestId) return;
           this.services.set(context.services);
           this.riskPolicy.set(context.policy);
           this.events.set(context.events);
           this.notifications.set(context.notifications);
           this.repositories.set(context.repositories);
+          this.members.set(context.members);
           this.patchPolicy(context.policy);
           const selected =
             context.services.find(
@@ -786,7 +833,8 @@ export class OperationsCenterComponent implements OnInit {
     if (!incident) return;
     this.lifecycleForm.patchValue({
       status: this.normalizeIncidentStatus(incident.status),
-      severity: this.normalizeIncidentSeverity(incident.severity)
+      severity: this.normalizeIncidentSeverity(incident.severity),
+      assigneeUserId: incident.assignee_user_id ?? ''
     });
   }
 }

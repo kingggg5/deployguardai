@@ -38,6 +38,25 @@ class GitHubConnectionSummary(APIModel):
     error_code: str | None
 
 
+class ConnectorHealthSummary(APIModel):
+    connection_id: str
+    workspace_id: str
+    provider: str
+    status: Literal["pending", "healthy", "degraded", "revoked"]
+    connection_state: str
+    selected_resource_count: int = Field(ge=0)
+    last_synced_at: datetime | None
+    last_delivery_at: datetime | None
+    last_delivery_status: str | None
+    last_success_at: datetime | None
+    last_failure_at: datetime | None
+    stuck_delivery_count: int = Field(ge=0)
+    retrying_publication_count: int = Field(ge=0)
+    permanent_failure_count: int = Field(ge=0)
+    error_code: str | None
+    reasons: list[str]
+
+
 class GitHubRepositoryCandidate(APIModel):
     provider_repository_id: str
     full_name: str

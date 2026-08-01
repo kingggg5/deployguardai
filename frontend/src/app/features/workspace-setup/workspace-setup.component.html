@@ -11,7 +11,7 @@
     </div>
     @if (user()) {
       <button type="button" class="setup-action" data-variant="quiet" (click)="signOut()">
-        {{ language() === 'th' ? 'ออกจากระบบ Local' : 'End local session' }}
+        {{ language() === 'th' ? 'ออกจากระบบ' : 'Sign out' }}
       </button>
     }
   </header>
@@ -85,7 +85,7 @@
     <div class="identity-strip">
       <span>{{ user()!.display_name }}</span>
       <code>{{ user()!.email }}</code>
-      <small>development identity</small>
+      <small>{{ user()!.auth_provider === 'development' ? 'development identity' : 'organization identity' }}</small>
     </div>
 
     <div class="workspace-grid">
@@ -158,9 +158,15 @@
                     <p>{{ githubConnection()!.account_type }} · {{ githubConnection()!.repository_selection }} repositories · {{ githubConnection()!.connection_state }}</p>
                   </div>
                   <span [attr.data-state]="githubConnection()!.connection_state">
-                    {{ githubConnection()!.connection_state === 'connected' ? 'Verified installation' : 'Waiting for signed webhook' }}
+                    {{ githubConnection()!.connection_state === 'connected' ? 'Verified installation' : githubConnection()!.connection_state === 'revoked' ? 'Access revoked' : githubConnection()!.connection_state === 'error' ? 'Connection error' : 'Verification pending' }}
                   </span>
                 </div>
+                @for (health of connectorHealth(); track health.connection_id) {
+                  <div class="provider-health" [attr.data-state]="health.status">
+                    <div><strong>Connector health · {{ health.status }}</strong><span>{{ health.selected_resource_count }} repositories · {{ health.last_delivery_status ?? 'No delivery received' }}</span></div>
+                    @if (health.reasons.length) { <small>{{ health.reasons.join(' · ') }}</small> }
+                  </div>
+                }
                 @if (githubConnection()!.connection_state === 'connected') {
                 <div class="repository-picker" role="listbox" aria-label="GitHub repositories" aria-multiselectable="true">
                   @for (candidate of githubCandidates(); track candidate.provider_repository_id) {
@@ -181,7 +187,7 @@
                 </div>
                 @if (canManage() && githubCandidates().length) {
                   <div class="provider-actions">
-                    <button type="button" class="setup-action" data-variant="primary" (click)="syncGitHubRepositories()" [disabled]="isBusy()">
+                    <button type="button" class="setup-action" data-variant="primary" (click)="syncGitHubRepositories()" [disabled]="isBusy() || selectedGitHubCount() === 0">
                       Sync selected repositories
                     </button>
                   </div>
@@ -213,7 +219,7 @@
             <div class="repository-ledger">
               @for (repository of repositories(); track repository.id) {
                 <article>
-                  <span data-state="connected">Connected</span>
+                  <span [attr.data-state]="repository.connection_state">{{ repository.connection_state === 'connected' ? 'Connected' : repository.connection_state }}</span>
                   <strong>{{ repository.full_name }}</strong>
                   <p>{{ repository.default_branch }} · {{ repository.visibility }} · {{ repository.data_mode }}</p>
                 </article>
@@ -291,14 +297,17 @@
             </div>
           </section>
 
-          @if (capabilities()!.development_identity) {
+          @if (capabilities()!.development_identity || pendingInvitationToken()) {
           <section class="work-panel">
             <header class="work-heading">
-              <div><span>04 · Second session</span><h2>Accept invitation</h2></div>
+              <div>
+                <span>04 · Workspace access</span>
+                <h2>{{ pendingInvitationToken() ? 'Claim invitation' : 'Accept invitation' }}</h2>
+              </div>
             </header>
             <form class="compact-form" [formGroup]="acceptForm" (ngSubmit)="acceptInvitation()">
               <label class="token-field"><span>One-time invite token</span><input type="text" formControlName="token" autocomplete="off"></label>
-              <button type="submit" class="setup-action" data-variant="primary" [disabled]="acceptForm.invalid || isBusy()">Accept invite</button>
+              <button type="submit" class="setup-action" data-variant="primary" [disabled]="!user() || acceptForm.invalid || isBusy()">Accept invite</button>
             </form>
           </section>
           }

@@ -357,6 +357,10 @@ FORM: Split operations ledger extending the established investigation cockpit.
             <label class="filter-field"><span>Event type</span><input type="text" formControlName="eventType"></label>
             <label class="filter-field"><span>Severity</span><select formControlName="severity"><option value="">All severities</option><option value="debug">Debug</option><option value="info">Info</option><option value="warning">Warning</option><option value="error">Error</option><option value="critical">Critical</option></select></label>
             <label class="filter-field"><span>Correlation</span><select formControlName="ingestionStatus"><option value="">All states</option><option value="accepted">Accepted</option><option value="correlated">Correlated</option></select></label>
+            <label class="filter-field"><span>Repository</span><select formControlName="repositoryId"><option value="">All repositories</option>@for (repository of repositories(); track repository.id) {<option [value]="repository.id">{{ repository.full_name }}</option>}</select></label>
+            <label class="filter-field"><span>Service</span><select formControlName="serviceId"><option value="">All services</option>@for (service of services(); track service.id) {<option [value]="service.id">{{ service.name }}</option>}</select></label>
+            <label class="filter-field"><span>From</span><input type="datetime-local" formControlName="occurredAfter"></label>
+            <label class="filter-field"><span>Until</span><input type="datetime-local" formControlName="occurredBefore"></label>
             <button type="submit" class="button button--secondary" [disabled]="isBusy()">{{ isBusy('filter-events') ? 'Filtering…' : 'Apply filters' }}</button>
             <button type="button" class="text-action" [disabled]="isBusy()" (click)="clearEventFilters()">Clear</button>
           </form>
@@ -446,10 +450,14 @@ FORM: Split operations ledger extending the established investigation cockpit.
                 <strong>{{ humanize(incidentStatus() ?? activeIncident.status) }}</strong>
               </header>
               <form class="lifecycle-command" [formGroup]="lifecycleForm" (ngSubmit)="updateLifecycle()">
-                <label class="operations-field"><span>Status</span><select formControlName="status" [attr.disabled]="!canRespond() ? true : null"><option value="open">Open</option><option value="acknowledged">Acknowledged</option><option value="investigating">Investigating</option><option value="mitigated">Mitigated</option><option value="resolved">Resolved</option></select></label>
-                <label class="operations-field"><span>Severity</span><select formControlName="severity" [attr.disabled]="!canRespond() ? true : null"><option value="sev1">SEV1 · critical</option><option value="sev2">SEV2 · high</option><option value="sev3">SEV3 · moderate</option><option value="sev4">SEV4 · low</option></select></label>
-                <button type="submit" class="button button--primary" [disabled]="!canRespond() || lifecycleForm.invalid || isBusy()">{{ isBusy('update-lifecycle') ? 'Updating…' : 'Update lifecycle' }}</button>
+                <label class="operations-field"><span>Status</span><select formControlName="status" [attr.disabled]="!canRespond() || isIncidentTerminal() ? true : null"><option value="open">Open</option><option value="acknowledged">Acknowledged</option><option value="investigating">Investigating</option><option value="mitigated">Mitigated</option><option value="resolved">Resolved</option></select></label>
+                <label class="operations-field"><span>Severity</span><select formControlName="severity" [attr.disabled]="!canRespond() || isIncidentTerminal() ? true : null"><option value="sev1">SEV1 · critical</option><option value="sev2">SEV2 · high</option><option value="sev3">SEV3 · moderate</option><option value="sev4">SEV4 · low</option></select></label>
+                <label class="operations-field"><span>Assignee</span><select formControlName="assigneeUserId" [attr.disabled]="!canRespond() || isIncidentTerminal() ? true : null"><option value="">Unassigned</option>@for (membership of members(); track membership.user.id) {<option [value]="membership.user.id">{{ membership.user.display_name }} · {{ membership.role }}</option>}</select></label>
+                <button type="submit" class="button button--primary" [disabled]="!canRespond() || isIncidentTerminal() || lifecycleForm.invalid || isBusy()">{{ isBusy('update-lifecycle') ? 'Updating…' : 'Update lifecycle' }}</button>
               </form>
+              @if (isIncidentTerminal()) {
+                <p class="permission-warning" role="status">This incident is resolved. Lifecycle fields are locked; the evidence timeline remains available for review.</p>
+              }
               <form class="note-command" [formGroup]="noteForm" (ngSubmit)="addNote()">
                 <label class="operations-field"><span>Incident note</span><textarea formControlName="note" [readOnly]="!canRespond()" placeholder="Record what changed, what evidence was checked, and what should happen next."></textarea></label>
                 <div class="note-footer"><small>Notes are appended to the incident timeline and notify workspace members.</small><button type="submit" class="button button--secondary" [disabled]="!canRespond() || noteForm.invalid || isBusy()">{{ isBusy('add-note') ? 'Appending…' : 'Append note' }}</button></div>
@@ -477,7 +485,7 @@ FORM: Split operations ledger extending the established investigation cockpit.
               <header class="notification-meta"><span>{{ humanize(notification.kind) }}</span><time [attr.datetime]="notification.created_at">{{ notification.created_at | date:'MMM d, HH:mm' }}</time></header>
               <strong>{{ notification.title }}</strong>
               <p>{{ notification.message }}</p>
-              <footer class="notification-action"><code>{{ notification.resource_id }}</code>@if (!notification.read_at) {<button type="button" [disabled]="isBusy()" (click)="markRead(notification)">{{ isBusy('notification-' + notification.id) ? 'Saving…' : 'Mark read' }}</button>}</footer>
+              <footer class="notification-action"><code>{{ notification.resource_id }}</code><button type="button" [disabled]="isBusy()" (click)="openNotification(notification)">{{ isBusy('notification-' + notification.id) ? 'Opening…' : 'Open' }}</button></footer>
             </article>
           } @empty {
             <div class="inbox-empty"><span aria-hidden="true">✓</span><strong>{{ unreadOnly() ? 'No unread notifications' : 'Inbox is empty' }}</strong><p>Incident lifecycle and note notifications for this workspace will appear here.</p></div>

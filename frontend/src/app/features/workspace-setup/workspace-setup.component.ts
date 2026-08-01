@@ -7,6 +7,7 @@ import {
   computed,
   inject,
   input,
+  output,
   signal
 } from '@angular/core';
 import {
@@ -14,13 +15,14 @@ import {
   ReactiveFormsModule,
   Validators
 } from '@angular/forms';
-import { finalize, forkJoin } from 'rxjs';
+import { finalize, forkJoin, switchMap } from 'rxjs';
 import { OidcSecurityService } from 'angular-auth-oidc-client';
 import { WorkspaceApiService } from '../../core/api/workspace-api.service';
 import { Language } from '../../core/i18n';
 import {
   AuditEventSummary,
   ConnectedChangeSummary,
+  ConnectorHealthSummary,
   GitHubConnectionSummary,
   GitHubRepositoryCandidate,
   InvitationCreated,
@@ -28,6 +30,7 @@ import {
   MembershipSummary,
   ProductCapabilities,
   RepositorySummary,
+  UserContext,
   UserSummary,
   WorkspaceSummary
 } from '../../core/models/workspace.models';
@@ -46,9 +49,12 @@ export class WorkspaceSetupComponent implements OnInit {
   private readonly oidc = inject(OidcSecurityService);
 
   readonly language = input<Language>('en');
+  readonly activateContextOnLoad = input(false);
+  readonly contextChanged = output<UserContext>();
   readonly user = signal<UserSummary | null>(null);
   readonly capabilities = signal<ProductCapabilities | null>(null);
   readonly githubConnection = signal<GitHubConnectionSummary | null>(null);
+  readonly connectorHealth = signal<ConnectorHealthSummary[]>([]);
   readonly githubCandidates = signal<GitHubRepositoryCandidate[]>([]);
   readonly workspaces = signal<WorkspaceSummary[]>([]);
   readonly activeWorkspace = signal<WorkspaceSummary | null>(null);
@@ -58,6 +64,7 @@ export class WorkspaceSetupComponent implements OnInit {
   readonly auditEvents = signal<AuditEventSummary[]>([]);
   readonly connectedChanges = signal<ConnectedChangeSummary[]>([]);
   readonly latestInvite = signal<InvitationCreated | null>(null);
+  readonly pendingInvitationToken = signal<string | null>(null);
   readonly isBusy = signal(false);
   readonly error = signal('');
   readonly notice = signal('');
@@ -72,6 +79,9 @@ export class WorkspaceSetupComponent implements OnInit {
     if (!this.repositories().length) return 3;
     return 4;
   });
+  readonly selectedGitHubCount = computed(
+    () => this.githubCandidates().filter((item) => item.selected && !item.archived).length
+  );
 
   readonly identityForm = this.fb.nonNullable.group({
     email: ['', [Validators.email]],
@@ -103,7 +113,14 @@ export class WorkspaceSetupComponent implements OnInit {
     token: ['', [Validators.required]]
   });
 
+  private workspaceRequestId = 0;
+
   ngOnInit(): void {
+    const invitationToken = this.readInvitationToken();
+    if (invitationToken) {
+      this.pendingInvitationToken.set(invitationToken);
+      this.acceptForm.setValue({ token: invitationToken });
+    }
     this.api.capabilities().subscribe({
       next: (capabilities) => {
         this.capabilities.set(capabilities);
@@ -114,7 +131,7 @@ export class WorkspaceSetupComponent implements OnInit {
               this.api.me().subscribe({
                 next: (user) => {
                   this.user.set(user);
-                  this.loadWorkspaces();
+                  this.continueAfterAuthentication();
                 },
                 error: (error) => this.fail(error)
               });
@@ -141,7 +158,15 @@ export class WorkspaceSetupComponent implements OnInit {
           this.api.storeToken(session.access_token);
           this.user.set(session.user);
           this.workspaces.set(session.workspaces);
-          if (session.workspaces[0]) this.selectWorkspace(session.workspaces[0]);
+          if (this.pendingInvitationToken()) {
+            this.isBusy.set(false);
+            this.acceptInvitation();
+          } else if (session.workspaces[0]) {
+            this.selectWorkspace(
+              session.workspaces[0],
+              this.activateContextOnLoad()
+            );
+          }
           this.notice.set(
             this.language() === 'th'
               ? 'เข้าสู่ระบบด้วย Development identity แล้ว'
@@ -184,7 +209,7 @@ export class WorkspaceSetupComponent implements OnInit {
           this.api.me().subscribe({
             next: (user) => {
               this.user.set(user);
-              this.loadWorkspaces();
+              this.continueAfterAuthentication();
             },
             error: (error) => this.fail(error)
           });
@@ -215,10 +240,33 @@ export class WorkspaceSetupComponent implements OnInit {
       });
   }
 
-  selectWorkspace(workspace: WorkspaceSummary): void {
-    this.activeWorkspace.set(workspace);
-    this.latestInvite.set(null);
-    this.loadWorkspaceContext(workspace);
+  selectWorkspace(workspace: WorkspaceSummary, notifyParent = true): void {
+    const requestId = ++this.workspaceRequestId;
+    this.begin();
+    this.api
+      .repositories(workspace.id)
+      .pipe(
+        switchMap((repositories) => {
+          const repository =
+            repositories.find((item) => item.selected) ??
+            repositories[0] ??
+            null;
+          return this.api.selectContext(
+            workspace.id,
+            repository?.id ?? null
+          );
+        })
+      )
+      .subscribe({
+        next: (context) => {
+          if (requestId !== this.workspaceRequestId) return;
+          this.activeWorkspace.set(workspace);
+          this.latestInvite.set(null);
+          if (notifyParent) this.contextChanged.emit(context);
+          this.loadWorkspaceContext(workspace);
+        },
+        error: (error) => this.fail(error)
+      });
   }
 
   connectRepository(): void {
@@ -281,7 +329,12 @@ export class WorkspaceSetupComponent implements OnInit {
     const repositoryIds = this.githubCandidates()
       .filter((item) => item.selected && !item.archived)
       .map((item) => item.provider_repository_id);
-    if (!workspace || !repositoryIds.length || this.isBusy()) return;
+    if (!workspace || !repositoryIds.length || this.isBusy()) {
+      if (workspace && !repositoryIds.length) {
+        this.error.set('Select at least one repository before syncing.');
+      }
+      return;
+    }
     this.begin();
     this.api
       .syncGitHubRepositories(workspace.id, repositoryIds)
@@ -326,7 +379,7 @@ export class WorkspaceSetupComponent implements OnInit {
   }
 
   acceptInvitation(): void {
-    if (this.acceptForm.invalid || this.isBusy()) return;
+    if (!this.user() || this.acceptForm.invalid || this.isBusy()) return;
     this.begin();
     this.api
       .acceptInvitation(this.acceptForm.getRawValue().token.trim())
@@ -334,12 +387,13 @@ export class WorkspaceSetupComponent implements OnInit {
       .subscribe({
         next: (workspace) => {
           this.acceptForm.reset();
+          this.clearInvitationLink();
           this.notice.set(
             this.language() === 'th'
               ? `เข้าร่วม ${workspace.name} แล้ว`
               : `Joined ${workspace.name}.`
           );
-          this.loadWorkspaces(workspace.id);
+          this.loadWorkspaces(workspace.id, true);
         },
         error: (error) => this.fail(error)
       });
@@ -372,7 +426,19 @@ export class WorkspaceSetupComponent implements OnInit {
   async copyInvite(): Promise<void> {
     const invitation = this.latestInvite();
     if (!invitation?.claim_token) return;
-    await globalThis.navigator?.clipboard?.writeText(invitation.claim_token);
+    try {
+      if (!globalThis.navigator?.clipboard) {
+        throw new Error('clipboard_unavailable');
+      }
+      await globalThis.navigator.clipboard.writeText(invitation.claim_token);
+    } catch {
+      this.error.set(
+        this.language() === 'th'
+          ? 'คัดลอกไม่ได้ ให้เลือก token แล้วคัดลอกด้วยตนเอง'
+          : 'Clipboard access was blocked. Select the token and copy it manually.'
+      );
+      return;
+    }
     this.notice.set(
       this.language() === 'th'
         ? 'คัดลอก one-time invite token แล้ว'
@@ -380,7 +446,10 @@ export class WorkspaceSetupComponent implements OnInit {
     );
   }
 
-  private loadWorkspaces(selectId?: string): void {
+  private loadWorkspaces(
+    selectId?: string,
+    notifyParent = this.activateContextOnLoad()
+  ): void {
     this.begin();
     this.api
       .workspaces()
@@ -390,7 +459,7 @@ export class WorkspaceSetupComponent implements OnInit {
           this.workspaces.set(workspaces);
           const target =
             workspaces.find((item) => item.id === selectId) ?? workspaces[0];
-          if (target) this.selectWorkspace(target);
+          if (target) this.selectWorkspace(target, notifyParent);
         },
         error: (error) => {
           this.api.clearToken();
@@ -399,12 +468,43 @@ export class WorkspaceSetupComponent implements OnInit {
       });
   }
 
+  private continueAfterAuthentication(): void {
+    if (this.pendingInvitationToken()) {
+      this.isBusy.set(false);
+      this.acceptInvitation();
+      return;
+    }
+    this.loadWorkspaces();
+  }
+
+  private readInvitationToken(): string | null {
+    const location = globalThis.location;
+    if (!location || location.pathname.replace(/\/+$/, '') !== '/accept-invite') {
+      return null;
+    }
+    const token = new URL(location.href).searchParams.get('token')?.trim();
+    return token || null;
+  }
+
+  private clearInvitationLink(): void {
+    this.pendingInvitationToken.set(null);
+    const location = globalThis.location;
+    if (!location) return;
+    const url = new URL(location.href);
+    url.pathname = '/';
+    url.searchParams.delete('token');
+    url.searchParams.set('view', 'workspace');
+    globalThis.history?.replaceState({}, '', url);
+  }
+
   private loadWorkspaceContext(workspace: WorkspaceSummary): void {
+    const requestId = ++this.workspaceRequestId;
     this.begin();
     this.loadGitHubContext(workspace);
     const context = {
       repositories: this.api.repositories(workspace.id),
-      members: this.api.members(workspace.id)
+      members: this.api.members(workspace.id),
+      connectorHealth: this.api.connectorHealth(workspace.id)
     };
     if (workspace.role === 'owner' || workspace.role === 'admin') {
       forkJoin({
@@ -412,12 +512,18 @@ export class WorkspaceSetupComponent implements OnInit {
         invitations: this.api.invitations(workspace.id),
         auditEvents: this.api.auditEvents(workspace.id)
       })
-        .pipe(finalize(() => this.isBusy.set(false)))
+        .pipe(
+          finalize(() => {
+            if (requestId === this.workspaceRequestId) this.isBusy.set(false);
+          })
+        )
         .subscribe({
           next: (data) => {
+            if (requestId !== this.workspaceRequestId) return;
             this.repositories.set(data.repositories);
             this.loadConnectedChanges(workspace, data.repositories);
             this.members.set(data.members);
+            this.connectorHealth.set(data.connectorHealth);
             this.invitations.set(data.invitations);
             this.auditEvents.set(data.auditEvents);
           },
@@ -426,12 +532,18 @@ export class WorkspaceSetupComponent implements OnInit {
       return;
     }
     forkJoin(context)
-      .pipe(finalize(() => this.isBusy.set(false)))
+      .pipe(
+        finalize(() => {
+          if (requestId === this.workspaceRequestId) this.isBusy.set(false);
+        })
+      )
       .subscribe({
         next: (data) => {
+          if (requestId !== this.workspaceRequestId) return;
           this.repositories.set(data.repositories);
           this.loadConnectedChanges(workspace, data.repositories);
           this.members.set(data.members);
+          this.connectorHealth.set(data.connectorHealth);
           this.invitations.set([]);
           this.auditEvents.set([]);
         },
@@ -442,6 +554,7 @@ export class WorkspaceSetupComponent implements OnInit {
   private loadGitHubContext(workspace: WorkspaceSummary): void {
     if (!this.capabilities()?.github_app) {
       this.githubConnection.set(null);
+      this.connectorHealth.set([]);
       this.githubCandidates.set([]);
       return;
     }
