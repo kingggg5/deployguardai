@@ -141,6 +141,7 @@ describe('OperationsCenterComponent', () => {
       riskPolicy: vi.fn(() => of(policy)),
       updateRiskPolicy: vi.fn(() => of({ ...policy, version: 2 })),
       events: vi.fn(() => of([eventRecord])),
+      deployments: vi.fn(() => of([])),
       createEvent: vi.fn(() => of(eventRecord)),
       updateIncidentLifecycle: vi.fn(() =>
         of({

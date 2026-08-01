@@ -103,6 +103,44 @@ export interface OperationalEventFilters {
   limit?: number;
 }
 
+export type DeploymentStatus =
+  | 'queued'
+  | 'in_progress'
+  | 'succeeded'
+  | 'failed'
+  | 'cancelled'
+  | 'inactive'
+  | 'unknown';
+
+export interface DeploymentRecord {
+  id: string;
+  workspace_id: string;
+  repository_id: string;
+  change_id: string | null;
+  provider: string;
+  provider_deployment_id: string;
+  environment: string;
+  commit_sha: string;
+  ref: string | null;
+  status: DeploymentStatus;
+  provider_url: string | null;
+  service_ids: string[];
+  last_event_id: string | null;
+  provider_created_at: string;
+  provider_updated_at: string;
+  finished_at: string | null;
+  version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DeploymentFilters {
+  repository_id?: string;
+  environment?: string;
+  status?: DeploymentStatus;
+  limit?: number;
+}
+
 export type IncidentLifecycleStatus =
   | 'open'
   | 'acknowledged'

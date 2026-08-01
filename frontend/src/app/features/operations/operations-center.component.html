@@ -155,6 +155,16 @@ FORM: Split operations ledger extending the established investigation cockpit.
         <button
           type="button"
           class="index-row"
+          [attr.aria-current]="activeSection() === 'deployments' ? 'page' : null"
+          [attr.data-state]="activeSection() === 'deployments' ? 'active' : null"
+          (click)="setSection('deployments')"
+        >
+          <span>{{ copy('Deployment ledger', 'Deployment ledger') }}</span>
+          <b>{{ deployments().length }}</b>
+        </button>
+        <button
+          type="button"
+          class="index-row"
           [attr.aria-current]="activeSection() === 'policy' ? 'page' : null"
           [attr.data-state]="activeSection() === 'policy' ? 'active' : null"
           (click)="setSection('policy')"
@@ -393,6 +403,44 @@ FORM: Split operations ledger extending the established investigation cockpit.
               </article>
             } @empty {
               <div class="ledger-empty"><strong>No events match this query</strong><p>Clear the filters, or send the first event after configuring an intake path.</p></div>
+            }
+          </section>
+        } @else if (activeSection() === 'deployments') {
+          <header class="ledger-heading">
+            <div>
+              <p class="system-kicker">Provider-backed lifecycle</p>
+              <h2>{{ copy('Deployment ledger', 'Deployment ledger') }}</h2>
+              <p>{{ copy('Canonical GitHub deployment state matched to repository and commit evidence. This ledger observes deployment activity; it never deploys or rolls back software.', 'สถานะ deployment จาก GitHub ที่จับคู่กับ repository และ commit จริง หน้านี้ใช้ตรวจสอบเท่านั้น ไม่สั่ง deploy หรือ rollback') }}</p>
+            </div>
+            <label class="deployment-filter">
+              <span>{{ copy('Status', 'สถานะ') }}</span>
+              <select [value]="deploymentStatus()" (change)="setDeploymentStatus($any($event.target).value)">
+                <option value="all">All statuses</option>
+                <option value="queued">Queued</option>
+                <option value="in_progress">In progress</option>
+                <option value="succeeded">Succeeded</option>
+                <option value="failed">Failed</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="inactive">Inactive</option>
+                <option value="unknown">Unknown</option>
+              </select>
+            </label>
+          </header>
+          <section class="deployment-ledger" aria-live="polite">
+            <header class="register-header">
+              <span>{{ visibleDeployments().length }} records in current query</span>
+              <span>Signed provider events · newest first</span>
+            </header>
+            @for (deployment of visibleDeployments(); track deployment.id) {
+              <article class="deployment-row" [attr.data-state]="deployment.status">
+                <time [attr.datetime]="deployment.provider_updated_at">{{ deployment.provider_updated_at | date:'MMM d, HH:mm:ss':'UTC' }} UTC</time>
+                <span class="severity-state" [attr.data-severity]="deployment.status">{{ humanize(deployment.status) }}</span>
+                <div class="deployment-copy"><strong>{{ deployment.environment }}</strong><span>{{ deployment.provider }} · {{ deployment.ref || 'detached ref' }}</span></div>
+                <code [title]="deployment.commit_sha">{{ deployment.commit_sha.slice(0, 10) }}</code>
+                <span class="deployment-link">{{ deployment.change_id ? 'Change linked' : 'Awaiting change match' }}</span>
+              </article>
+            } @empty {
+              <div class="ledger-empty"><strong>No canonical deployments yet</strong><p>Signed GitHub deployment events will appear here after the repository connection is verified.</p></div>
             }
           </section>
         } @else if (activeSection() === 'policy') {

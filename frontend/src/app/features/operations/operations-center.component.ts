@@ -30,6 +30,8 @@ import {
 import {
   EventIngestionStatus,
   EventSeverity,
+  DeploymentRecord,
+  DeploymentStatus,
   IncidentLifecycle,
   IncidentLifecycleStatus,
   IncidentSeverity,
@@ -50,7 +52,7 @@ import {
   WorkspaceSummary
 } from '../../core/models/workspace.models';
 
-type OperationsSection = 'catalog' | 'events' | 'policy' | 'incident';
+type OperationsSection = 'catalog' | 'events' | 'deployments' | 'policy' | 'incident';
 
 function thresholdOrderValidator(
   control: AbstractControl
@@ -89,6 +91,7 @@ export class OperationsCenterComponent implements OnInit {
   readonly selectedService = signal<ServiceRecord | null>(null);
   readonly riskPolicy = signal<RiskPolicy | null>(null);
   readonly events = signal<OperationalEvent[]>([]);
+  readonly deployments = signal<DeploymentRecord[]>([]);
   readonly notifications = signal<OperatorNotification[]>([]);
   readonly lifecycle = signal<IncidentLifecycle | null>(null);
   readonly pendingTimeline = signal<IncidentTimelineEvent[]>([]);
@@ -101,6 +104,13 @@ export class OperationsCenterComponent implements OnInit {
   readonly showServiceForm = signal(false);
   readonly showEventForm = signal(false);
   readonly unreadOnly = signal(false);
+  readonly deploymentStatus = signal<DeploymentStatus | 'all'>('all');
+  readonly visibleDeployments = computed(() => {
+    const status = this.deploymentStatus();
+    return status === 'all'
+      ? this.deployments()
+      : this.deployments().filter((deployment) => deployment.status === status);
+  });
 
   readonly canManage = computed(() => {
     const role = this.activeWorkspace()?.role;
@@ -278,6 +288,10 @@ export class OperationsCenterComponent implements OnInit {
 
   toggleUnreadOnly(): void {
     this.unreadOnly.update((value) => !value);
+  }
+
+  setDeploymentStatus(status: DeploymentStatus | 'all'): void {
+    this.deploymentStatus.set(status);
   }
 
   selectService(service: ServiceRecord): void {
@@ -669,6 +683,7 @@ export class OperationsCenterComponent implements OnInit {
       services: this.api.services(workspace.id),
       policy: this.api.riskPolicy(workspace.id),
       events: this.api.events(workspace.id, { limit: 100 }),
+      deployments: this.api.deployments(workspace.id, { limit: 100 }),
       notifications: this.api.notifications(workspace.id, false, 100),
       repositories: this.workspaceApi.repositories(workspace.id),
       members: this.workspaceApi.members(workspace.id)
@@ -686,6 +701,7 @@ export class OperationsCenterComponent implements OnInit {
           this.services.set(context.services);
           this.riskPolicy.set(context.policy);
           this.events.set(context.events);
+          this.deployments.set(context.deployments);
           this.notifications.set(context.notifications);
           this.repositories.set(context.repositories);
           this.members.set(context.members);

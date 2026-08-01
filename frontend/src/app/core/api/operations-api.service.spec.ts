@@ -93,6 +93,28 @@ describe('OperationsApiService', () => {
     update.flush({});
   });
 
+  it('loads canonical deployments with tenant and status filters', () => {
+    service
+      .deployments('workspace/one', {
+        repository_id: 'repo/one',
+        environment: 'production',
+        status: 'failed',
+        limit: 25
+      })
+      .subscribe();
+    const request = http.expectOne(
+      (candidate) =>
+        candidate.url ===
+          '/test-api/v1/workspaces/workspace%2Fone/deployments' &&
+        candidate.params.get('repository_id') === 'repo/one' &&
+        candidate.params.get('environment') === 'production' &&
+        candidate.params.get('status') === 'failed' &&
+        candidate.params.get('limit') === '25'
+    );
+    expect(request.request.method).toBe('GET');
+    request.flush([]);
+  });
+
   it('uses encoded incident lifecycle and note endpoints', () => {
     service
       .updateIncidentLifecycle('incident/checkout', {

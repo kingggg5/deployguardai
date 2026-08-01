@@ -7,6 +7,8 @@ import {
   IncidentLifecycle,
   IncidentLifecycleUpdateRequest,
   IncidentNoteRequest,
+  DeploymentFilters,
+  DeploymentRecord,
   OperationalEvent,
   OperationalEventCreateRequest,
   OperationalEventFilters,
@@ -63,6 +65,22 @@ export class OperationsApiService {
     return this.http.get<RiskPolicy>(
       `${this.apiBase}/workspaces/${this.encode(workspaceId)}/risk-policy`,
       { headers: this.headers() }
+    );
+  }
+
+  deployments(
+    workspaceId: string,
+    filters: DeploymentFilters = {}
+  ): Observable<DeploymentRecord[]> {
+    let params = new HttpParams();
+    for (const [key, value] of Object.entries(filters)) {
+      if (value !== undefined && value !== null && value !== '') {
+        params = params.set(key, String(value));
+      }
+    }
+    return this.http.get<DeploymentRecord[]>(
+      `${this.apiBase}/workspaces/${this.encode(workspaceId)}/deployments`,
+      { headers: this.headers(), params }
     );
   }
 
