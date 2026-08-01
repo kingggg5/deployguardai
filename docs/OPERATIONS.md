@@ -7,7 +7,7 @@ repository ปัจจุบัน ไม่ใช่ใบรับรอง�
 
 | Profile | Database | Auth | External providers | Intended use |
 |---|---|---|---|---|
-| Local development | SQLite | Development bearer | Optional | พัฒนาและ synthetic verification |
+| Local development | SQLite | Development bearer | Optional | Real connected-mode integration by default; synthetic verification only with `SEED_SYNTHETIC_DATA=true` |
 | Docker Compose | PostgreSQL container | Development โดย default | Optional | Local integration |
 | Production | PostgreSQL managed | OIDC only | Explicit credentials | ต้องมี hardening เพิ่มตาม checklist |
 
@@ -29,8 +29,10 @@ Requirements:
 .\scripts\run-dev.ps1
 ```
 
-Default local configuration รันได้โดยไม่ต้องมี `.env` หากต้อง override backend
-settings ให้ copy ไปยัง working directory ของ API:
+Default local configuration starts without bundled demo records. If a synthetic
+evaluation run is required, set `SEED_SYNTHETIC_DATA=true` explicitly in the
+API environment. If an override is needed, copy `.env.example` to the API
+working directory:
 
 ```powershell
 Copy-Item .env.example backend/.env

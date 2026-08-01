@@ -34,6 +34,21 @@ FORM: Investigation cockpit, pinned by the product brief; direction seed intenti
       (contextChanged)="handleWorkspaceContextChanged($event)"
     />
   </main>
+} @else if (activeTab() === 'operations' && !overview()) {
+  <main id="workspace-content" class="workspace" tabindex="-1">
+    @defer (on immediate) {
+      <app-operations-center
+        [language]="lang()"
+        [incident]="null"
+        (workspaceSetupRequested)="setActiveTab('workspace')"
+        (contextChanged)="handleOperationsContextChanged($event)"
+      />
+    } @placeholder {
+      <div class="empty-state" aria-busy="true">
+        <strong>{{ t('loading_operations') }}</strong>
+      </div>
+    }
+  </main>
 } @else if (loadError() && !overview()) {
   <main class="fatal-state">
     <span class="fatal-state__mark" aria-hidden="true">!</span>

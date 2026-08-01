@@ -1413,7 +1413,15 @@ def synthesize_llm_hypotheses(
     )
 
 
-def reset_database(session: Session) -> dict[str, str]:
+def reset_database(
+    session: Session, *, seed_synthetic_data: bool = False
+) -> dict[str, str]:
+    if not seed_synthetic_data:
+        raise DomainError(
+            "Database reset is only available in explicit synthetic mode",
+            "database_reset_requires_synthetic_mode",
+            409,
+        )
     from .seed import seed_database
 
     session.query(FeedbackRecord).delete()

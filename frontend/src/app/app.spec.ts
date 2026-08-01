@@ -135,6 +135,20 @@ describe('DeployGuard investigation ledger', () => {
     expect(api.getScenarios).not.toHaveBeenCalled();
   });
 
+  it('opens Operations Center without requiring a scenario overview', () => {
+    api.getOverview.mockClear();
+    api.getScenarios.mockClear();
+    component.activeTab.set('operations');
+    component.overview.set(null);
+    component.isLoading.set(true);
+
+    component.ngOnInit();
+
+    expect(component.isLoading()).toBe(false);
+    expect(api.getOverview).not.toHaveBeenCalled();
+    expect(api.getScenarios).not.toHaveBeenCalled();
+  });
+
   it('switches scenario through the API and replaces the active overview', () => {
     component.setActiveTab('scenarios');
     fixture.detectChanges();

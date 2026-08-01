@@ -10,6 +10,7 @@ class ProductCapabilities(APIModel):
     environment: str
     auth_provider: Literal["development", "oidc", "disabled"]
     development_identity: bool
+    synthetic_data: bool
     github_app: bool
     github_checks: bool
     email_delivery: Literal["smtp", "development_outbox", "disabled"]

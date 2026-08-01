@@ -74,6 +74,7 @@ export interface ProductCapabilities {
   environment: string;
   auth_provider: 'development' | 'oidc' | 'disabled';
   development_identity: boolean;
+  synthetic_data: boolean;
   github_app: boolean;
   github_checks: boolean;
   email_delivery: 'smtp' | 'development_outbox' | 'disabled';

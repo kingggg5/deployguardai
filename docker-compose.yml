@@ -24,6 +24,7 @@ services:
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-container}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-deployguard}:${POSTGRES_PASSWORD:-deployguard-dev-only}@postgres:5432/${POSTGRES_DB:-deployguard}
+      SEED_SYNTHETIC_DATA: ${SEED_SYNTHETIC_DATA:-false}
       CORS_ORIGINS: http://127.0.0.1:4300,http://localhost:4300
       GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
       TELEMETRY_INGEST_TOKEN: ${TELEMETRY_INGEST_TOKEN:-}

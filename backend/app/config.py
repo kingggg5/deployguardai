@@ -16,6 +16,10 @@ class Settings(BaseSettings):
     app_name: str = "DeployGuard AI"
     environment: str = "development"
     database_url: str = "sqlite:///./deployguard.db"
+    # Synthetic scenarios are an explicit test/evaluation mode.  They are
+    # never created implicitly in a fresh runtime so connected deployments do
+    # not look like they have live production evidence.
+    seed_synthetic_data: bool = False
     github_webhook_secret: str = ""
     telemetry_ingest_token: str = ""
     allow_database_reset: bool = False
@@ -95,6 +99,10 @@ class Settings(BaseSettings):
         if production and self.auth_provider != "oidc":
             raise ValueError(
                 "Production requires AUTH_PROVIDER=oidc"
+            )
+        if production and self.seed_synthetic_data:
+            raise ValueError(
+                "Production cannot enable SEED_SYNTHETIC_DATA"
             )
         if (
             production

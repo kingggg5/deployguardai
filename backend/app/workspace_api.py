@@ -149,6 +149,12 @@ def repository_create(
     user: Annotated[User, Depends(get_current_user)],
     session: Annotated[Session, Depends(get_session)],
 ) -> RepositorySummary:
+    if not request.app.state.settings.seed_synthetic_data:
+        raise DomainError(
+            "Development fixture repositories are disabled; connect a provider instead",
+            "synthetic_repository_disabled",
+            409,
+        )
     return create_repository(
         session, user, workspace_id, payload, request_id(request)
     )

@@ -33,6 +33,7 @@ def capabilities(settings) -> ProductCapabilities:
         environment=settings.environment,
         auth_provider=settings.auth_provider,
         development_identity=settings.development_auth_available(),
+        synthetic_data=settings.seed_synthetic_data,
         github_app=settings.github_app_available(),
         github_checks=(
             settings.github_app_available() and settings.github_checks_enabled

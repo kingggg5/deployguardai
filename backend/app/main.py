@@ -27,7 +27,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         session = database.session_factory()
         try:
-            seed_database(session)
+            if configured_settings.seed_synthetic_data:
+                seed_database(session)
         finally:
             session.close()
         yield

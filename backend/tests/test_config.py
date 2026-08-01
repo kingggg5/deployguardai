@@ -1,4 +1,6 @@
 from app.config import Settings
+from pydantic import ValidationError
+import pytest
 
 
 def test_comma_separated_cors_origins_are_read_from_environment(
@@ -26,3 +28,19 @@ def test_postgresql_database_url_uses_psycopg_driver() -> None:
     assert settings.database_url == (
         "postgresql+psycopg://deployguard:secret@db/deployguard"
     )
+
+
+def test_synthetic_data_is_opt_in_and_rejected_in_production() -> None:
+    settings = Settings(_env_file=None)
+    assert settings.seed_synthetic_data is False
+
+    with pytest.raises(ValidationError):
+        Settings(
+            environment="production",
+            auth_provider="oidc",
+            oidc_issuer="https://identity.example",
+            oidc_audience="deployguard-api",
+            oidc_jwks_url="https://identity.example/.well-known/jwks.json",
+            seed_synthetic_data=True,
+            _env_file=None,
+        )

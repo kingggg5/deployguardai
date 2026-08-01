@@ -253,7 +253,10 @@ def get_legacy_scope(
     return resolve_tenant_scope(
         session,
         user,
-        allow_legacy_bootstrap=request.app.state.settings.development_auth_available(),
+        allow_legacy_bootstrap=(
+            request.app.state.settings.development_auth_available()
+            and request.app.state.settings.seed_synthetic_data
+        ),
     )
 
 
@@ -267,4 +270,3 @@ def require_responder_scope(
             403,
         )
     return scope
-

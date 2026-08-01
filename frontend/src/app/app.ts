@@ -244,7 +244,7 @@ export class App implements OnInit, OnDestroy {
     if (globalThis.location?.pathname.replace(/\/+$/, '') === '/accept-invite') {
       this.activeTab.set('workspace');
     }
-    if (this.activeTab() === 'workspace') {
+    if (this.activeTab() === 'workspace' || this.activeTab() === 'operations') {
       this.isLoading.set(false);
       return;
     }

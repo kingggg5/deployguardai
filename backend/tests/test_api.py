@@ -46,6 +46,19 @@ def test_health_overview_and_seeded_lists(client: TestClient) -> None:
     assert all(item["data_mode"] == "synthetic" for item in scenarios.json())
 
 
+def test_health_reports_connected_for_fresh_runtime(tmp_path: Path) -> None:
+    settings = Settings(
+        database_url=f"sqlite:///{(tmp_path / 'connected.db').as_posix()}",
+        seed_synthetic_data=False,
+        _env_file=None,
+    )
+    with TestClient(create_app(settings)) as fresh_client:
+        health = fresh_client.get("/api/v1/health")
+
+    assert health.status_code == 200
+    assert health.json()["data_mode"] == "connected"
+
+
 def test_scenario_activation_returns_selected_overview(
     client: TestClient,
 ) -> None:

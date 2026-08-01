@@ -6,7 +6,7 @@
       <span>
         {{ language() === 'th'
           ? 'ขั้นตอนนี้ใช้ Development identity และ fixture provider ที่ระบุชัดเจน ไม่จำลองว่าเชื่อม GitHub หรือส่งอีเมลแล้ว'
-          : 'This local flow uses an explicitly labelled development identity and fixture provider. It does not pretend GitHub or email is connected.' }}
+          : 'This local flow uses a development identity for access only. Repository and operational data must come from a connected provider.' }}
       </span>
     </div>
     @if (user()) {
@@ -134,8 +134,8 @@
                 <span>02 · Repository source</span>
                 <h2>Connect repository</h2>
               </div>
-              <small [attr.data-tone]="capabilities()!.github_app ? 'ready' : 'fixture'">
-                {{ capabilities()!.github_app ? 'GitHub App' : 'Development fixture' }}
+              <small [attr.data-tone]="capabilities()!.github_app ? 'ready' : capabilities()!.synthetic_data ? 'fixture' : 'waiting'">
+                {{ capabilities()!.github_app ? 'GitHub App' : capabilities()!.synthetic_data ? 'Synthetic evaluation' : 'Provider required' }}
               </small>
             </header>
             @if (capabilities()!.github_app) {
@@ -198,10 +198,12 @@
               }
             } @else {
               <p class="truth-note">
-                GitHub App is not configured. Development fixtures are isolated and always labelled synthetic.
+                {{ capabilities()!.synthetic_data
+                  ? 'GitHub App is not configured. Synthetic fixtures are enabled for evaluation only.'
+                  : 'GitHub App is not configured. Connect a verified provider to import real repositories; no fixture repository is available in connected mode.' }}
               </p>
             }
-            @if (canManage() && !capabilities()!.github_app) {
+            @if (canManage() && !capabilities()!.github_app && capabilities()!.synthetic_data) {
               <form class="compact-form" [formGroup]="repositoryForm" (ngSubmit)="connectRepository()">
                 <label><span>Owner / repository</span><input type="text" formControlName="fullName" placeholder="acme/checkout-platform"></label>
                 <label><span>Default branch</span><input type="text" formControlName="defaultBranch"></label>

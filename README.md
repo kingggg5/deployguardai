@@ -2,8 +2,8 @@
 
 Evidence-first change risk and incident investigation for engineering teams.
 
-[![Backend Tests](https://img.shields.io/badge/backend-40%20tests%20passing-16a34a)](https://github.com/kingggg5/deployguardai)
-[![Frontend Tests](https://img.shields.io/badge/frontend-37%20tests%20passing-16a34a)](https://github.com/kingggg5/deployguardai)
+[![Backend Tests](https://img.shields.io/badge/backend-45%20tests%20passing-16a34a)](https://github.com/kingggg5/deployguardai)
+[![Frontend Tests](https://img.shields.io/badge/frontend-47%20tests%20passing-16a34a)](https://github.com/kingggg5/deployguardai)
 [![Angular Build](https://img.shields.io/badge/Angular%20build-passing-2563eb)](https://github.com/kingggg5/deployguardai)
 
 DeployGuard helps a platform or reliability team answer two practical questions:
@@ -11,7 +11,7 @@ DeployGuard helps a platform or reliability team answer two practical questions:
 1. How risky is this change before it reaches production?
 2. When an incident starts, what evidence supports or contradicts each possible cause?
 
-The project combines a deterministic risk engine, service-graph blast-radius analysis, an evidence ledger, ranked RCA hypotheses, human feedback, and a tenant-aware workspace. It runs with synthetic scenarios for local evaluation and can connect to real GitHub repositories through a GitHub App.
+The project combines a deterministic risk engine, service-graph blast-radius analysis, an evidence ledger, ranked RCA hypotheses, human feedback, and a tenant-aware workspace. Real mode is the default: records arrive from a verified GitHub App and authenticated telemetry. Synthetic scenarios are an explicit opt-in for evaluation only.
 
 > **ภาษาไทย:** DeployGuard เป็นระบบช่วยวิเคราะห์ความเสี่ยงของ Pull Request และสืบสวน incident จากหลักฐานจริง เช่น change metadata, deployment events และ telemetry โดยแยกข้อมูลตัวอย่างออกจากข้อมูลที่เชื่อมต่อจริงอย่างชัดเจน
 
@@ -132,7 +132,7 @@ DeployGuard treats data origin as part of the domain model:
 - `synthetic` records are local scenarios used for demos, tests, and evaluation.
 - `connected` records come from a verified provider integration.
 
-The UI labels synthetic content and does not present it as live production evidence. In production mode, development identity, manual repository fixtures, and raw invitation tokens are disabled.
+The UI labels synthetic content and does not present it as live production evidence. A fresh runtime does not seed the bundled scenarios. To run the deterministic evaluation suite locally, set `SEED_SYNTHETIC_DATA=true`; this flag is rejected in production. Real workspace testing uses the GitHub App installation flow and signed webhooks, plus a scoped telemetry credential for runtime events.
 
 ## Local development
 
@@ -167,6 +167,30 @@ Open:
 - UI: [http://127.0.0.1:4300](http://127.0.0.1:4300)
 - OpenAPI: [http://127.0.0.1:8100/docs](http://127.0.0.1:8100/docs)
 - Health check: [http://127.0.0.1:8100/api/v1/health](http://127.0.0.1:8100/api/v1/health)
+
+The default local run starts with an empty connected-mode database. Open **Workspace & team**, create a workspace, and connect a GitHub App before expecting repository, pull request, deployment, or telemetry records. No hardcoded demo repository is used in this mode.
+
+For deterministic evaluation only:
+
+```powershell
+$env:SEED_SYNTHETIC_DATA = "true"
+.\scripts\run-dev.ps1
+```
+
+Do not use that flag with a production database. Production configuration rejects it at startup.
+
+To verify the running API against a real public GitHub repository without
+creating or mutating any records, run:
+
+```powershell
+.\scripts\verify-github-live.ps1 -Repository kingggg5/deployguardai
+```
+
+This read-only check confirms the API health contract and fetches the current
+repository metadata, latest commits, open pull requests, and deployment list
+from GitHub. Importing that repository into a workspace still requires a
+configured GitHub App and its signed installation webhook; the application does
+not silently fall back to a fixture repository.
 
 Runtime logs and PID files are written to `.runtime/`.
 

@@ -48,13 +48,20 @@ router = APIRouter(prefix="/api/v1")
 
 
 @router.get("/health", response_model=HealthResponse)
-def health(session: Session = Depends(get_session)) -> HealthResponse:
+def health(
+    session: Session = Depends(get_session),
+) -> HealthResponse:
     session.execute(text("SELECT 1"))
+    has_synthetic_records = session.scalar(
+        select(Scenario.id)
+        .where(Scenario.data_mode == "synthetic")
+        .limit(1)
+    ) is not None
     return HealthResponse(
         status="ok",
         database="ready",
         service="deployguard-ai",
-        data_mode="synthetic",
+        data_mode="synthetic" if has_synthetic_records else "connected",
     )
 
 
@@ -330,4 +337,7 @@ def reset_db(
             "database_reset_disabled",
             403,
         )
-    return reset_database(session)
+    return reset_database(
+        session,
+        seed_synthetic_data=request.app.state.settings.seed_synthetic_data,
+    )

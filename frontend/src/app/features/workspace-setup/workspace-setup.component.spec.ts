@@ -46,6 +46,7 @@ const capabilities: ProductCapabilities = {
   environment: 'production',
   auth_provider: 'oidc',
   development_identity: false,
+  synthetic_data: false,
   github_app: false,
   github_checks: false,
   email_delivery: 'smtp',

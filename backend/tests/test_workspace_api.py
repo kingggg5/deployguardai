@@ -147,3 +147,28 @@ def test_tenant_isolation_and_invitation_email_binding(
     )
     assert wrong_account.status_code == 400
     assert wrong_account.json()["code"] == "invalid_invitation"
+
+
+def test_connected_mode_rejects_development_fixture_repository(
+    client: TestClient,
+) -> None:
+    client.app.state.settings.seed_synthetic_data = False
+    owner_headers, _ = development_session(
+        client, "connected@example.com", "Connected"
+    )
+    workspace = client.post(
+        "/api/v1/workspaces",
+        headers=owner_headers,
+        json={"name": "Connected workspace", "slug": "connected-workspace"},
+    ).json()
+
+    response = client.post(
+        f"/api/v1/workspaces/{workspace['id']}/repositories",
+        headers=owner_headers,
+        json={
+            "full_name": "acme/should-not-be-a-fixture",
+            "default_branch": "main",
+        },
+    )
+    assert response.status_code == 409
+    assert response.json()["code"] == "synthetic_repository_disabled"

@@ -40,6 +40,14 @@ resource ของ tenant อื่น เมื่อมี membership แต�
 
 ## Endpoint inventory
 
+### Connected-mode guardrails
+
+`GET /capabilities` exposes `synthetic_data`, the explicit server-side switch
+for bundled evaluation data. When it is `false`, fresh runtimes remain empty
+until a real provider is connected and
+`POST /workspaces/{workspace_id}/repositories` returns
+`409 synthetic_repository_disabled` instead of creating a fixture.
+
 ### Runtime และ capability
 
 | Method | Path | Auth | Purpose |
@@ -65,7 +73,7 @@ resource ของ tenant อื่น เมื่อมี membership แต�
 | Method | Path | Role | Purpose |
 |---|---|---|---|
 | `GET` | `/workspaces/{workspace_id}/repositories` | Viewer | รายการ repository ใน workspace |
-| `POST` | `/workspaces/{workspace_id}/repositories` | Admin | เพิ่ม synthetic development repository |
+| `POST` | `/workspaces/{workspace_id}/repositories` | Admin | เพิ่ม synthetic development repository เฉพาะเมื่อ `synthetic_data=true`; otherwise returns `409 synthetic_repository_disabled` |
 | `GET` | `/workspaces/{workspace_id}/repositories/{repository_id}/changes` | Viewer | Connected changes ของ repository |
 | `POST` | `/workspaces/{workspace_id}/repositories/{repository_id}/changes/{change_id}/github-check` | Responder | Publish neutral/success GitHub Check Run เมื่อ feature flag เปิด |
 | `POST` | `/workspaces/{workspace_id}/providers/github/install` | Admin | สร้าง single-use installation state |
