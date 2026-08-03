@@ -15,8 +15,8 @@ rollback, รัน shell หรือเข้าถึง cluster
 - **implemented แต่ต้องตั้งค่า credential** — code path มีอยู่จริง แต่จะทำงาน
   เมื่อกำหนด OIDC, GitHub App, SMTP หรือ telemetry token ที่เกี่ยวข้อง
 - **ยังไม่เป็น production control** — มี contract หรือบางส่วนของระบบแล้ว แต่
-  ยังขาด operational hardening เช่น queue, retention job, rate limiting,
-  PostgreSQL RLS หรือ backup/restore drill
+  ยังขาด operational hardening เช่น queue producer integration, retention
+  scheduler, distributed rate limiting, PostgreSQL RLS หรือ backup/restore drill
 - **deferred** — ไม่มี runtime path ในปัจจุบัน
 
 สถานะปัจจุบัน:
@@ -31,6 +31,9 @@ rollback, รัน shell หรือเข้าถึง cluster
 | Normalized telemetry event endpoint | Implemented; ใช้ workspace-derived collector bearer และ tenant-scoped ledger |
 | OTLP protocol receiver | ไม่มีใน FastAPI; ใช้ Collector แปลงเป็น normalized event |
 | Alembic schema migration | ใช้งานแล้วตอน application startup |
+| Durable background job/outbox primitive | มี table `background_jobs`, bounded retry, stale-lease recovery, dead-letter และ explicit replay; ยังไม่มี producer integration/worker deployment |
+| Process metrics | มี private, low-cardinality Prometheus endpoint; dashboard/alerts ยังเป็น deployment concern |
+| Backup/retention tooling | มี explicit SQLite/PostgreSQL backup และ allow-listed retention dry-run/apply helpers; scheduler, legal hold และ deletion audit ยังไม่มี |
 | PostgreSQL | รองรับผ่าน SQLAlchemy/psycopg; production verification ยังต้องทำ |
 | LLM synthesis | Deferred; endpoint ปัจจุบันคืน `501` |
 
@@ -205,9 +208,11 @@ sequenceDiagram
 Webhook delivery ID มี unique constraint และ signature ถูกตรวจบน raw body
 การ publish GitHub Check มี durable publication state, stable external identity,
 attempt/error/next-retry metadata และ create-or-PATCH recovery ต่อ repository/head
-SHA อย่างไรก็ตาม webhook processing ยัง synchronous และยังไม่มี durable work
-queue, dead-letter queue หรือ background retry scheduler การเขียน GitHub Check
-ปิดโดย default และไม่ใช่ deployment gate Responder สามารถ retry ผ่าน explicit
+SHA อย่างไรก็ตาม webhook processing ยัง synchronous และยังไม่ได้ใช้ durable
+queue worker, dead-letter replay หรือ background retry scheduler การเขียน GitHub
+Check ปิดโดย default และไม่ใช่ deployment gate ปัจจุบันมี queue primitive ใน
+`background_jobs` แล้ว แต่ยังไม่ถูกนำมา wire เข้ากับ webhook/notification
+producer หรือ worker runtime Responder สามารถ retry ผ่าน explicit
 endpoint ได้เมื่อ workspace/repository/change scope ถูกต้อง
 
 PR delivery เดินสถานะ `processing → processed|failed` Signed retry ที่มี
@@ -328,13 +333,12 @@ arbitrary outgoing webhook ใน process ของ DeployGuard
 
 ยังต้องทำก่อนเรียก production-ready:
 
-- แยก liveness กับ readiness
-- background queue, retry policy, dead-letter queue และ reconciliation
-- rate limit, request-body limit และ per-workspace quota
-- automated retention/deletion
+- background queue producer integration, supervised worker และ reconciliation
+- distributed rate limit และ per-workspace quota (มี request-body limit และ process-local baseline แล้ว)
+- scheduled retention/deletion, legal hold และ deletion audit
 - PostgreSQL RLS และ concurrency/integration test
-- backup/restore drill และ migration rollback procedure
-- telemetry/alerts สำหรับตัว DeployGuard เอง
+- backup/restore drill และ migration rollback procedure (มี helper แต่ไม่มี scheduler/storage policy)
+- telemetry/alerts สำหรับตัว DeployGuard เอง (มี low-cardinality process metrics baseline)
 
 Runbook สำหรับ deployment และ failure handling อยู่ใน
 [OPERATIONS.md](OPERATIONS.md) ส่วน security controls และ known gaps อยู่ใน

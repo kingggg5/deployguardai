@@ -51,6 +51,7 @@ Endpoints:
 - Liveness: `http://127.0.0.1:8100/api/v1/health/live`
 - Readiness: `http://127.0.0.1:8100/api/v1/health/ready`
 - Health (backward-compatible readiness alias): `http://127.0.0.1:8100/api/v1/health`
+- Metrics (private Prometheus scrape): `http://127.0.0.1:8100/api/v1/metrics`
 - Logs: `.runtime/backend.*.log` และ `.runtime/frontend.*.log`
 
 หยุด process ที่ script สร้าง:
@@ -224,7 +225,18 @@ Local legacy bootstrap มีไว้ย้าย schema เก่าเฉพ�
 readiness ส่วน `GET /api/v1/health/live` เป็น lightweight liveness probe ที่ไม่
 แตะฐานข้อมูล `GET /api/v1/health` ยังคงเป็น readiness alias เพื่อความเข้ากันได้
 
-สิ่งที่ deployment platform ควรเก็บ:
+API มี process-level metrics exporter สำหรับ scrape ภายใน:
+
+- `GET /api/v1/metrics` คืน Prometheus text exposition
+- labels มีเฉพาะ HTTP method, status class และเหตุผล rejection ที่เป็น allowlist
+- ไม่มี route, tenant ID, request ID หรือ payload label เพื่อป้องกัน cardinality และข้อมูลรั่ว
+
+Endpoint นี้เป็น aggregate ของ process เดียวและไม่แทน distributed metrics
+backend; ให้ expose เฉพาะ private network/service monitor และตั้งค่า auth หรือ
+network policy ที่ reverse proxy เมื่อ deploy จริง กระบวนการ restart จะ reset
+counter จึงควรใช้ Prometheus counter semantics และ scrape ทุก replica
+
+สิ่งที่ deployment platform ควรเก็บเพิ่มเติม:
 
 - HTTP request count/latency/status แยก route
 - database pool usage/query latency/errors
@@ -236,8 +248,8 @@ readiness ส่วน `GET /api/v1/health/live` เป็น lightweight livene
 - migration duration/failure
 - notification fan-out count
 
-Repository ยังไม่มี production metrics exporter หรือ alert rules รายการนี้จึง
-เป็น required deployment instrumentation ไม่ใช่ current built-in dashboard
+Repository ยังไม่มี dashboard, SLO recording rules หรือ alert policy แบบผูกกับ
+องค์กร รายการเหล่านี้ยังต้องกำหนดใน monitoring platform ของแต่ละทีม
 
 ## Failure playbooks
 
@@ -308,7 +320,53 @@ Notification เป็น in-app rows ไม่มี delivery worker ปัจ�
 
 ## Backup, restore และ retention
 
-Repository ยังไม่มี backup scheduler, restore automation หรือ retention job
+Repository มี helper แบบ explicit สำหรับ backup และ retention report แต่ยังไม่มี
+scheduler/managed storage ให้ production owner ต่อเข้ากับ platform ขององค์กร:
+
+สร้าง SQLite backup แบบ atomic (ไม่ overwrite โดย default):
+
+```powershell
+python scripts/backup_database.py `
+  --database-url "sqlite:///./backend/deployguard.db" `
+  --output .runtime/backups/deployguard-$(Get-Date -Format yyyyMMdd-HHmmss).db
+```
+
+PostgreSQL ใช้ `pg_dump` custom archive และต้องมี PostgreSQL client/credential
+ใน environment:
+
+```powershell
+python scripts/backup_database.py `
+  --database-url $env:DATABASE_URL `
+  --output .runtime/backups/deployguard-$(Get-Date -Format yyyyMMdd-HHmmss).dump
+```
+
+ไฟล์ปลายทางที่มีอยู่จะถูกปฏิเสธ เว้นแต่ระบุ `--force` อย่างชัดเจน ควรเก็บ
+backup นอก host และเข้ารหัสด้วย storage/secret policy ขององค์กร
+
+ตรวจ retention candidates แบบ read-only ก่อน:
+
+```powershell
+python scripts/retention_report.py `
+  --database-url $env:DATABASE_URL `
+  --days 90
+```
+
+การลบต้องระบุทั้ง `--apply` และ `--confirm DELETE-EXPIRED-ROWS` เท่านั้น และ
+สคริปต์แตะได้เฉพาะ operational allowlist (`audit_events`,
+`operational_events`, `notifications`, webhook/invitation delivery และ
+authorization state) ไม่รวม users, workspaces, incidents หรือ evidence:
+
+```powershell
+python scripts/retention_report.py `
+  --database-url $env:DATABASE_URL `
+  --days 90 --table notifications `
+  --apply --confirm DELETE-EXPIRED-ROWS
+```
+
+ก่อน apply ต้องตรวจ backup, legal hold และผล dry-run เสมอ การ implement
+scheduler, deletion audit และ workspace/legal-hold workflow ยังเป็นหน้าที่ของ
+production owner
+
 Production owner ต้องกำหนด:
 
 - RPO/RTO

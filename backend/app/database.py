@@ -32,9 +32,28 @@ class Database:
         )
 
     def create_schema(self) -> None:
+        # Keep the development/test helper in sync with the Alembic metadata.
+        # Model modules are imported lazily here to avoid a Base/model import
+        # cycle during application startup.
+        from . import (  # noqa: F401
+            deployment_models,
+            job_models,
+            models,
+            operations_models,
+            provider_models,
+        )
+
         Base.metadata.create_all(self.engine)
 
     def migrate(self, *, allow_legacy_bootstrap: bool = False) -> None:
+        from . import (  # noqa: F401
+            deployment_models,
+            job_models,
+            models,
+            operations_models,
+            provider_models,
+        )
+
         existing_tables = set(inspect(self.engine).get_table_names())
         versioned = "alembic_version" in existing_tables
         if existing_tables and not versioned:

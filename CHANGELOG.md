@@ -10,6 +10,9 @@ release notes from `main` and will use semantic versioning for tagged releases.
 - Apache-2.0 open-source foundation with contribution, governance, support, and security policies.
 - GitHub issue forms, pull request checklist, CODEOWNERS, Dependabot, CI, CodeQL, dependency review, and OpenSSF Scorecard workflows.
 - Request IDs, structured access logs, request body limits, bounded ingress rate limits, and separate liveness/readiness probes.
+- Durable `background_jobs` outbox primitives with idempotent enqueue, atomic claim, bounded retry/backoff, stale-lease recovery, dead-letter, and explicit replay semantics.
+- Private low-cardinality Prometheus metrics endpoint with request-guard rejection counters.
+- Recoverable SQLite/PostgreSQL backup helper and allow-listed, dry-run-first retention report.
 - Versioned SHA-256-pinned synthetic evaluation manifests with CI-uploaded result artifacts.
 
 ### Changed
@@ -20,4 +23,4 @@ release notes from `main` and will use semantic versioning for tagged releases.
 ### Still required for production
 
 - Configure real OIDC, GitHub App, SMTP, telemetry, HTTPS ingress, managed secrets, backups, distributed rate limits, and monitoring.
-- Add a durable queue/outbox and production restore rehearsal before processing critical external events.
+- Wire the durable queue/outbox into external event and invitation producers, deploy a supervised worker, and complete a production restore rehearsal before processing critical external events.

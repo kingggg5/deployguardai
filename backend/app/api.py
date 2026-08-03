@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from .auth.dependencies import get_session
 from .errors import DomainError
+from .metrics import metrics
 from .models import Scenario
 from .schemas import (
     AnalyzeChangeRequest,
@@ -46,6 +47,17 @@ from .tenant import (
 
 
 router = APIRouter(prefix="/api/v1")
+
+
+@router.get("/metrics", include_in_schema=False)
+def metrics_endpoint() -> Response:
+    """Expose aggregate process metrics for a private Prometheus scrape."""
+
+    return Response(
+        content=metrics.render_prometheus(),
+        media_type="text/plain; version=0.0.4",
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @router.get("/health/live", response_model=LivenessResponse)

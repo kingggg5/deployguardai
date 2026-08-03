@@ -254,7 +254,8 @@ commit การรับซ้ำคืน row เดิมแบบ idempotent
 เก็บ provider metadata ได้ Server เขียน reserved `provenance._ingestion` ด้วย
 channel `member_api|trusted_internal`, actor และ request ID
 
-ตารางนี้ไม่ใช่ raw logs/traces store และยังไม่มี background retention job
+ตารางนี้ไม่ใช่ raw logs/traces store มี retention helper แบบ explicit report/apply
+แล้ว แต่ยังไม่มี scheduler, legal-hold workflow หรือ deletion audit
 
 ### `notifications`
 
@@ -267,6 +268,23 @@ Notification ผูกกับ `user_id` และ `workspace_id`:
 
 ระบบไม่ส่ง notification ไป arbitrary URL และยังไม่มี Slack/Teams/PagerDuty
 delivery records
+
+### `background_jobs`
+
+`background_jobs` เป็น provider-agnostic outbox สำหรับงานที่ต้องส่งต่อให้
+worker ที่ register handler อย่างชัดเจน ไม่ใช่ระบบที่เดา command หรือ execute
+shell เอง:
+
+- `job_type`, JSON `payload` และ optional `workspace_id`
+- unique `idempotency_key` เพื่อป้องกัน producer retry สร้าง intent ซ้ำ
+- สถานะ `queued → running → succeeded|failed|dead_letter`
+- `attempts`, `max_attempts`, `available_at` และ bounded exponential backoff
+- `locked_at`/`locked_by` สำหรับ stale-lease recovery และ `request_id` สำหรับ trace
+
+Queue primitive ปฏิเสธ credential-like keys ใน payload, unknown handler จะ fail
+closed และ dead-letter replay ต้องเรียก explicit service operation ปัจจุบัน
+webhook, notification และ invitation producers ยัง synchronous; การ deploy
+worker และ wiring side effects เป็นขั้นต่อไปที่ต้อง review แยกตาม provider
 
 ## Audit events
 
@@ -311,6 +329,8 @@ Application startup เรียก Alembic upgrade ถึง `head`
 | `0003` | GitHub provider state, webhook delivery และ invitation delivery |
 | `0004` | Service catalog, risk policy, operational events, notifications และ incident assignee |
 | `0005` | Durable GitHub Check publication identity, retry และ provider state |
+| `0006` | Canonical GitHub deployment lifecycle records |
+| `0007` | Durable background job/outbox state |
 
 - empty database ถูกสร้างจาก migration chain
 - production ปฏิเสธ non-empty database ที่ไม่มี `alembic_version`
@@ -332,9 +352,9 @@ Application startup เรียก Alembic upgrade ถึง `head`
 
 - PostgreSQL RLS ยังไม่มี; tenant isolation พึ่ง application query + FK
 - JSON snapshots ยังไม่มี schema/scoring/graph version
-- ไม่มี automated retention, workspace deletion cascade workflow หรือ legal hold
+- ไม่มี scheduled retention, workspace deletion cascade workflow หรือ legal hold
 - ไม่มี raw telemetry store และไม่มี field-level encryption
-- ไม่มี backup/restore automation ใน repository
+- มี backup helper แบบ explicit แต่ยังไม่มี managed scheduler/storage หรือ restore drill automation
 - audit ledger ยังไม่ tamper-proof
 - service dependency DAG ตรวจใน application ไม่ได้ enforce ด้วย database
 - SQLite ไม่ใช่ production concurrency target

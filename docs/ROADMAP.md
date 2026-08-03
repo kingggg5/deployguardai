@@ -30,6 +30,9 @@ Roadmap นี้เรียงตาม dependency และความเส
 | Durable operational events | ✅ | Tenant validation, server-owned provenance และ conflict-safe idempotency |
 | Canonical GitHub deployments | ✅ | Signed deployment/deployment-status webhooks upsert one deployment, link exact repository + SHA changes, and keep legacy DORA fields compatible |
 | Connector health read model | ✅ | Provider, webhook delivery, selected repository and Check publication health are visible without exposing credentials |
+| Durable background job/outbox primitive | ✅ | Idempotent enqueue, atomic claim, bounded retry/backoff, stale-lease recovery, dead-letter and explicit replay; producers are not wired yet |
+| Process metrics baseline | ✅ | Private low-cardinality Prometheus endpoint and request-guard counters; dashboards/alerts remain external |
+| Backup and retention helpers | 🟡 | Atomic SQLite/`pg_dump` backup plus allow-listed dry-run/explicit apply scripts; scheduling, legal hold and deletion audit remain external |
 | Incident lifecycle + notes | ✅ | Role-gated transitions, assignee และ append-only notes |
 | In-app notifications | ✅ | Recipient-scoped list/read state |
 | PostgreSQL production verification | 🟡 | Driver/config/migrations รองรับ; reference integration gate ยังเปิด |
@@ -74,7 +77,9 @@ Roadmap นี้เรียงตาม dependency และความเส
 - SMTP invitation delivery
 - normalized telemetry HTTP endpoint
 
-ข้อจำกัด: webhook ยัง synchronous ไม่มี worker/DLQ/background retry scheduler และ deployment signal grouping/correlation ยังเป็นงานถัดไป
+ข้อจำกัด: webhook ยัง synchronous; มี durable queue/DLQ primitive แล้วแต่ยังไม่มี
+worker และ producer wiring สำหรับ webhook/notification/email รวมถึง deployment
+signal grouping/correlation ยังเป็นงานถัดไป
 แม้ Check publication จะมี durable retry state แล้ว และ telemetry endpoint
 ไม่ใช่ OTLP receiver
 
@@ -87,8 +92,8 @@ Roadmap นี้เรียงตาม dependency และความเส
 - incident state transitions, assignee และ responder notes
 - in-app notifications ที่ scope ตาม recipient
 
-ข้อจำกัด: ยังไม่มี event queue/retention, Slack/Teams/PagerDuty delivery หรือ SLO
-engine
+ข้อจำกัด: ยังไม่มี producer queue integration, scheduled retention/deletion,
+Slack/Teams/PagerDuty delivery หรือ SLO engine
 
 ## P0 — Production hardening
 
@@ -115,8 +120,7 @@ Exit gate:
 
 Deliver:
 
-- fast webhook acknowledgement
-- durable job queue
+- worker integration สำหรับ `background_jobs` และ fast webhook acknowledgement
 - bounded retry พร้อม exponential backoff
 - dead-letter queue และ replay authorization
 - scheduled/proactive GitHub reconciliation เพิ่มจาก signed-retry repair ที่มีแล้ว
@@ -135,11 +139,10 @@ Exit gate:
 
 Deliver:
 
-- configurable retention ต่อ data class
-- scheduled archive/delete job
+- configurable retention ต่อ data class และ scheduled archive/delete job
 - workspace/provider uninstall deletion workflow
 - legal-hold override
-- backup/restore automation
+- backup/restore automation และ restore drill บน reference environment
 - deletion และ restore audit
 
 Exit gate:

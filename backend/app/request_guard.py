@@ -15,6 +15,8 @@ from uuid import uuid4
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from .metrics import metrics
+
 logger = logging.getLogger("deployguard.access")
 
 
@@ -50,12 +52,18 @@ class RequestGuardMiddleware:
             try:
                 declared_size = int(content_length)
             except ValueError:
+                self._record_guard_rejection(
+                    method, "invalid_content_length", 400, started
+                )
                 await self._json_error(
                     send, request_id, 400, "invalid_content_length",
                     "Content-Length must be a valid integer",
                 )
                 return
             if declared_size > self.max_body_bytes:
+                self._record_guard_rejection(
+                    method, "request_body_too_large", 413, started
+                )
                 await self._json_error(
                     send, request_id, 413, "request_body_too_large",
                     "Request body exceeds the configured limit",
@@ -72,6 +80,9 @@ class RequestGuardMiddleware:
                 if message["type"] == "http.request":
                     received_bytes += len(message.get("body", b""))
                     if received_bytes > self.max_body_bytes:
+                        self._record_guard_rejection(
+                            method, "request_body_too_large", 413, started
+                        )
                         await self._json_error(
                             send, request_id, 413, "request_body_too_large",
                             "Request body exceeds the configured limit",
@@ -89,6 +100,9 @@ class RequestGuardMiddleware:
 
             app_receive = replay_receive
         if self._is_rate_limited(scope, path, method):
+            self._record_guard_rejection(
+                method, "rate_limit_exceeded", 429, started
+            )
             await self._json_error(
                 send, request_id, 429, "rate_limit_exceeded",
                 "Too many requests; retry after the configured window",
@@ -98,8 +112,12 @@ class RequestGuardMiddleware:
 
         scope.setdefault("state", {})["request_id"] = request_id
 
+        response_status = 500
+
         async def send_with_headers(message: Message) -> None:
+            nonlocal response_status
             if message["type"] == "http.response.start":
+                response_status = int(message.get("status", 500))
                 response_headers = list(message.get("headers", []))
                 response_headers.extend(
                     [
@@ -113,6 +131,11 @@ class RequestGuardMiddleware:
         try:
             await self.app(scope, app_receive, send_with_headers)
         finally:
+            metrics.observe_request(
+                method,
+                response_status,
+                time.perf_counter() - started,
+            )
             logger.info(
                 json.dumps(
                     {
@@ -125,6 +148,20 @@ class RequestGuardMiddleware:
                     separators=(",", ":"),
                 )
             )
+
+    @staticmethod
+    def _record_guard_rejection(
+        method: str,
+        reason: str,
+        status_code: int,
+        started: float,
+    ) -> None:
+        metrics.record_rejection(reason)
+        metrics.observe_request(
+            method,
+            status_code,
+            time.perf_counter() - started,
+        )
 
     @staticmethod
     def _request_id(scope: Scope) -> str:

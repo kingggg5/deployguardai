@@ -340,7 +340,7 @@ Mobile ต้องใช้ single active workspace และ persistent contex
 
 ## สถานะการตรวจล่าสุด
 
-- Backend: 47 tests ผ่าน
+- Backend: 55 tests ผ่าน
 - Frontend: 50 tests ผ่าน และ Angular production build ผ่านโดยไม่มี budget warning
 - Production dependency audit: 0 vulnerabilities
 - Browser: desktop และ mobile 390×844 ผ่านทั้ง service catalog, event ledger, incident note และ notification flow
