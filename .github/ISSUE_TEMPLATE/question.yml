@@ -1,0 +1,34 @@
+name: Question
+description: Ask how to configure, operate, or extend DeployGuard AI
+title: "[Question]: "
+labels:
+  - question
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please search the [documentation](https://github.com/kingggg5/deployguardai/tree/main/docs) first.
+        Never include tokens, private keys, customer data, or unredacted telemetry.
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What are you trying to accomplish?
+      placeholder: I am configuring a GitHub App and need to...
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include the DeployGuard commit/tag, OS, runtime, and deployment mode.
+      placeholder: v0.1.0, Ubuntu 24.04, Docker Compose, PostgreSQL 16
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: What have you tried?
+      description: Include redacted logs, commands, or links to a minimal reproduction.
+    validations:
+      required: true

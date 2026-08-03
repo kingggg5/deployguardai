@@ -34,6 +34,13 @@ updates:
           - typescript
           - vitest
           - jsdom
+    ignore:
+      # Angular 22 currently requires TypeScript 6.x. Keep major compiler
+      # upgrades out of the automatic queue until the Angular toolchain
+      # explicitly supports them.
+      - dependency-name: typescript
+        update-types:
+          - version-update:semver-major
 
   - package-ecosystem: docker
     directory: /backend

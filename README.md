@@ -7,12 +7,58 @@ Evidence-first change-risk analysis and incident investigation for platform and 
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/kingggg5/deployguardai/badge)](https://securityscorecards.dev/viewer/?uri=github.com/kingggg5/deployguardai)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 
-DeployGuard connects pull requests, deployments, service dependencies, telemetry, and human observations in one tenant-scoped workspace. It helps an engineer answer two questions with traceable evidence:
+<p align="center">
+  <img src="docs/assets/dashboard-runtime-desktop.png" alt="DeployGuard AI change-risk and incident investigation workspace" width="100%" />
+</p>
+
+<p align="center">
+  <a href="README.md">English</a> · <a href="README_TH.md">ภาษาไทย</a> · <a href="docs/QUICKSTART.md">Quickstart</a> · <a href="docs/RELEASE.md">Release guide</a>
+</p>
+
+DeployGuard connects pull requests, deployments, service dependencies, telemetry, and human observations in one tenant-scoped workspace. It is built for platform, SRE, and engineering teams that need an explainable answer before changing production:
 
 1. What makes this change risky before it reaches production?
 2. Which incident hypothesis is best supported, what contradicts it, and what should we verify next?
 
 The core is deterministic and reproducible. Risk scores, blast radius, ranked hypotheses, and explanations are derived from explicit weights, stored evidence, and versioned workspace policy. DeployGuard is decision support: it does not deploy, roll back, execute shell commands, or remediate infrastructure autonomously.
+
+## Try it in three minutes
+
+The default runtime is connected mode: it starts empty and never pretends that demo records came from GitHub. For a safe product tour, use the separate synthetic profile; every synthetic record is labelled in the API and UI.
+
+```bash
+git clone https://github.com/kingggg5/deployguardai.git
+cd deployguardai
+
+# Connected mode — configure a GitHub App when you are ready for real data.
+docker compose up --build
+
+# Optional demo mode — isolated database, deterministic synthetic scenarios.
+docker compose -p deployguard-demo \
+  -f docker-compose.yml -f docker-compose.demo.yml up --build
+```
+
+Open <http://127.0.0.1:4300>. The API and OpenAPI explorer are available at
+<http://127.0.0.1:8100/docs>. Stop connected mode with `docker compose down`.
+Stop the demo with:
+
+```bash
+docker compose -p deployguard-demo -f docker-compose.yml \
+  -f docker-compose.demo.yml down
+```
+
+Do not add `--volumes` unless deleting that profile's local database is
+intentional. The full setup, provider configuration, and cleanup guide is in
+[docs/QUICKSTART.md](docs/QUICKSTART.md).
+
+## Why this project exists
+
+Most change-risk tools show a score, while most incident tools show a timeline.
+DeployGuard connects the two and keeps the reasoning inspectable: each signal
+has provenance, counter-evidence is first-class, uncertainty is explicit, and
+the final decision stays with a human reviewer. This makes it useful as a
+decision layer across GitHub, telemetry, and existing deployment systems rather
+than as another system that owns production execution.
 
 ## What the product provides
 
@@ -81,24 +127,24 @@ The backend owns authorization and workspace boundaries. Provider adapters norma
 
 | Layer | Technology | Purpose |
 | --- | --- | --- |
-| Frontend | Angular 22, TypeScript 6, RxJS, Reactive Forms | Standalone components, typed API clients, responsive workspace workflows |
+| Frontend | Angular 22.1, TypeScript 6, RxJS, Reactive Forms | Standalone components, typed API clients, responsive workspace workflows |
 | UI | SCSS design tokens and GitHub/Primer-inspired patterns | Repository context, tabs, labels, forms, timelines, tables, dark mode, and keyboard navigation |
 | Backend | Python 3.12, FastAPI, Pydantic 2 | Typed REST API, validation, and OpenAPI |
 | Data | SQLAlchemy 2, Alembic, SQLite, PostgreSQL 16, psycopg 3 | Tenant-scoped persistence and schema evolution |
 | Security | PyJWT, cryptography, OIDC/JWKS, GitHub App HMAC, PostgreSQL RLS | Identity verification, signed provider events, and database tenant isolation |
 | Observability | OpenTelemetry, OTLP/HTTP, Prometheus, Collector | Correlated API/worker traces, low-cardinality metrics, and redaction |
-| Delivery | Docker Compose, Nginx, Uvicorn, GitHub Actions | Local/production-shaped runtime and release checks |
+| Delivery | Docker Compose, Nginx, Uvicorn, GitHub Actions, GHCR | Local/production-shaped runtime and signed multi-architecture images |
 | Verification | Pytest, HTTPX, Vitest, jsdom, pip-audit, npm audit | Backend/API tests, frontend tests, builds, and dependency checks |
 
 ## Quick start
 
-### Requirements
+### Local development requirements
 
 - Python 3.12+
-- Node.js 22+
+- Node.js 24+
 - npm
 - PowerShell 7 for helper scripts
-- Docker Desktop for the Compose profile (optional)
+- Docker Desktop or Docker Engine + Compose v2 for the recommended path
 
 Clone and start the local application:
 
@@ -135,6 +181,19 @@ docker compose up --build
 ```
 
 Compose provides the UI on `:4300`, the API on `:8100`, and PostgreSQL on the internal network. Do not use `docker compose down -v` unless deleting the local database volume is intentional.
+
+### Container images
+
+Versioned releases publish signed images to GitHub Container Registry:
+
+```text
+ghcr.io/kingggg5/deployguardai-api:<version>
+ghcr.io/kingggg5/deployguardai-web:<version>
+```
+
+For production, pin both services to the digest recorded in the GitHub release
+instead of `latest`. The release workflow also publishes SBOM and provenance
+attestations; see [docs/RELEASE.md](docs/RELEASE.md).
 
 ## Configure real providers
 
@@ -224,6 +283,7 @@ Backend and frontend regression suites are required in CI; exact test counts are
 
 ## Documentation and community
 
+- [Quickstart](docs/QUICKSTART.md) — connected mode, isolated demo, and cleanup
 - [Architecture](docs/ARCHITECTURE.md) — trust boundaries and data flow
 - [API contract](docs/API_CONTRACT.md) — endpoints and error codes
 - [Data model](docs/DATA_MODEL.md) — tenant, evidence, operations, and audit records
@@ -231,7 +291,7 @@ Backend and frontend regression suites are required in CI; exact test counts are
 - [Operations runbook](docs/OPERATIONS.md) — deployment, probes, backups, retention, and recovery
 - [Evaluation](docs/EVALUATION.md) — benchmark provenance and scoring
 - [Thai user guide](docs/USER_GUIDE_TH.md) — คู่มือการใช้งานภาษาไทย
-- [Contributing](CONTRIBUTING.md) · [Governance](GOVERNANCE.md) · [Support](SUPPORT.md) · [Changelog](CHANGELOG.md)
+- [Contributing](CONTRIBUTING.md) · [Governance](GOVERNANCE.md) · [Support](SUPPORT.md) · [Changelog](CHANGELOG.md) · [Release guide](docs/RELEASE.md)
 
 DeployGuard is licensed under [Apache-2.0](LICENSE). Report security issues privately using [`.github/SECURITY.md`](.github/SECURITY.md), not a public issue.
 
@@ -245,10 +305,7 @@ DeployGuard is licensed under [Apache-2.0](LICENSE). Report security issues priv
 - Retention scheduling, backup expiry/storage, workspace deletion, and legal-hold ownership remain operator workflows; the included scripts provide fail-closed controls and auditable execution primitives.
 - Native OTLP evidence ingestion, Slack/Teams/PagerDuty adapters, organization-specific SLO dashboards, public evaluation datasets, and calibration reports are not bundled.
 
-## สรุปภาษาไทย
+## ภาษาไทย
 
-DeployGuard AI เป็นระบบช่วยทีม Platform และ SRE วิเคราะห์ความเสี่ยงของ change ก่อน deploy และสืบสวน incident จากหลักฐานที่ตรวจสอบย้อนกลับได้ โดยรวม pull request, dependency ของ service, deployment, telemetry และความเห็นจากมนุษย์ไว้ใน workspace เดียว
-
-ระบบใช้ deterministic engine ที่มีน้ำหนักคะแนนชัดเจน แยก `connected` กับ `synthetic` อย่างชัดเจน และไม่มีความสามารถในการ deploy, rollback, รัน shell หรือแก้ infrastructure อัตโนมัติ
-
-ใน repository มีระบบ tenant/RBAC, PostgreSQL RLS, signed GitHub webhook, durable worker/outbox, metrics และ OpenTelemetry, การทดสอบ restore แบบ isolated, retention ที่รองรับ legal hold และ deletion audit, migration release job, CI และ security baseline แล้ว การเปิดใช้ production จริงยังต้องเตรียม OIDC, GitHub App, SMTP, HTTPS/WAF, managed secrets, distributed rate limit, telemetry backend, backup storage, alerting และผู้รับผิดชอบ on-call ให้ครบถ้วน จากนั้นรัน `python scripts/production_readiness.py` เพื่อยืนยัน readiness แบบ fail-closed ก่อน release
+อ่านคำอธิบายและขั้นตอนใช้งานภาษาไทยได้ที่ [README_TH.md](README_TH.md) และ
+[คู่มือผู้ใช้ภาษาไทย](docs/USER_GUIDE_TH.md)

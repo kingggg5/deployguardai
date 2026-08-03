@@ -7,6 +7,19 @@ release notes from `main` and will use semantic versioning for tagged releases.
 
 ### Added
 
+- Three-minute connected and isolated demo quickstarts, a polished English/Thai
+  project overview, and a real dashboard screenshot for repository discovery.
+- A tag-driven GHCR release workflow that reuses CI, publishes signed
+  `linux/amd64` and `linux/arm64` API/web images, and records SBOM/provenance
+  attestations.
+- A release checklist covering version tags, image digests, evaluation evidence,
+  restore rehearsal, and rollback.
+- An issue form for configuration and operations questions, with explicit
+  secret-redaction guidance.
+- An explicit Angular Router peer dependency and a Dependabot guard that keeps
+  TypeScript major upgrades out of the Angular 22 toolchain queue.
+- Current GitHub Actions and CodeQL/Scorecard runners, plus the latest Nginx
+  Alpine base image for the web container.
 - Apache-2.0 open-source foundation with contribution, governance, support, and security policies.
 - GitHub issue forms, pull request checklist, CODEOWNERS, Dependabot, CI, CodeQL, dependency review, and OpenSSF Scorecard workflows.
 - Request IDs, structured access logs, request body limits, bounded ingress rate limits, and separate liveness/readiness probes.

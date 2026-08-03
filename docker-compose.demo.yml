@@ -1,0 +1,6 @@
+services:
+  api:
+    environment:
+      # Demo data is deterministic and visibly labelled as synthetic by the API.
+      # Keep this override separate from the connected-mode default.
+      SEED_SYNTHETIC_DATA: "true"

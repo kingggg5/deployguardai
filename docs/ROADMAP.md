@@ -34,12 +34,16 @@ Roadmap นี้เรียงตาม dependency และความเส
 | Process metrics baseline | ✅ | Private low-cardinality Prometheus endpoint and request-guard counters; dashboards/alerts remain external |
 | OpenTelemetry tracing/Collector | ✅ | Optional API/worker OTLP tracing, redacting local config และ authenticated production exporter template |
 | Backup, restore and retention helpers | ✅ | Atomic backup, isolated writable restore rehearsal, batched dry-run/apply retention, legal hold และ append-only deletion audit; schedule/storage remain external |
+| Open-source onboarding | ✅ | Connected-mode and isolated synthetic demo quickstarts, English/Thai overview, screenshots, issue forms, and release checklist |
+| Signed container distribution | ✅ | Tag-driven GHCR API/web images for amd64/arm64 with SBOM and provenance attestations |
 | Incident lifecycle + notes | ✅ | Role-gated transitions, assignee และ append-only notes |
 | In-app notifications | ✅ | Recipient-scoped list/read state |
 | PostgreSQL tenant isolation | ✅ | RLS migration, transaction-local context และ negative CRUD/pool-leakage tests บน PostgreSQL 16 non-owner role |
 | Retention/deletion automation | ⬜ | ไม่มี scheduled policy/job |
 | Native OTLP ingestion pipeline | ⬜ | ต้องมี authenticated Collector/gateway mapping |
 | LLM synthesis | ⏸ | Endpoint เป็น `501`; รอ evidence/security/evaluation gate |
+| Hosted public demo | ⬜ | ต้องมี isolated tenancy, cost limits, abuse protection และข้อมูล synthetic ที่ล้างได้ |
+| GitHub App marketplace distribution | ⬜ | ต้องมี production OAuth/App review, installation UX และ support ownership |
 
 ## Foundation ที่ส่งมอบแล้ว
 
