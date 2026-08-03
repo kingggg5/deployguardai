@@ -354,7 +354,7 @@ Application startup เรียก Alembic upgrade ถึง `head`
 - JSON snapshots ยังไม่มี schema/scoring/graph version
 - ไม่มี scheduled retention, workspace deletion cascade workflow หรือ legal hold
 - ไม่มี raw telemetry store และไม่มี field-level encryption
-- มี backup helper แบบ explicit แต่ยังไม่มี managed scheduler/storage หรือ restore drill automation
+- มี backup และ read-only restore-check helpers แบบ explicit แต่ยังไม่มี managed scheduler/storage หรือ restore drill automation
 - audit ledger ยังไม่ tamper-proof
 - service dependency DAG ตรวจใน application ไม่ได้ enforce ด้วย database
 - SQLite ไม่ใช่ production concurrency target

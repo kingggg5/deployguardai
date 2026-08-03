@@ -32,7 +32,7 @@ Roadmap นี้เรียงตาม dependency และความเส
 | Connector health read model | ✅ | Provider, webhook delivery, selected repository and Check publication health are visible without exposing credentials |
 | Durable background job/outbox primitive | ✅ | Idempotent enqueue, atomic claim, bounded retry/backoff, stale-lease recovery, dead-letter and explicit replay; producers are not wired yet |
 | Process metrics baseline | ✅ | Private low-cardinality Prometheus endpoint and request-guard counters; dashboards/alerts remain external |
-| Backup and retention helpers | 🟡 | Atomic SQLite/`pg_dump` backup plus allow-listed dry-run/explicit apply scripts; scheduling, legal hold and deletion audit remain external |
+| Backup and retention helpers | 🟡 | Atomic SQLite/`pg_dump` backup, read-only restore validation, plus allow-listed dry-run/explicit apply scripts; scheduling, legal hold and deletion audit remain external |
 | Incident lifecycle + notes | ✅ | Role-gated transitions, assignee และ append-only notes |
 | In-app notifications | ✅ | Recipient-scoped list/read state |
 | PostgreSQL production verification | 🟡 | Driver/config/migrations รองรับ; reference integration gate ยังเปิด |

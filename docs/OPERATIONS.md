@@ -343,6 +343,19 @@ python scripts/backup_database.py `
 ไฟล์ปลายทางที่มีอยู่จะถูกปฏิเสธ เว้นแต่ระบุ `--force` อย่างชัดเจน ควรเก็บ
 backup นอก host และเข้ารหัสด้วย storage/secret policy ขององค์กร
 
+ตรวจว่า backup SQLite เปิดอ่านได้และ schema อยู่ที่ migration head โดยไม่แก้
+target database:
+
+```powershell
+python scripts/restore_check.py `
+  --backup .runtime/backups/deployguard-20260803.db `
+  --format sqlite --expected-head 0007
+```
+
+สำหรับ PostgreSQL custom archive ใช้ `--format postgresql-custom` ซึ่งเรียก
+`pg_restore --list` เท่านั้น การ restore จริงต้องทำใน isolated target พร้อม
+approval, credential, RPO/RTO และบันทึกผล restore drill
+
 ตรวจ retention candidates แบบ read-only ก่อน:
 
 ```powershell
@@ -387,6 +400,7 @@ Backend:
 ```powershell
 Set-Location backend
 python -m pytest
+python -m compileall -q app migrations ..\scripts
 ```
 
 Frontend:
@@ -402,6 +416,12 @@ Compose:
 
 ```powershell
 docker compose config
+```
+
+Backup validation (read-only):
+
+```powershell
+python scripts/restore_check.py --backup .runtime/backups/deployguard.db --format sqlite --expected-head 0007
 ```
 
 Migration smoke:

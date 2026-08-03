@@ -1,77 +1,53 @@
 # DeployGuard AI
 
-Evidence-first change risk and incident investigation for platform and reliability teams.
+Evidence-first change-risk analysis and incident investigation for platform and reliability teams.
 
 [![CI](https://github.com/kingggg5/deployguardai/actions/workflows/ci.yml/badge.svg)](https://github.com/kingggg5/deployguardai/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/kingggg5/deployguardai/actions/workflows/codeql.yml/badge.svg)](https://github.com/kingggg5/deployguardai/actions/workflows/codeql.yml)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/kingggg5/deployguardai/badge)](https://securityscorecards.dev/viewer/?uri=github.com/kingggg5/deployguardai)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 
-DeployGuard helps an engineer make a better change decision before deployment and a faster, more defensible decision during an incident. It connects pull-request metadata, service dependencies, deployments, telemetry, and human observations in one tenant-scoped workspace.
+DeployGuard connects pull requests, deployments, service dependencies, telemetry, and human observations in one tenant-scoped workspace. It helps an engineer answer two questions with traceable evidence:
 
-The core is deliberately deterministic. A risk score, blast radius, hypothesis rank, and explanation can be reproduced from the stored evidence and the versioned policy that produced it. The product is decision support: it does not deploy, roll back, execute shell commands, or remediate infrastructure on its own.
+1. What makes this change risky before it reaches production?
+2. Which incident hypothesis is best supported, what contradicts it, and what should we verify next?
 
-## At a glance
+The core is deterministic and reproducible. Risk scores, blast radius, ranked hypotheses, and explanations are derived from explicit weights, stored evidence, and versioned workspace policy. DeployGuard is decision support: it does not deploy, roll back, execute shell commands, or remediate infrastructure autonomously.
 
-| Capability | What is available today |
+## What the product provides
+
+| Area | Outcome |
 | --- | --- |
-| Change risk | Explicit, testable scoring weights; coverage and rollback-readiness gaps; service blast radius |
-| Incident investigation | Evidence and counter-evidence, uncertainty, timeline, ranked hypotheses, and human verdicts |
-| Connected data | GitHub App installation, repository and pull-request sync, signed webhooks, deployment lifecycle, and scoped telemetry ingestion |
-| Operations | Service catalog, risk policy, normalized event ledger, incident lifecycle, assignments, notifications, and audit events |
-| Workspace | Tenant isolation, roles (`viewer`, `responder`, `admin`, `owner`), invitations, repository scope, and connector health |
-| Evaluation | Clearly labelled synthetic scenarios and versioned, SHA-256-pinned benchmark manifests |
-| Security baseline | OIDC Authorization Code + PKCE, JWT/JWKS validation, request IDs, structured logs, body limits, rate-limit baseline, low-cardinality metrics, migrations, CI, CodeQL, dependency review, and Scorecard |
+| Change risk | Explainable scoring, missing-evidence signals, rollback readiness, service criticality, and dependency blast radius |
+| Investigation | Incident timeline, evidence and counter-evidence, uncertainty, ranked hypotheses, and human verdicts |
+| Connected data | GitHub App installation, repository/PR sync, signed webhooks, deployment lifecycle, and scoped normalized telemetry |
+| Operations | Service catalog, risk policy, operational-event ledger, incident lifecycle, assignments, notifications, and audit events |
+| Workspace | Tenant-scoped access, `viewer`/`responder`/`admin`/`owner` roles, invitations, repository scope, and connector health |
+| Evaluation | Clearly labelled synthetic scenarios and versioned SHA-256-pinned benchmark manifests |
 
-## Why it exists
+## Safety and data truth
 
-Most change-risk and incident tools show a number without preserving the reasoning behind it. DeployGuard keeps the reasoning visible:
+Data origin is part of the domain model and is visible in both API responses and the UI:
 
-- Review why a score changed, which services may be affected, and which evidence is still missing.
-- Compare competing incident hypotheses with supporting evidence, counter-evidence, uncertainty, and the next verification step.
-- Keep repository, deployment, telemetry, incident, and human-verdict records inside the same workspace boundary.
-- Make synthetic scenarios useful for demos and evaluation without presenting fixtures as production data.
+- `connected` records come from a verified provider integration or authenticated telemetry collector.
+- `synthetic` records are local fixtures for demos, tests, and evaluation only.
+- A fresh runtime starts with an empty connected-mode database; it does not silently seed a demo repository.
+- `SEED_SYNTHETIC_DATA=true` is explicit and rejected by production configuration.
 
-## Product workflow
+The browser never receives a GitHub installation token, GitHub App private key, SMTP password, or telemetry root credential. LLM synthesis is disabled until an evidence-only contract, citation validator, and evaluation gate exist.
+
+## Product flow
 
 ```mermaid
 flowchart LR
-    Change["Pull request or deployment"] --> Risk["Deterministic change-risk analysis"]
-    Risk --> Scope["Service graph and blast radius"]
-    Scope --> Evidence["Evidence ledger"]
-    Signal["Telemetry or incident observation"] --> Evidence
+    Change["Pull request or deployment"] --> Risk["Deterministic risk analysis"]
+    Risk --> Graph["Service graph and blast radius"]
+    Signal["Telemetry or incident observation"] --> Evidence["Evidence ledger"]
+    Graph --> Evidence
     Evidence --> Hypotheses["Ranked hypotheses"]
-    Hypotheses --> Human["Human verdict and next action"]
-    Human --> Audit["Append-only audit trail"]
+    Hypotheses --> Human["Human verdict and next verification"]
+    Human --> Audit["Append-only application audit"]
 ```
-
-## Main product areas
-
-### Change risk
-
-Analyze a verified pull request or change record using explicit signals such as change size, operational flags, test coverage gaps, rollback readiness, service criticality, and dependency reach. The result includes the contributing factors and missing evidence instead of only a pass/fail label.
-
-### Investigation
-
-Inspect an incident timeline, service topology, evidence quality, counter-evidence, and the top hypotheses. Every conclusion remains traceable to a stored evidence item and a human-controlled verdict.
-
-### Operations center
-
-Maintain service ownership, tier and lifecycle metadata, runbooks, dependencies, repositories, workspace risk policy, operational events, incident assignments, and an in-app notification inbox.
-
-### Workspace and team
-
-Create a workspace, connect a GitHub App installation, select repositories, invite teammates, assign roles, review connector health, and inspect security-sensitive audit events.
-
-## Connected data and synthetic data
-
-Data origin is part of the domain model and is visible in the API and UI:
-
-- `connected` records come from a verified provider integration or an authenticated telemetry collector.
-- `synthetic` records are local scenarios for tests, demos, and the benchmark suite.
-- A new runtime starts in connected mode with an empty database. It does not silently seed a demo repository.
-- Synthetic data is enabled only when `SEED_SYNTHETIC_DATA=true`; production configuration rejects that flag.
-
-The repository includes a read-only GitHub smoke check (`scripts/verify-github-live.ps1`) so you can verify the live API contract without importing or mutating records. Importing a repository into a workspace still requires a configured GitHub App and its signed installation webhook.
 
 ## Architecture
 
@@ -81,59 +57,52 @@ flowchart LR
     Web --> API["FastAPI API"]
     OIDC["OIDC provider"] --> Web
     GitHub["GitHub App"] -->|"signed webhooks"| API
-    API --> Auth["Auth and tenant policy"]
+    API --> Auth["Authentication and RBAC"]
     API --> Engines["Risk, graph, and evidence engines"]
     API --> Ops["Operations and audit ledgers"]
+    API --> Queue["Durable job/outbox state"]
     Auth --> DB[("SQLite or PostgreSQL")]
     Engines --> DB
     Ops --> DB
+    Queue --> DB
     API --> SMTP["SMTP invitation provider"]
 ```
 
-The browser never receives a GitHub installation token or App private key. Authorization and workspace isolation are enforced by the backend. A GitHub installation remains pending until a signed installation webhook confirms it.
+The backend owns authorization and workspace boundaries. Provider adapters normalize external input; deterministic engines own scoring and explanations; persistence is managed through Alembic migrations.
 
 ## Technology stack
 
-| Layer | Technology | Role |
+| Layer | Technology | Purpose |
 | --- | --- | --- |
-| Frontend | Angular 22, TypeScript 6, RxJS, Reactive Forms | Standalone components, typed API clients, workspace shell, and responsive workflows |
-| UI | SCSS design tokens and GitHub/Primer-inspired patterns | Repository context, tabs, labels, forms, timelines, tables, dark mode, and keyboard navigation; no Primer runtime dependency |
-| Backend | Python 3.12, FastAPI, Pydantic 2 | Typed REST API and validation |
-| Data | SQLAlchemy 2, Alembic, SQLite, PostgreSQL 16, psycopg 3 | Tenant-scoped persistence and versioned migrations |
-| Security | PyJWT, cryptography, OIDC/JWKS, GitHub App signatures | Authentication, token verification, and signed provider events |
-| Delivery | Docker Compose, Nginx, Uvicorn, GitHub Actions | Local/production-shaped runtime, SPA hosting, CI, and security checks |
+| Frontend | Angular 22, TypeScript 6, RxJS, Reactive Forms | Standalone components, typed API clients, responsive workspace workflows |
+| UI | SCSS design tokens and GitHub/Primer-inspired patterns | Repository context, tabs, labels, forms, timelines, tables, dark mode, and keyboard navigation |
+| Backend | Python 3.12, FastAPI, Pydantic 2 | Typed REST API, validation, and OpenAPI |
+| Data | SQLAlchemy 2, Alembic, SQLite, PostgreSQL 16, psycopg 3 | Tenant-scoped persistence and schema evolution |
+| Security | PyJWT, cryptography, OIDC/JWKS, GitHub App HMAC | Identity verification and signed provider events |
+| Delivery | Docker Compose, Nginx, Uvicorn, GitHub Actions | Local/production-shaped runtime and release checks |
 | Verification | Pytest, HTTPX, Vitest, jsdom, pip-audit, npm audit | Backend/API tests, frontend tests, builds, and dependency checks |
 
-## Run locally
+## Quick start
 
 ### Requirements
 
 - Python 3.12+
 - Node.js 22+
 - npm
-- Docker Desktop (optional, for the Compose stack)
-- PowerShell 7 for the helper scripts
+- PowerShell 7 for helper scripts
+- Docker Desktop for the Compose profile (optional)
 
-Clone the repository:
+Clone and start the local application:
 
 ```powershell
 git clone https://github.com/kingggg5/deployguardai.git
 cd deployguardai
-```
-
-The simplest development path is:
-
-```powershell
 .\scripts\run-dev.ps1
 ```
 
-Use `-SkipInstall` when dependencies are already installed:
+Use `-SkipInstall` after dependencies are installed. Stop local services with `.\scripts\stop-dev.ps1`.
 
-```powershell
-.\scripts\run-dev.ps1 -SkipInstall
-```
-
-Open the following endpoints:
+Open:
 
 - Web UI: <http://127.0.0.1:4300>
 - OpenAPI: <http://127.0.0.1:8100/docs>
@@ -141,132 +110,121 @@ Open the following endpoints:
 - Readiness: <http://127.0.0.1:8100/api/v1/health/ready>
 - Private metrics scrape: <http://127.0.0.1:8100/api/v1/metrics>
 
-The default run uses an empty connected-mode database. Create a workspace and connect a GitHub App before expecting repository, pull-request, deployment, or telemetry records.
-
-For deterministic evaluation only:
+The default local run is connected mode with no seeded records. Create a workspace and configure a GitHub App before expecting real repositories, pull requests, deployments, or telemetry. For deterministic fixtures only:
 
 ```powershell
 $env:SEED_SYNTHETIC_DATA = "true"
 .\scripts\run-dev.ps1
 ```
 
-Do not use synthetic seeding with a production database. Stop local services with:
+Never enable synthetic seeding against a production database.
 
-```powershell
-.\scripts\stop-dev.ps1
-```
-
-### Run with Docker Compose
+### Docker Compose
 
 ```powershell
 Copy-Item .env.example .env
 docker compose up --build
 ```
 
-The Compose stack provides the web UI on `:4300`, the API on `:8100`, and PostgreSQL on the internal network. Use `docker compose down -v` only when you intentionally want to remove the local database volume.
+Compose provides the UI on `:4300`, the API on `:8100`, and PostgreSQL on the internal network. Do not use `docker compose down -v` unless deleting the local database volume is intentional.
 
-## Connect real providers
+## Configure real providers
 
-DeployGuard is useful with real data only after its provider contracts are configured. Keep secrets in a deployment secret manager; never commit `.env` or private keys.
+Keep secrets in a managed secret provider. Do not commit `.env`, private keys, or credentials.
 
 ### OIDC
 
-Set `ENVIRONMENT=production`, `AUTH_PROVIDER=oidc`, and the issuer, audience, client ID, scope, and JWKS URL values in `.env.example`. The API validates issuer, audience, algorithm, signature, and claims. The Angular client uses Authorization Code + PKCE.
+Set `ENVIRONMENT=production`, `AUTH_PROVIDER=oidc`, issuer, audience, client ID, scope, and JWKS URL. The API validates issuer, audience, algorithm, signature, expiry, and verified email. The Angular client uses Authorization Code + PKCE.
 
 ### GitHub App
 
-Configure the App ID, slug, private key, webhook secret, API URL/version, and repository permissions. Subscribe to `installation`, `pull_request`, `workflow_run`, `deployment`, and `deployment_status`. Optional Check Runs are non-blocking decision support; they never deploy or roll back a change.
+Configure App ID, slug, private key, webhook secret, API version, and repository permissions. Subscribe to `installation`, `pull_request`, `workflow_run`, `deployment`, and `deployment_status`. Optional Check Runs are non-blocking decision support; they never deploy or roll back changes.
 
 ### Telemetry
 
-Set `TELEMETRY_INGEST_TOKEN` and derive a workspace-bound collector token on the server. Send the derived bearer with `X-DeployGuard-Workspace`, an optional repository header, and a stable event ID. The endpoint accepts DeployGuard's normalized evidence contract, not raw OTLP payloads; terminate TLS and redact secrets before ingestion.
+Set `TELEMETRY_INGEST_TOKEN` on the server and derive a workspace-bound collector token. Send the derived bearer with `X-DeployGuard-Workspace`, an optional repository header, and a stable event ID. The endpoint accepts DeployGuard's normalized contract, not raw OTLP payloads; terminate TLS and redact secrets before ingestion.
 
-### Email invitations
+### Invitations
 
-Configure SMTP and `FRONTEND_PUBLIC_URL`. If SMTP is not configured in production, invitation controls are disabled instead of returning a false success.
+Configure SMTP and `FRONTEND_PUBLIC_URL`. In production without SMTP, invitation controls are disabled instead of returning a false success.
 
-See [`.env.example`](.env.example), the [operations runbook](docs/OPERATIONS.md), and the [telemetry contract](docs/TELEMETRY_GATEWAY.md) for the full configuration reference.
+See [`.env.example`](.env.example), [API contract](docs/API_CONTRACT.md), [operations runbook](docs/OPERATIONS.md), and [telemetry contract](docs/TELEMETRY_GATEWAY.md).
 
-## Production boundary
+For a read-only live-contract check (no DeployGuard or GitHub records are created), run:
 
-This repository includes application-level safeguards and release checks. A production operator still owns the surrounding infrastructure:
+```powershell
+.\scripts\verify-github-live.ps1 -Repository owner/name
+```
 
-| Included here | Still required from the deployment platform |
-| --- | --- |
-| Typed API, tenant checks, audit events, request IDs, body limits, a process-local rate-limit baseline, and a private aggregate `/api/v1/metrics` endpoint | Public HTTPS, WAF or distributed rate limiting, managed secrets, key rotation, and network policy |
-| Alembic migrations, liveness/readiness probes, a durable job/outbox primitive, and explicit backup/retention helpers | PostgreSQL sizing, encrypted backup storage, restore drills, scheduled retention, legal-hold workflows, and connection-pool monitoring |
-| CI tests/builds, CodeQL, dependency review, Scorecard, and container checks | Branch protection, release approvals/signing, alert routing, and on-call ownership |
-| Deterministic engines and evidence provenance | Human review of policy changes, calibration, and operational decisions |
+## Operational foundations included
 
-DeployGuard intentionally has no autonomous deployment, rollback, remediation, shell execution, or cluster-credential path. LLM synthesis is disabled until an evidence-only contract and evaluation gate exist.
+- Durable `background_jobs` outbox with idempotent enqueue, atomic claim, bounded retry/backoff, stale-lease recovery, dead-letter state, explicit replay, and credential-like payload rejection.
+- Private low-cardinality Prometheus metrics at `/api/v1/metrics`; no path, tenant, request ID, or payload labels.
+- Request IDs, structured JSON access logs, body-size limits, and process-local ingress rate limiting.
+- Atomic SQLite backup and PostgreSQL custom-archive backup with no-overwrite-by-default behavior.
+- Read-only backup validation through `scripts/restore_check.py` and dry-run-first retention reports through `scripts/retention_report.py`.
+- Liveness/readiness probes, Alembic migration checks, CI, CodeQL, dependency review, Scorecard, container builds, and reproducible evaluation artifacts.
 
-## Tests and verification
+These are application-level foundations. A separately supervised worker, shared gateway, managed secret store, scheduled retention, legal hold, and restore drill are still deployment responsibilities.
+
+## Production readiness
+
+| Status | Meaning | Examples |
+| --- | --- | --- |
+| Implemented in repository | Tested runtime path exists | Deterministic engines, tenant/RBAC checks, signed webhook verification, migrations, queue primitives, metrics, backup helpers |
+| Provider/configuration gated | Requires operator-owned credentials or external service | OIDC, GitHub App, SMTP, normalized telemetry, PostgreSQL deployment |
+| Deployment required | Cannot be safely provided by application code alone | HTTPS/WAF, distributed rate limiting, managed secrets, alerting, on-call, encrypted backup storage |
+| Deliberately not implemented | Safety boundary or missing evaluation gate | Autonomous remediation, shell/cluster access, arbitrary outbound webhooks, LLM synthesis |
+
+DeployGuard should be described as **production-integratable**, not production-hardened, until deployment-specific controls and drills are complete.
+
+## Verification
 
 ```powershell
 cd backend
 python -m pytest
+python -m compileall -q app migrations
+pip-audit -r requirements.txt --progress-spinner off
 
 cd ..\frontend
 npm test -- --watch=false
 npm run build
-npm audit --omit=dev
+npm audit --omit=dev --audit-level=high
 
 cd ..
 docker compose config --quiet
+python scripts/evaluate_benchmarks.py --output .runtime/evaluation-results.json
 ```
 
-The current regression baseline is 55 backend tests and 50 frontend tests. These counts are not a claim of complete code coverage. CI also runs migration smoke tests, `pip-audit`, compile checks, benchmark evaluation, CodeQL, dependency review, and OpenSSF Scorecard.
+The current regression baseline is 56 backend tests and 50 frontend tests. Test counts are not a claim of complete code coverage. CI also runs migration smoke tests, container builds, CodeQL, dependency review, and OpenSSF Scorecard.
 
-## Documentation
+## Documentation and community
 
-- [Architecture](docs/ARCHITECTURE.md) — boundaries, data flow, and trust model
-- [API contract](docs/API_CONTRACT.md) — endpoints and machine-readable error codes
+- [Architecture](docs/ARCHITECTURE.md) — trust boundaries and data flow
+- [API contract](docs/API_CONTRACT.md) — endpoints and error codes
 - [Data model](docs/DATA_MODEL.md) — tenant, evidence, operations, and audit records
 - [Security model](docs/SECURITY.md) — authentication, authorization, and provider handling
-- [Operations runbook](docs/OPERATIONS.md) — deployment, probes, logs, migrations, and recovery guidance
-- [Evaluation](docs/EVALUATION.md) — benchmark manifest, provenance, and scoring
+- [Operations runbook](docs/OPERATIONS.md) — deployment, probes, backups, retention, and recovery
+- [Evaluation](docs/EVALUATION.md) — benchmark provenance and scoring
 - [Thai user guide](docs/USER_GUIDE_TH.md) — คู่มือการใช้งานภาษาไทย
-- [Product workspace research](docs/PRODUCT_WORKSPACE_RESEARCH.md) — product and workflow rationale
+- [Contributing](CONTRIBUTING.md) · [Governance](GOVERNANCE.md) · [Support](SUPPORT.md) · [Changelog](CHANGELOG.md)
 
-## Open-source community
+DeployGuard is licensed under [Apache-2.0](LICENSE). Report security issues privately using [`.github/SECURITY.md`](.github/SECURITY.md), not a public issue.
 
-DeployGuard is Apache-2.0 licensed and welcomes focused, reviewable contributions:
+## Honest limitations
 
-- Start with [CONTRIBUTING.md](CONTRIBUTING.md) and [GOVERNANCE.md](GOVERNANCE.md).
-- Use the issue templates for bugs, features, configuration, and security concerns.
-- Read [SUPPORT.md](SUPPORT.md) for questions and troubleshooting.
-- Report vulnerabilities privately using [`.github/SECURITY.md`](.github/SECURITY.md); do not open a public issue.
-- Review [CHANGELOG.md](CHANGELOG.md) for release notes.
-
-## Roadmap
-
-The next improvements are intentionally operational rather than cosmetic:
-
-- **P0:** real OIDC/GitHub/SMTP rollout, HTTPS ingress, managed secrets, PostgreSQL backup and restore drills, and release branch protection.
-- **P1:** wire the durable job/outbox primitive into event and email producers; add shared gateway limits, traces, SLOs, alert routing, secret rotation, scheduled retention, and deletion audit.
-- **P2:** an OpenTelemetry gateway, public evaluation datasets and calibration reports, and configurable Slack/Teams/PagerDuty-style notification adapters.
-
-The application already exposes the contracts needed for these integrations, but provider accounts, credentials, and operational ownership cannot be shipped inside an open-source repository.
-
-## Known limitations
-
-- Connected topology is empty until dependency evidence is ingested.
+- Connected dependency topology remains empty until dependency evidence is ingested.
 - Missing coverage, rollback, and observability evidence is treated conservatively as unknown.
-- A durable job/outbox table with bounded retry, stale-lease recovery, dead-lettering, and explicit replay is available, but event and invitation producers are still synchronous until a separately supervised worker is deployed.
-- The built-in rate limiter is process-local; use a shared gateway or distributed limiter for multiple replicas.
-- Database row-level security is not enabled; tenant isolation is enforced in application queries and should be paired with platform controls for high-assurance deployments.
-- Provider credentials, HTTPS termination, backups, monitoring, and incident response remain deployment responsibilities.
-
-## License
-
-DeployGuard AI is released under the [Apache License 2.0](LICENSE).
-
----
+- The queue/outbox is a safe persistence primitive; webhook, event, notification, and invitation producers remain synchronous until a separately supervised worker is deployed.
+- The built-in rate limiter is process-local; multi-replica deployments need a shared gateway or distributed limiter.
+- PostgreSQL RLS is not enabled; application tenant predicates require PostgreSQL defense-in-depth and negative isolation testing before high-assurance use.
+- Retention helpers are allow-listed and explicit, but scheduling, legal hold, workspace deletion, deletion audit, and backup expiry remain external policy/workflow work.
+- Native OTLP ingestion, Slack/Teams/PagerDuty adapters, production SLO dashboards, public evaluation datasets, and calibration reports are not bundled.
 
 ## สรุปภาษาไทย
 
-DeployGuard AI เป็นระบบช่วยทีม Platform และ SRE ประเมินความเสี่ยงของ change ก่อน deploy และสืบสวน incident จากหลักฐานที่ตรวจสอบย้อนกลับได้ ระบบรวมข้อมูล pull request, dependency ของ service, deployment, telemetry และความเห็นจากมนุษย์ไว้ใน workspace เดียว โดยใช้ deterministic engine ที่มีน้ำหนักคะแนนชัดเจนและทดสอบซ้ำได้
+DeployGuard AI เป็นระบบช่วยทีม Platform และ SRE วิเคราะห์ความเสี่ยงของ change ก่อน deploy และสืบสวน incident จากหลักฐานที่ตรวจสอบย้อนกลับได้ โดยรวม pull request, dependency ของ service, deployment, telemetry และความเห็นจากมนุษย์ไว้ใน workspace เดียว
 
-ระบบแยก `connected` (ข้อมูลจาก provider จริง) กับ `synthetic` (ข้อมูลสำหรับ demo และ evaluation) อย่างชัดเจน และไม่ทำงานที่มีความเสี่ยงสูงแทนมนุษย์ เช่น deploy, rollback, รัน shell หรือแก้ infrastructure อัตโนมัติ
+ระบบใช้ deterministic engine ที่มีน้ำหนักคะแนนชัดเจน แยก `connected` กับ `synthetic` อย่างชัดเจน และไม่มีความสามารถในการ deploy, rollback, รัน shell หรือแก้ infrastructure อัตโนมัติ
 
-เริ่มต้นใช้งานได้ด้วย `scripts/run-dev.ps1` หรือ Docker Compose ดูรายละเอียด API, security, operations และคู่มือภาษาไทยได้จากลิงก์ในหัวข้อ Documentation ด้านบน ส่วนการเปิด production จริงยังต้องเตรียม OIDC, GitHub App, SMTP, HTTPS, managed secrets, PostgreSQL backup/restore, monitoring และผู้รับผิดชอบระบบให้ครบถ้วน
+ใน repository มีระบบ tenant/RBAC, signed GitHub webhook, durable job/outbox foundation, metrics, backup/restore verification, retention report, migration, CI และ security baseline แล้ว ส่วนการเปิดใช้งาน production จริงยังต้องเตรียม OIDC, GitHub App, SMTP, HTTPS, managed secrets, distributed rate limit, PostgreSQL hardening, monitoring, backup policy และผู้รับผิดชอบระบบให้ครบถ้วน

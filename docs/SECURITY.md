@@ -27,21 +27,30 @@ telemetry source จึงต้องถือ external content ทุกชน
 - canonical deployment upsert ใช้ provider identity + workspace uniqueness และ exact repository/commit matching; connector health เป็น read-only summary ที่ไม่คืน credential
 - Alembic จัดการ schema; production ปฏิเสธ unversioned non-empty database
 - provider credential ที่ไม่ configured ทำให้ capability ปิดหรือ API คืน `503`
+- request ID, structured access log, bounded request body และ process-local rate
+  limit บน auth/ingestion routes
+- durable background job payload guard, idempotency, bounded retry, stale lease
+  recovery, dead-letter และ explicit replay primitives
+- private low-cardinality metrics endpoint ที่ไม่ใส่ tenant/path/payload labels
+- atomic backup และ read-only restore integrity check helpers
 - LLM runtime ไม่มี และ reserved endpoint คืน `501`
 
-### Controls ที่ยังขาด
+### Controls ที่ยังขาดหรือขึ้นกับ deployment
 
 - PostgreSQL RLS
-- API rate limit, request-body limit และ per-workspace quota
+- distributed API rate limit และ per-workspace quota (repository มี request-body
+  limit และ process-local baseline แล้ว)
 - managed secret/KMS integration และ automated rotation
-- queue isolation, retry/dead-letter handling และ webhook reconciliation
-- automated retention/deletion และ backup/restore workflow
+- worker isolation และ producer wiring (repository มี durable queue retry,
+  dead-letter และ explicit replay primitives แล้ว)
+- scheduled retention/deletion, legal hold และ backup/restore drill
 - raw telemetry redaction pipeline
 - tamper-resistant external audit sink
 - penetration test, production threat review และ incident-response exercise
 
 ดังนั้นสถานะที่ถูกต้องคือ **production-integratable** เมื่อ configure
-dependencies ครบ แต่ยังไม่ควรเรียก **production-hardened**
+dependencies ครบ แต่ยังไม่ควรเรียก **production-hardened** จนกว่าจะผ่าน
+deployment-specific controls และ restore/incident exercises
 
 ## Trust boundaries
 
@@ -140,8 +149,9 @@ negative isolation tests เป็น production hardening ที่ยังต
   provider Check ID, attempt/error และ next-retry metadata; retry recover/PATCH
   Check เดิมแทนการสร้าง duplicate
 
-ข้อจำกัด: processing ยัง synchronous ไม่มี queue, dead-letter queue, delivery
-reconciliation, backpressure หรือ persisted raw-body replay
+ข้อจำกัด: processing ยัง synchronous แม้มี durable queue/DLQ primitive แล้ว
+ยังไม่มี producer wiring, supervised worker, delivery reconciliation,
+backpressure หรือ persisted raw-body replay
 
 อ้างอิงวิธีตรวจ webhook:
 [Validating webhook deliveries](https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries)
@@ -238,7 +248,8 @@ inject เป็น runtime environment การ rotate ต้องไม่�
 ## Data minimization และ retention
 
 ปัจจุบันระบบเก็บ normalized metadata/evidence และไม่ clone repository โดย
-default แต่ automated retention ยังไม่มี:
+default มี retention helper แบบ allow-listed ที่ต้องเรียก explicit แต่ยังไม่มี
+scheduler, legal hold หรือ deletion audit:
 
 | Data class | Current behavior |
 |---|---|

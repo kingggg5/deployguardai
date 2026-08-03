@@ -6,7 +6,7 @@
 
 | Check | ผลที่ยืนยันแล้ว |
 |---|---|
-| Backend | 55 tests ผ่าน |
+| Backend | 56 tests ผ่าน |
 | Frontend | 50 tests ผ่าน |
 | Angular | Production build ผ่าน |
 | npm production dependencies | `npm audit --omit=dev` = 0 vulnerabilities |
