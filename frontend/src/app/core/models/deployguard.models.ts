@@ -84,6 +84,10 @@ export interface ChangeDetail {
   repository_id?: string;
   scenario_id: string;
   data_mode: DataMode;
+  analysis_schema_version: string;
+  engine_version: string;
+  scoring_policy_version: string;
+  graph_version: string;
   title: string;
   repository: string;
   author: string;
@@ -149,6 +153,10 @@ export interface IncidentDetail {
   id: string;
   scenario_id: string;
   data_mode: DataMode;
+  analysis_schema_version: string;
+  engine_version: string;
+  scoring_policy_version: string;
+  graph_version: string;
   title: string;
   severity: string;
   status: IncidentStatus;

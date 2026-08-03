@@ -3,6 +3,14 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 
+ANALYSIS_SCHEMA_VERSION = "1.0.0"
+ENGINE_VERSION = "1.0.0"
+RISK_SCORING_POLICY_VERSION = "risk-weighted-v1"
+GRAPH_VERSION = "dependency-bfs-v1"
+RCA_SCORING_POLICY_VERSION = "evidence-ranker-v1"
+LEGACY_ANALYSIS_VERSION = "legacy-unversioned"
+GRAPH_VERSION_NOT_APPLICABLE = "not-applicable"
+
 RISK_WEIGHTS: dict[str, float] = {
     "change_size": 0.25,
     "service_scope": 0.20,

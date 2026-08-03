@@ -752,3 +752,14 @@ def test_operations_migration_is_at_head_and_schema_is_complete(
         column["name"] for column in inspector.get_columns("incidents")
     }
     assert "assignee_user_id" in incident_columns
+    version_columns = {
+        "analysis_schema_version",
+        "engine_version",
+        "scoring_policy_version",
+        "graph_version",
+    }
+    change_columns = {
+        column["name"] for column in inspector.get_columns("changes")
+    }
+    assert version_columns <= change_columns
+    assert version_columns <= incident_columns

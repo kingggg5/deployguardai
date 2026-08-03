@@ -339,6 +339,57 @@ describe('OperationsCenterComponent', () => {
     expect(component.activeWorkspace()?.id).toBe(secondWorkspace.id);
   });
 
+  it('clears prior tenant data when the newly selected workspace fails to load', () => {
+    const secondWorkspace: WorkspaceSummary = {
+      ...workspace,
+      id: 'workspace-2',
+      name: 'Payments Reliability',
+      slug: 'payments-reliability'
+    };
+    const secondRepository: RepositorySummary = {
+      ...repository,
+      id: 'repo-2',
+      workspace_id: secondWorkspace.id,
+      full_name: 'acme/payments'
+    };
+    workspaceApi['workspaces'].mockReturnValue(of([workspace, secondWorkspace]));
+    workspaceApi['repositories'].mockImplementation((workspaceId: string) =>
+      of(workspaceId === secondWorkspace.id ? [secondRepository] : [repository])
+    );
+    operationsApi['services'].mockImplementation((workspaceId: string) =>
+      workspaceId === secondWorkspace.id
+        ? throwError(
+            () =>
+              new HttpErrorResponse({
+                status: 503,
+                error: { detail: 'Payments workspace is unavailable' }
+              })
+          )
+        : of([serviceRecord])
+    );
+    createComponent();
+
+    expect(component.hasWorkspaceSnapshot()).toBe(true);
+    expect(component.services()).toEqual([serviceRecord]);
+
+    component.selectWorkspaceId(secondWorkspace.id);
+    fixture.detectChanges();
+
+    expect(component.activeWorkspace()?.id).toBe(secondWorkspace.id);
+    expect(component.hasWorkspaceSnapshot()).toBe(false);
+    expect(component.services()).toEqual([]);
+    expect(component.riskPolicy()).toBeNull();
+    expect(component.repositories()).toEqual([]);
+    expect(component.members()).toEqual([]);
+    expect(fixture.nativeElement.textContent).toContain(
+      'This workspace snapshot is not ready'
+    );
+    expect(fixture.nativeElement.textContent).not.toContain(serviceRecord.name);
+
+    component.savePolicy();
+    expect(operationsApi['updateRiskPolicy']).not.toHaveBeenCalled();
+  });
+
   it('resets incident-scoped lifecycle and pending notes when incident changes', () => {
     createComponent();
     component.noteForm.setValue({ note: 'Rollback validated.' });

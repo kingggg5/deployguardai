@@ -7,6 +7,10 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_vali
 DataMode = Literal["synthetic", "connected"]
 RiskLevel = Literal["low", "moderate", "high", "critical"]
 NonEmptyString = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+VersionIdentifier = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=80),
+]
 
 
 class APIModel(BaseModel):
@@ -73,6 +77,10 @@ class ChangeDetail(APIModel):
     repository_id: str
     scenario_id: str
     data_mode: DataMode
+    analysis_schema_version: VersionIdentifier
+    engine_version: VersionIdentifier
+    scoring_policy_version: VersionIdentifier
+    graph_version: VersionIdentifier
     title: str
     repository: str
     author: str
@@ -138,6 +146,10 @@ class IncidentDetail(APIModel):
     id: str
     scenario_id: str
     data_mode: DataMode
+    analysis_schema_version: VersionIdentifier
+    engine_version: VersionIdentifier
+    scoring_policy_version: VersionIdentifier
+    graph_version: VersionIdentifier
     title: str
     severity: str
     status: str

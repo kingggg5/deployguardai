@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { OidcSecurityService } from 'angular-auth-oidc-client';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { WorkspaceApiService } from '../../core/api/workspace-api.service';
 import {
   ProductCapabilities,
@@ -155,5 +155,59 @@ describe('WorkspaceSetupComponent', () => {
       repository_id: repository.id,
       scenario_id: 'github-repository-1'
     });
+  });
+
+  it('does not expose the previous workspace after a tenant snapshot fails', () => {
+    const secondWorkspace: WorkspaceSummary = {
+      ...workspace,
+      id: 'workspace-2',
+      name: 'Payments Reliability',
+      slug: 'payments-reliability'
+    };
+    const secondRepository: RepositorySummary = {
+      ...repository,
+      id: 'repository-2',
+      workspace_id: secondWorkspace.id,
+      full_name: 'acme/payments'
+    };
+    api['repositories'].mockImplementation((workspaceId: string) =>
+      of(workspaceId === secondWorkspace.id ? [secondRepository] : [repository])
+    );
+    api['members'].mockImplementation((workspaceId: string) =>
+      workspaceId === secondWorkspace.id
+        ? throwError(() => new Error('workspace unavailable'))
+        : of([])
+    );
+    api['invite'] = vi.fn();
+    create();
+    component.user.set(user);
+    component.selectWorkspace(workspace);
+    fixture.detectChanges();
+
+    expect(component.hasWorkspaceSnapshot()).toBe(true);
+    expect(component.repositories()).toEqual([repository]);
+
+    component.selectWorkspace(secondWorkspace);
+    fixture.detectChanges();
+
+    expect(component.activeWorkspace()?.id).toBe(secondWorkspace.id);
+    expect(component.hasWorkspaceSnapshot()).toBe(false);
+    expect(component.repositories()).toEqual([]);
+    expect(component.members()).toEqual([]);
+    expect(component.invitations()).toEqual([]);
+    expect(component.auditEvents()).toEqual([]);
+    expect(component.connectedChanges()).toEqual([]);
+    expect(component.canManage()).toBe(false);
+    expect(fixture.nativeElement.textContent).toContain(
+      'Workspace data unavailable'
+    );
+    expect(fixture.nativeElement.textContent).not.toContain(repository.full_name);
+
+    component.invitationForm.setValue({
+      email: 'friend@example.com',
+      role: 'viewer'
+    });
+    component.inviteMember();
+    expect(api['invite']).not.toHaveBeenCalled();
   });
 });

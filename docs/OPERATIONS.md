@@ -349,7 +349,7 @@ target database:
 ```powershell
 python scripts/restore_check.py `
   --backup .runtime/backups/deployguard-20260803.db `
-  --format sqlite --expected-head 0007
+  --format sqlite --expected-head 0008
 ```
 
 สำหรับ PostgreSQL custom archive ใช้ `--format postgresql-custom` ซึ่งเรียก
@@ -421,7 +421,7 @@ docker compose config
 Backup validation (read-only):
 
 ```powershell
-python scripts/restore_check.py --backup .runtime/backups/deployguard.db --format sqlite --expected-head 0007
+python scripts/restore_check.py --backup .runtime/backups/deployguard.db --format sqlite --expected-head 0008
 ```
 
 Migration smoke:

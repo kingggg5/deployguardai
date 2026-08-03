@@ -14,13 +14,27 @@ release notes from `main` and will use semantic versioning for tagged releases.
 - Private low-cardinality Prometheus metrics endpoint with request-guard rejection counters.
 - Recoverable SQLite/PostgreSQL backup helper and allow-listed, dry-run-first retention report.
 - Read-only SQLite integrity/Alembic-head and PostgreSQL archive validation through `scripts/restore_check.py`.
-- Versioned SHA-256-pinned synthetic evaluation manifests with CI-uploaded result artifacts.
+- Engine-backed synthetic RCA evaluation manifest v2 with immutable inputs,
+  expected labels, fail-closed validation, versioned scoring metadata,
+  per-episode failure slices, and CI-uploaded result artifacts.
+- Persisted schema, engine, scoring-policy, and graph provenance on change and
+  incident snapshots, including an honest `legacy-unversioned` migration path.
+- PostgreSQL migration-chain coverage in CI, including an upgrade/downgrade/
+  re-upgrade cycle from the previous release revision.
 
 ### Changed
 
 - README and operations documentation now distinguish implemented hardening from provider- and infrastructure-dependent production work.
 - Backend test dependency updated to a secure pytest 9.x range.
 - GitHub Actions baseline moved to Node 24-compatible action majors to remove the hosted-runner Node 20 deprecation path.
+- Removed the unused pseudo-ML module and its fixed, unverified performance
+  metrics; semantic unsupported-claim scoring now remains explicitly unmeasured
+  until a human review protocol exists.
+- Workspace Setup and Operations now clear tenant-scoped records while a new
+  workspace snapshot loads, reject mutations without a matching snapshot, and
+  show a recoverable unavailable state instead of stale cross-workspace data.
+- Analysis identity now includes its version bundle, so an engine or policy
+  release creates a new immutable result instead of reusing a stale snapshot.
 
 ### Still required for production
 

@@ -1,0 +1,113 @@
+{
+  "schema": "deployguard-evaluation-manifest/v2",
+  "dataset": "DeployGuard Synthetic RCA Regression Suite",
+  "version": "2.0.0",
+  "data_mode": "synthetic",
+  "license": "Apache-2.0",
+  "provenance": {
+    "source": "Hand-authored synthetic RCA cases maintained in the DeployGuard AI repository; no production incidents or customer data are included.",
+    "created_at": "2026-08-03"
+  },
+  "episodes": [
+    {
+      "id": "ep-001",
+      "fault": "retry_storm",
+      "split": "core",
+      "input": {
+        "limit": 3,
+        "evidence": [
+          {"id": "ep-001-trace", "type": "trace", "quality": 0.98, "supports": ["ep-001-payment"], "contradicts": []},
+          {"id": "ep-001-metric", "type": "metric", "quality": 0.94, "supports": ["ep-001-payment"], "contradicts": ["ep-001-checkout"]},
+          {"id": "ep-001-log", "type": "log", "quality": 0.72, "supports": ["ep-001-checkout"], "contradicts": []},
+          {"id": "ep-001-config", "type": "config", "quality": 0.58, "supports": ["ep-001-fraud"], "contradicts": []}
+        ],
+        "candidates": [
+          {"id": "ep-001-payment", "cause_service": "payment-adapter", "cause": "Retry policy amplified downstream payment failures.", "prior": 0.58, "next_step": "Compare retry attempts with payment provider latency."},
+          {"id": "ep-001-checkout", "cause_service": "checkout-api", "cause": "Checkout workers saturated under elevated request volume.", "prior": 0.48, "next_step": "Inspect worker saturation before and after the deployment."},
+          {"id": "ep-001-fraud", "cause_service": "fraud-service", "cause": "Fraud policy evaluation delayed payment authorization.", "prior": 0.35, "next_step": "Compare fraud decision latency with the incident window."}
+        ]
+      },
+      "expected": {"root_cause_candidate_id": "ep-001-payment"}
+    },
+    {
+      "id": "ep-002",
+      "fault": "cache_invalidation",
+      "split": "core",
+      "input": {
+        "limit": 3,
+        "evidence": [
+          {"id": "ep-002-trace", "type": "trace", "quality": 0.96, "supports": ["ep-002-catalog"], "contradicts": []},
+          {"id": "ep-002-deploy", "type": "deployment", "quality": 0.91, "supports": ["ep-002-catalog"], "contradicts": ["ep-002-search"]},
+          {"id": "ep-002-config", "type": "config", "quality": 0.67, "supports": ["ep-002-redis"], "contradicts": []},
+          {"id": "ep-002-log", "type": "log", "quality": 0.55, "supports": ["ep-002-search"], "contradicts": []}
+        ],
+        "candidates": [
+          {"id": "ep-002-catalog", "cause_service": "catalog-service", "cause": "Catalog invalidation omitted affected product keys.", "prior": 0.56, "next_step": "Replay invalidation keys against the affected catalog entries."},
+          {"id": "ep-002-redis", "cause_service": "catalog-cache", "cause": "Cache nodes evicted hot keys during memory pressure.", "prior": 0.44, "next_step": "Inspect eviction counters for the incident window."},
+          {"id": "ep-002-search", "cause_service": "search-service", "cause": "Search indexing lag returned stale catalog documents.", "prior": 0.38, "next_step": "Compare search index lag with stale response timestamps."}
+        ]
+      },
+      "expected": {"root_cause_candidate_id": "ep-002-catalog"}
+    },
+    {
+      "id": "ep-003",
+      "fault": "key_rotation_lag",
+      "split": "core",
+      "input": {
+        "limit": 3,
+        "evidence": [
+          {"id": "ep-003-config", "type": "config", "quality": 0.97, "supports": ["ep-003-auth"], "contradicts": []},
+          {"id": "ep-003-trace", "type": "trace", "quality": 0.90, "supports": ["ep-003-auth"], "contradicts": ["ep-003-gateway"]},
+          {"id": "ep-003-metric", "type": "metric", "quality": 0.66, "supports": ["ep-003-jwks"], "contradicts": []},
+          {"id": "ep-003-log", "type": "log", "quality": 0.54, "supports": ["ep-003-gateway"], "contradicts": []}
+        ],
+        "candidates": [
+          {"id": "ep-003-auth", "cause_service": "auth-service", "cause": "Rotated signing keys were published after tokens began using them.", "prior": 0.60, "next_step": "Compare token key IDs with the JWKS publication timeline."},
+          {"id": "ep-003-jwks", "cause_service": "jwks-cache", "cause": "The verifier retained a stale JWKS document.", "prior": 0.46, "next_step": "Inspect JWKS cache age and refresh outcomes."},
+          {"id": "ep-003-gateway", "cause_service": "edge-gateway", "cause": "Gateway authorization middleware rejected otherwise valid tokens.", "prior": 0.37, "next_step": "Compare gateway rejection reasons with direct verifier results."}
+        ]
+      },
+      "expected": {"root_cause_candidate_id": "ep-003-auth"}
+    },
+    {
+      "id": "ep-004",
+      "fault": "db_connection_leak",
+      "split": "core",
+      "input": {
+        "limit": 3,
+        "evidence": [
+          {"id": "ep-004-metric", "type": "metric", "quality": 0.98, "supports": ["ep-004-db"], "contradicts": []},
+          {"id": "ep-004-trace", "type": "trace", "quality": 0.93, "supports": ["ep-004-db"], "contradicts": ["ep-004-order"]},
+          {"id": "ep-004-log", "type": "log", "quality": 0.70, "supports": ["ep-004-order"], "contradicts": []},
+          {"id": "ep-004-config", "type": "config", "quality": 0.62, "supports": ["ep-004-proxy"], "contradicts": []}
+        ],
+        "candidates": [
+          {"id": "ep-004-db", "cause_service": "order-db", "cause": "Connections were not returned after a timeout path.", "prior": 0.57, "next_step": "Correlate open connections with timed-out transaction traces."},
+          {"id": "ep-004-order", "cause_service": "order-service", "cause": "Order workers exceeded their concurrency limit.", "prior": 0.45, "next_step": "Compare worker concurrency with pool acquisition latency."},
+          {"id": "ep-004-proxy", "cause_service": "database-proxy", "cause": "Proxy pool limits rejected otherwise healthy connections.", "prior": 0.40, "next_step": "Inspect proxy pool saturation and rejection counters."}
+        ]
+      },
+      "expected": {"root_cause_candidate_id": "ep-004-db"}
+    },
+    {
+      "id": "ep-005",
+      "fault": "memory_leak",
+      "split": "challenge",
+      "input": {
+        "limit": 3,
+        "evidence": [
+          {"id": "ep-005-heap", "type": "metric", "quality": 0.79, "supports": ["ep-005-web"], "contradicts": []},
+          {"id": "ep-005-trace", "type": "trace", "quality": 0.96, "supports": ["ep-005-payment"], "contradicts": []},
+          {"id": "ep-005-retry", "type": "metric", "quality": 0.90, "supports": ["ep-005-payment"], "contradicts": []},
+          {"id": "ep-005-log", "type": "log", "quality": 0.61, "supports": ["ep-005-session"], "contradicts": []}
+        ],
+        "candidates": [
+          {"id": "ep-005-web", "cause_service": "web-checkout", "cause": "A retained checkout session object caused sustained heap growth.", "prior": 0.52, "next_step": "Compare retained object types across consecutive heap snapshots."},
+          {"id": "ep-005-payment", "cause_service": "payment-adapter", "cause": "Payment retries retained request contexts and increased memory pressure.", "prior": 0.55, "next_step": "Disable retries in a sandbox and compare allocation profiles."},
+          {"id": "ep-005-session", "cause_service": "session-store", "cause": "Session payload expansion increased checkout memory use.", "prior": 0.40, "next_step": "Compare session payload size before and after the change."}
+        ]
+      },
+      "expected": {"root_cause_candidate_id": "ep-005-web"}
+    }
+  ]
+}

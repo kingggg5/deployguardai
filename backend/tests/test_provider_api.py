@@ -8,6 +8,12 @@ from sqlalchemy import select
 
 from app import provider_services
 from app.models import ChangeRecord
+from app.engines import (
+    ANALYSIS_SCHEMA_VERSION,
+    ENGINE_VERSION,
+    GRAPH_VERSION,
+    RISK_SCORING_POLICY_VERSION,
+)
 from app.operations_models import OperationalEvent
 
 
@@ -215,6 +221,10 @@ def test_github_install_discovery_and_sync(
         assert change is not None
         assert change.data_mode == "connected"
         assert change.repository == "acme/checkout"
+        assert change.analysis_schema_version == ANALYSIS_SCHEMA_VERSION
+        assert change.engine_version == ENGINE_VERSION
+        assert change.scoring_policy_version == RISK_SCORING_POLICY_VERSION
+        assert change.graph_version == GRAPH_VERSION
     listed_changes = client.get(
         f"/api/v1/workspaces/{workspace_id}/repositories/{connected[0]['id']}/changes",
         headers=headers,

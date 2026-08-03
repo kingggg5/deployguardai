@@ -8,7 +8,14 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from .deployment_services import upsert_github_deployment
-from .engines import calculate_blast_radius, calculate_change_risk
+from .engines import (
+    ANALYSIS_SCHEMA_VERSION,
+    ENGINE_VERSION,
+    GRAPH_VERSION,
+    RISK_SCORING_POLICY_VERSION,
+    calculate_blast_radius,
+    calculate_change_risk,
+)
 from .errors import DomainError
 from .models import (
     ChangeRecord,
@@ -59,6 +66,10 @@ def change_detail(record: ChangeRecord) -> ChangeDetail:
             "repository_id": record.repository_id,
             "scenario_id": record.scenario_id,
             "data_mode": record.data_mode,
+            "analysis_schema_version": record.analysis_schema_version,
+            "engine_version": record.engine_version,
+            "scoring_policy_version": record.scoring_policy_version,
+            "graph_version": record.graph_version,
             "title": record.title,
             "repository": record.repository,
             "author": record.author,
@@ -89,6 +100,10 @@ def incident_detail(session: Session, record: IncidentRecord) -> IncidentDetail:
             "id": record.id,
             "scenario_id": record.scenario_id,
             "data_mode": record.data_mode,
+            "analysis_schema_version": record.analysis_schema_version,
+            "engine_version": record.engine_version,
+            "scoring_policy_version": record.scoring_policy_version,
+            "graph_version": record.graph_version,
             "title": record.title,
             "severity": record.severity,
             "status": record.status,
@@ -461,6 +476,12 @@ def analyze_change(
         repository_id=repository_id,
         requested_services=request.changed_services,
     )
+    analysis_versions = {
+        "analysis_schema_version": ANALYSIS_SCHEMA_VERSION,
+        "engine_version": ENGINE_VERSION,
+        "scoring_policy_version": RISK_SCORING_POLICY_VERSION,
+        "graph_version": GRAPH_VERSION,
+    }
     canonical = json.dumps(
         {
             "workspace_id": scenario.workspace_id,
@@ -468,6 +489,7 @@ def analyze_change(
             "request": request.model_dump(mode="json"),
             "effective_changed_services": effective_changed_services,
             "topology": _canonical_topology(graph),
+            "analysis_versions": analysis_versions,
         },
         sort_keys=True,
         separators=(",", ":"),
@@ -507,6 +529,7 @@ def analyze_change(
         repository_id=scenario.repository_id,
         scenario_id=scenario.id,
         data_mode=scenario.data_mode,
+        **analysis_versions,
         title=request.title,
         repository=request.repository,
         author=request.author,

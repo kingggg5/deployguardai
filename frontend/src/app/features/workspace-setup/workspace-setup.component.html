@@ -128,6 +128,27 @@
         </section>
 
         @if (activeWorkspace(); as workspace) {
+          @if (!hasWorkspaceSnapshot()) {
+            <section class="work-panel" aria-live="polite">
+              <header class="work-heading">
+                <div>
+                  <span>Tenant-scoped snapshot</span>
+                  <h2>{{ isBusy() ? 'Loading workspace data…' : 'Workspace data unavailable' }}</h2>
+                </div>
+                <small [attr.data-tone]="isBusy() ? 'waiting' : 'fixture'">
+                  {{ isBusy() ? 'Loading' : 'Retry required' }}
+                </small>
+              </header>
+              <p class="truth-note">
+                Records from the previously selected workspace have been cleared. Retry to load a fresh snapshot for {{ workspace.name }}.
+              </p>
+              @if (!isBusy()) {
+                <button type="button" class="setup-action" data-variant="primary" (click)="selectWorkspace(workspace)">
+                  Retry workspace load
+                </button>
+              }
+            </section>
+          } @else {
           <section class="work-panel">
             <header class="work-heading">
               <div>
@@ -323,6 +344,7 @@
                 <p class="register-empty">Security-relevant actions will appear here.</p>
               }
             </section>
+          }
           }
         }
       </div>

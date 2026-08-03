@@ -85,6 +85,7 @@ export class OperationsCenterComponent implements OnInit {
   readonly capabilities = signal<ProductCapabilities | null>(null);
   readonly workspaces = signal<WorkspaceSummary[]>([]);
   readonly activeWorkspace = signal<WorkspaceSummary | null>(null);
+  readonly loadedWorkspaceId = signal<string | null>(null);
   readonly repositories = signal<RepositorySummary[]>([]);
   readonly members = signal<MembershipSummary[]>([]);
   readonly services = signal<ServiceRecord[]>([]);
@@ -111,12 +112,18 @@ export class OperationsCenterComponent implements OnInit {
       ? this.deployments()
       : this.deployments().filter((deployment) => deployment.status === status);
   });
+  readonly hasWorkspaceSnapshot = computed(() => {
+    const workspace = this.activeWorkspace();
+    return Boolean(workspace && this.loadedWorkspaceId() === workspace.id);
+  });
 
   readonly canManage = computed(() => {
+    if (!this.hasWorkspaceSnapshot()) return false;
     const role = this.activeWorkspace()?.role;
     return role === 'owner' || role === 'admin';
   });
   readonly canRespond = computed(() => {
+    if (!this.hasWorkspaceSnapshot()) return false;
     const role = this.activeWorkspace()?.role;
     return role === 'owner' || role === 'admin' || role === 'responder';
   });
@@ -295,6 +302,7 @@ export class OperationsCenterComponent implements OnInit {
   }
 
   selectService(service: ServiceRecord): void {
+    if (service.workspace_id !== this.currentWorkspace()?.id) return;
     this.selectedService.set(service);
     this.serviceEditForm.reset({
       name: service.name,
@@ -310,7 +318,7 @@ export class OperationsCenterComponent implements OnInit {
   }
 
   createService(): void {
-    const workspace = this.activeWorkspace();
+    const workspace = this.currentWorkspace();
     if (
       !workspace ||
       !this.canManage() ||
@@ -326,6 +334,7 @@ export class OperationsCenterComponent implements OnInit {
       .pipe(finalize(() => this.busyAction.set('')))
       .subscribe({
         next: (service) => {
+          if (!this.isCurrentWorkspace(workspace.id)) return;
           this.services.update((items) => [...items, service]);
           this.selectService(service);
           this.serviceForm.reset({
@@ -343,7 +352,11 @@ export class OperationsCenterComponent implements OnInit {
           this.showServiceForm.set(false);
           this.notice.set('Service registered in this workspace.');
         },
-        error: (error) => this.fail(error, 'The service could not be registered.')
+        error: (error) => {
+          if (this.isCurrentWorkspace(workspace.id)) {
+            this.fail(error, 'The service could not be registered.');
+          }
+        }
       });
   }
 
@@ -351,6 +364,8 @@ export class OperationsCenterComponent implements OnInit {
     const service = this.selectedService();
     if (
       !service ||
+      !this.hasWorkspaceSnapshot() ||
+      service.workspace_id !== this.currentWorkspace()?.id ||
       !this.canManage() ||
       this.serviceEditForm.invalid ||
       this.isBusy()
@@ -375,18 +390,23 @@ export class OperationsCenterComponent implements OnInit {
       .pipe(finalize(() => this.busyAction.set('')))
       .subscribe({
         next: (updated) => {
+          if (!this.isCurrentWorkspace(service.workspace_id)) return;
           this.services.update((items) =>
             items.map((item) => (item.id === updated.id ? updated : item))
           );
           this.selectService(updated);
           this.notice.set('Service ownership and operating metadata saved.');
         },
-        error: (error) => this.fail(error, 'The service could not be updated.')
+        error: (error) => {
+          if (this.isCurrentWorkspace(service.workspace_id)) {
+            this.fail(error, 'The service could not be updated.');
+          }
+        }
       });
   }
 
   savePolicy(): void {
-    const workspace = this.activeWorkspace();
+    const workspace = this.currentWorkspace();
     const current = this.riskPolicy();
     if (
       !workspace ||
@@ -413,16 +433,21 @@ export class OperationsCenterComponent implements OnInit {
       .pipe(finalize(() => this.busyAction.set('')))
       .subscribe({
         next: (policy) => {
+          if (!this.isCurrentWorkspace(workspace.id)) return;
           this.riskPolicy.set(policy);
           this.patchPolicy(policy);
           this.notice.set(`Risk policy v${policy.version} is now active.`);
         },
-        error: (error) => this.fail(error, 'The risk policy could not be saved.')
+        error: (error) => {
+          if (this.isCurrentWorkspace(workspace.id)) {
+            this.fail(error, 'The risk policy could not be saved.');
+          }
+        }
       });
   }
 
   applyEventFilters(): void {
-    const workspace = this.activeWorkspace();
+    const workspace = this.currentWorkspace();
     if (!workspace || this.isBusy()) return;
     const value = this.eventFilterForm.getRawValue();
     const filters: OperationalEventFilters = {
@@ -446,8 +471,14 @@ export class OperationsCenterComponent implements OnInit {
       .events(workspace.id, filters)
       .pipe(finalize(() => this.busyAction.set('')))
       .subscribe({
-        next: (events) => this.events.set(events),
-        error: (error) => this.fail(error, 'The event ledger could not be filtered.')
+        next: (events) => {
+          if (this.isCurrentWorkspace(workspace.id)) this.events.set(events);
+        },
+        error: (error) => {
+          if (this.isCurrentWorkspace(workspace.id)) {
+            this.fail(error, 'The event ledger could not be filtered.');
+          }
+        }
       });
   }
 
@@ -466,7 +497,7 @@ export class OperationsCenterComponent implements OnInit {
   }
 
   createEvent(): void {
-    const workspace = this.activeWorkspace();
+    const workspace = this.currentWorkspace();
     if (
       !workspace ||
       !this.canRespond() ||
@@ -498,6 +529,7 @@ export class OperationsCenterComponent implements OnInit {
       .pipe(finalize(() => this.busyAction.set('')))
       .subscribe({
         next: (event) => {
+          if (!this.isCurrentWorkspace(workspace.id)) return;
           this.events.update((items) => [event, ...items]);
           this.eventForm.reset({
             eventType: '',
@@ -510,17 +542,22 @@ export class OperationsCenterComponent implements OnInit {
           this.showEventForm.set(false);
           this.notice.set('Event accepted into the workspace ledger.');
         },
-        error: (error) =>
-          this.fail(
-            error,
-            'The event was not accepted. Check its provider ID and try again.'
-          )
+        error: (error) => {
+          if (this.isCurrentWorkspace(workspace.id)) {
+            this.fail(
+              error,
+              'The event was not accepted. Check its provider ID and try again.'
+            );
+          }
+        }
       });
   }
 
   updateLifecycle(): void {
+    const workspace = this.currentWorkspace();
     const incident = this.incident();
     if (
+      !workspace ||
       !incident ||
       !this.canRespond() ||
       this.isIncidentTerminal() ||
@@ -540,6 +577,7 @@ export class OperationsCenterComponent implements OnInit {
       .pipe(finalize(() => this.busyAction.set('')))
       .subscribe({
         next: (lifecycle) => {
+          if (!this.isCurrentWorkspace(workspace.id)) return;
           if (this.incident()?.id !== lifecycle.incident_id) return;
           this.lifecycle.set(lifecycle);
           this.pendingTimeline.set([]);
@@ -548,14 +586,19 @@ export class OperationsCenterComponent implements OnInit {
           );
           this.reloadNotifications();
         },
-        error: (error) =>
-          this.fail(error, 'The incident lifecycle could not be updated.')
+        error: (error) => {
+          if (this.isCurrentWorkspace(workspace.id)) {
+            this.fail(error, 'The incident lifecycle could not be updated.');
+          }
+        }
       });
   }
 
   addNote(): void {
+    const workspace = this.currentWorkspace();
     const incident = this.incident();
     if (
+      !workspace ||
       !incident ||
       !this.canRespond() ||
       this.noteForm.invalid ||
@@ -571,6 +614,7 @@ export class OperationsCenterComponent implements OnInit {
       .pipe(finalize(() => this.busyAction.set('')))
       .subscribe({
         next: (entry) => {
+          if (!this.isCurrentWorkspace(workspace.id)) return;
           if (this.incident()?.id !== incident.id) return;
           this.pendingTimeline.update((items) =>
             items.some((item) => item.id === entry.id)
@@ -581,23 +625,40 @@ export class OperationsCenterComponent implements OnInit {
           this.notice.set('Incident note appended to the audit timeline.');
           this.reloadNotifications();
         },
-        error: (error) => this.fail(error, 'The incident note could not be added.')
+        error: (error) => {
+          if (this.isCurrentWorkspace(workspace.id)) {
+            this.fail(error, 'The incident note could not be added.');
+          }
+        }
       });
   }
 
   markRead(notification: OperatorNotification): void {
-    if (notification.read_at || this.isBusy()) return;
+    const workspace = this.currentWorkspace();
+    if (
+      !workspace ||
+      notification.workspace_id !== workspace.id ||
+      notification.read_at ||
+      this.isBusy()
+    ) {
+      return;
+    }
     this.begin(`notification-${notification.id}`);
     this.api
       .markNotificationRead(notification.id)
       .pipe(finalize(() => this.busyAction.set('')))
       .subscribe({
-        next: (updated) =>
+        next: (updated) => {
+          if (!this.isCurrentWorkspace(workspace.id)) return;
           this.notifications.update((items) =>
             items.map((item) => (item.id === updated.id ? updated : item))
-          ),
-        error: (error) =>
-          this.fail(error, 'The notification could not be marked as read.')
+          );
+        },
+        error: (error) => {
+          if (this.isCurrentWorkspace(workspace.id)) {
+            this.fail(error, 'The notification could not be marked as read.');
+          }
+        }
       });
   }
 
@@ -637,6 +698,7 @@ export class OperationsCenterComponent implements OnInit {
             null;
           this.activeWorkspace.set(active);
           if (active) this.loadWorkspaceContext(active);
+          else this.clearWorkspaceData();
         },
         error: (error) =>
           this.fail(
@@ -676,6 +738,9 @@ export class OperationsCenterComponent implements OnInit {
 
   private loadWorkspaceContext(workspace: WorkspaceSummary): void {
     const requestId = ++this.workspaceRequestId;
+    this.activeWorkspace.set(workspace);
+    this.loadedWorkspaceId.set(null);
+    this.clearWorkspaceData();
     this.isLoading.set(true);
     this.error.set('');
     this.notice.set('');
@@ -705,6 +770,7 @@ export class OperationsCenterComponent implements OnInit {
           this.notifications.set(context.notifications);
           this.repositories.set(context.repositories);
           this.members.set(context.members);
+          this.loadedWorkspaceId.set(workspace.id);
           this.patchPolicy(context.policy);
           const selected =
             context.services.find(
@@ -713,20 +779,51 @@ export class OperationsCenterComponent implements OnInit {
           if (selected) this.selectService(selected);
           else this.selectedService.set(null);
         },
-        error: (error) =>
+        error: (error) => {
+          if (requestId !== this.workspaceRequestId) return;
           this.fail(
             error,
             'Workspace operations data could not be loaded. Retry the connection.'
-          )
+          );
+        }
       });
   }
 
   private reloadNotifications(): void {
-    const workspace = this.activeWorkspace();
+    const workspace = this.currentWorkspace();
     if (!workspace) return;
     this.api.notifications(workspace.id, false, 100).subscribe({
-      next: (notifications) => this.notifications.set(notifications)
+      next: (notifications) => {
+        if (this.isCurrentWorkspace(workspace.id)) {
+          this.notifications.set(notifications);
+        }
+      }
     });
+  }
+
+  private currentWorkspace(): WorkspaceSummary | null {
+    const workspace = this.activeWorkspace();
+    return workspace && this.loadedWorkspaceId() === workspace.id
+      ? workspace
+      : null;
+  }
+
+  private isCurrentWorkspace(workspaceId: string): boolean {
+    return this.currentWorkspace()?.id === workspaceId;
+  }
+
+  private clearWorkspaceData(): void {
+    this.loadedWorkspaceId.set(null);
+    this.repositories.set([]);
+    this.members.set([]);
+    this.services.set([]);
+    this.selectedService.set(null);
+    this.riskPolicy.set(null);
+    this.events.set([]);
+    this.deployments.set([]);
+    this.notifications.set([]);
+    this.showServiceForm.set(false);
+    this.showEventForm.set(false);
   }
 
   private patchPolicy(policy: RiskPolicy): void {

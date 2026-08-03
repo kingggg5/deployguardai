@@ -175,9 +175,12 @@ sequenceDiagram
     API-->>UI: ChangeDetail
 ```
 
-Risk และ blast radius เป็น deterministic snapshots การส่ง input เดิมภายใต้
-weights และ graph เดิมต้องได้ผลเดิม แต่ snapshot ยังไม่มี explicit schema/scoring
-version จึงยังไม่เหมาะกับ historical model comparison ระยะยาว
+Risk, blast radius และ ranked hypotheses เป็น deterministic snapshots ที่เก็บ
+schema, engine, scoring-policy และ graph-policy version ไว้กับ record โดยตรง
+Canonical analysis identity รวม version bundle และ topology ดังนั้น input เดิม
+ภายใต้ engine/policy รุ่นใหม่จะสร้าง snapshot ใหม่แทนการคืนผลเก่า Record ก่อน
+migration `0008` ถูกระบุเป็น `legacy-unversioned` โดยไม่อ้าง provenance ที่พิสูจน์
+ไม่ได้
 
 ## Connected GitHub flow
 

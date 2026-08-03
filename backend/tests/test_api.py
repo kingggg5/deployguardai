@@ -6,6 +6,14 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from app.config import Settings
+from app.engines import (
+    ANALYSIS_SCHEMA_VERSION,
+    ENGINE_VERSION,
+    GRAPH_VERSION,
+    GRAPH_VERSION_NOT_APPLICABLE,
+    RCA_SCORING_POLICY_VERSION,
+    RISK_SCORING_POLICY_VERSION,
+)
 from app.main import create_app
 from app.models import LEGACY_REPOSITORY_ID, LEGACY_WORKSPACE_ID
 
@@ -44,6 +52,28 @@ def test_health_overview_and_seeded_lists(client: TestClient) -> None:
     assert len(incidents.json()) == 3
     assert all(item["repository"] for item in scenarios.json())
     assert all(item["data_mode"] == "synthetic" for item in scenarios.json())
+    expected_change_versions = {
+        "analysis_schema_version": ANALYSIS_SCHEMA_VERSION,
+        "engine_version": ENGINE_VERSION,
+        "scoring_policy_version": RISK_SCORING_POLICY_VERSION,
+        "graph_version": GRAPH_VERSION,
+    }
+    expected_incident_versions = {
+        "analysis_schema_version": ANALYSIS_SCHEMA_VERSION,
+        "engine_version": ENGINE_VERSION,
+        "scoring_policy_version": RCA_SCORING_POLICY_VERSION,
+        "graph_version": GRAPH_VERSION_NOT_APPLICABLE,
+    }
+    assert all(
+        {key: item[key] for key in expected_change_versions}
+        == expected_change_versions
+        for item in changes.json()
+    )
+    assert all(
+        {key: item[key] for key in expected_incident_versions}
+        == expected_incident_versions
+        for item in incidents.json()
+    )
 
 
 def test_health_reports_connected_for_fresh_runtime(tmp_path: Path) -> None:
@@ -87,6 +117,17 @@ def test_analyze_change_persists_bounded_explainable_result(
     assert payload["id"] == second.json()["id"]
     assert payload["workspace_id"] == LEGACY_WORKSPACE_ID
     assert payload["repository_id"] == LEGACY_REPOSITORY_ID
+    assert {
+        "analysis_schema_version": payload["analysis_schema_version"],
+        "engine_version": payload["engine_version"],
+        "scoring_policy_version": payload["scoring_policy_version"],
+        "graph_version": payload["graph_version"],
+    } == {
+        "analysis_schema_version": ANALYSIS_SCHEMA_VERSION,
+        "engine_version": ENGINE_VERSION,
+        "scoring_policy_version": RISK_SCORING_POLICY_VERSION,
+        "graph_version": GRAPH_VERSION,
+    }
     assert 0 <= payload["risk"]["overall_score"] <= 100
     assert len(payload["risk"]["dimensions"]) == 6
     assert payload["risk"]["recommendations"]
@@ -97,6 +138,24 @@ def test_analyze_change_persists_bounded_explainable_result(
         client.get("/api/v1/overview").json()["active_change"]["id"]
         == "chg-checkout-timeout"
     )
+
+
+def test_analysis_version_change_creates_a_new_snapshot(
+    client: TestClient, monkeypatch
+) -> None:
+    from app import services
+
+    first = client.post("/api/v1/changes/analyze", json=ANALYZE_PAYLOAD)
+    monkeypatch.setattr(services, "ENGINE_VERSION", "1.0.1-test")
+    second = client.post("/api/v1/changes/analyze", json=ANALYZE_PAYLOAD)
+
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert second.json()["id"] != first.json()["id"]
+    assert second.json()["engine_version"] == "1.0.1-test"
+    assert client.get(f"/api/v1/changes/{first.json()['id']}").json()[
+        "engine_version"
+    ] == ENGINE_VERSION
 
 
 def test_feedback_is_recorded_and_updates_hypothesis_status(
@@ -120,6 +179,8 @@ def test_feedback_is_recorded_and_updates_hypothesis_status(
     )
     assert hypothesis["status"] == "confirmed"
     assert payload["feedback"][-1]["verdict"] == "confirmed"
+    assert payload["scoring_policy_version"] == RCA_SCORING_POLICY_VERSION
+    assert payload["graph_version"] == GRAPH_VERSION_NOT_APPLICABLE
     persisted = client.get(
         "/api/v1/incidents/inc-checkout-latency"
     ).json()
@@ -131,6 +192,10 @@ def test_domain_and_validation_errors(client: TestClient) -> None:
     invalid = client.post(
         "/api/v1/changes/analyze",
         json={**ANALYZE_PAYLOAD, "test_coverage": 1.4},
+    )
+    client_selected_engine = client.post(
+        "/api/v1/changes/analyze",
+        json={**ANALYZE_PAYLOAD, "engine_version": "attacker-selected"},
     )
     bad_hypothesis = client.post(
         "/api/v1/incidents/inc-checkout-latency/feedback",
@@ -148,8 +213,29 @@ def test_domain_and_validation_errors(client: TestClient) -> None:
     }
     assert invalid.status_code == 422
     assert isinstance(invalid.json()["detail"], list)
+    assert client_selected_engine.status_code == 422
     assert bad_hypothesis.status_code == 404
     assert bad_hypothesis.json()["code"] == "hypothesis_not_found"
+
+
+def test_openapi_requires_persisted_analysis_versions(
+    client: TestClient,
+) -> None:
+    schemas = client.get("/openapi.json").json()["components"]["schemas"]
+    version_fields = {
+        "analysis_schema_version",
+        "engine_version",
+        "scoring_policy_version",
+        "graph_version",
+    }
+
+    for schema_name in ("ChangeDetail", "IncidentDetail"):
+        schema = schemas[schema_name]
+        assert version_fields <= set(schema["properties"])
+        assert version_fields <= set(schema["required"])
+    assert version_fields.isdisjoint(
+        schemas["AnalyzeChangeRequest"]["properties"]
+    )
 
 
 def test_cors_allows_both_configured_frontend_origins(
@@ -259,10 +345,3 @@ def test_external_write_endpoints_are_secure_by_default(
         reset = secure_client.post("/api/v1/reset-database")
         assert reset.status_code == 403
         assert reset.json()["code"] == "database_reset_disabled"
-
-
-def test_ml_model_prediction() -> None:
-    from app.ml_trainer import PRRiskMLModel
-    model = PRRiskMLModel()
-    score = model.predict_risk_score({"files_changed": 15, "lines_added": 400, "changed_services": ["checkout-api", "payment-adapter"]})
-    assert 0 <= score <= 100

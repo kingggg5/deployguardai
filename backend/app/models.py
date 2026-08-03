@@ -16,6 +16,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
+from .engines import LEGACY_ANALYSIS_VERSION
 
 
 LEGACY_WORKSPACE_ID = "00000000-0000-0000-0000-000000000002"
@@ -64,6 +65,18 @@ class ChangeRecord(Base):
         ForeignKey("scenarios.id"), index=True
     )
     data_mode: Mapped[str] = mapped_column(String(20), default="synthetic")
+    analysis_schema_version: Mapped[str] = mapped_column(
+        String(80), server_default=LEGACY_ANALYSIS_VERSION
+    )
+    engine_version: Mapped[str] = mapped_column(
+        String(80), server_default=LEGACY_ANALYSIS_VERSION
+    )
+    scoring_policy_version: Mapped[str] = mapped_column(
+        String(80), server_default=LEGACY_ANALYSIS_VERSION
+    )
+    graph_version: Mapped[str] = mapped_column(
+        String(80), server_default=LEGACY_ANALYSIS_VERSION
+    )
     title: Mapped[str] = mapped_column(String(240))
     repository: Mapped[str] = mapped_column(String(240))
     author: Mapped[str] = mapped_column(String(160))
@@ -103,6 +116,18 @@ class IncidentRecord(Base):
         ForeignKey("scenarios.id"), index=True
     )
     data_mode: Mapped[str] = mapped_column(String(20), default="synthetic")
+    analysis_schema_version: Mapped[str] = mapped_column(
+        String(80), server_default=LEGACY_ANALYSIS_VERSION
+    )
+    engine_version: Mapped[str] = mapped_column(
+        String(80), server_default=LEGACY_ANALYSIS_VERSION
+    )
+    scoring_policy_version: Mapped[str] = mapped_column(
+        String(80), server_default=LEGACY_ANALYSIS_VERSION
+    )
+    graph_version: Mapped[str] = mapped_column(
+        String(80), server_default=LEGACY_ANALYSIS_VERSION
+    )
     title: Mapped[str] = mapped_column(String(240))
     severity: Mapped[str] = mapped_column(String(20))
     status: Mapped[str] = mapped_column(String(30))

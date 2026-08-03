@@ -6,8 +6,8 @@
 
 | Check | ผลที่ยืนยันแล้ว |
 |---|---|
-| Backend | 56 tests ผ่าน |
-| Frontend | 50 tests ผ่าน |
+| Backend | Regression suite is required in CI; the exact count is not an accuracy or coverage claim |
+| Frontend | Regression suite and production build are required in CI |
 | Angular | Production build ผ่าน |
 | npm production dependencies | `npm audit --omit=dev` = 0 vulnerabilities |
 | API | Investigation, workspace/RBAC, provider, webhook, telemetry และ operations flows มี integration tests |
@@ -19,18 +19,25 @@
 
 ## Reproducible evidence-only benchmark
 
-The repository now includes the versioned manifest
-`scripts/evaluation/manifest-v1.json` and the runner
-`scripts/evaluate_benchmarks.py`. Run it with:
+The repository includes the versioned input-and-label manifest
+`scripts/evaluation/manifest-v2.json` and the runner
+`scripts/evaluate_benchmarks.py`. The manifest cannot contain `prediction`,
+`top_rank`, or precomputed quality metrics. The runner invokes
+`app.engines.rank_hypotheses` for every episode and derives the ranking metrics
+from the returned engine output. Run it with:
 
 ```powershell
 python scripts/evaluate_benchmarks.py --output evaluation-results.json
 ```
 
-The output records the dataset version and SHA-256, top-1/top-3 accuracy, MRR,
-confusion counts, unsupported-claim rate, and citation coverage. CI uploads the
-JSON artifact for review. This is a synthetic regression baseline, not a claim
-about public or production incident accuracy.
+The output records the dataset version and SHA-256, engine/scoring versions,
+reference environment, per-episode rankings, failure slices, top-1/top-3
+accuracy, MRR, confusion counts, citation coverage, and evidence-reference
+integrity. `unsupported_claims_rate` is deliberately `null` until a human review
+protocol measures it; reference integrity is not treated as a semantic
+groundedness score. CI uploads the JSON artifact for review. This is a five-case
+synthetic regression baseline, not a claim about public or production incident
+accuracy.
 
 ยังไม่มีผล PR-AUC, Top-K บน RCAEval, MRR บน real/public dataset, calibration หรือ production incident outcome ห้ามอนุมานผลเหล่านี้จาก automated engineering tests
 
@@ -200,16 +207,19 @@ Accuracy ไม่เหมาะกับ class imbalance และห้าม
 | RCA จำกัด Top 3 และลงโทษ counter-evidence | Automated engine test | ✅ ผ่าน |
 | Feedback persist และอัปเดต hypothesis status | API + frontend tests | ✅ ผ่าน |
 | Expected synthetic graph nodes/edges ทั้งชุด | 100% | ยังไม่มี aggregate benchmark artifact |
-| Root cause อยู่ Top 3 ใน core synthetic suite | ≥ 90% | Not measured |
+| Root cause อยู่ Top 3 ใน synthetic v2 suite | ≥ 90% | 100% across 5 synthetic cases; Top-1 80%, MRR 0.9 |
 | Critical unsupported claims | 0 | Not measured |
-| Explanation citation coverage | ≥ 95% | Not measured |
+| Explanation evidence-reference coverage | ≥ 95% | 100% on synthetic v2; reference integrity 100% |
 | Cross-mode synthetic/connected contamination | 0 | Models and UI label data mode; credentialed sandbox evaluation pending |
 | Desktop/mobile primary browser flow | Manual/browser verification | ✅ ผ่าน |
 | 3-hop graph query บน reference dataset | p95 ≤ 200 ms | Not measured |
 | Docker Compose definition | Parse/validation | ✅ ผ่าน |
 | Docker image build/healthchecks | Successful build/run | ยังไม่ตรวจ: Linux daemon unavailable |
 
-Automated RCA test ยืนยัน behavior ของ algorithm บน fixture ที่กำหนด ไม่ใช่ Top-3 accuracy benchmark เป้าหมาย ≥90% ของ synthetic suite ยังต้องมี evaluation runner ที่รวมทุก scenario และรายงาน artifact
+The engine-backed synthetic runner now reports all five maintained RCA cases and
+keeps one ambiguous challenge case as a visible Top-1 failure. This verifies
+regression behavior on authored fixtures only; it does not establish public
+benchmark accuracy, calibration, or production incident performance.
 
 สำหรับ public/OOD benchmark ให้รายงานค่าจริงพร้อม bootstrap confidence interval และ failure slices โดยไม่บังคับให้ผ่านตัวเลข synthetic เดียวกัน
 

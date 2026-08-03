@@ -25,6 +25,11 @@ The core is deterministic and reproducible. Risk scores, blast radius, ranked hy
 | Workspace | Tenant-scoped access, `viewer`/`responder`/`admin`/`owner` roles, invitations, repository scope, and connector health |
 | Evaluation | Clearly labelled synthetic scenarios and versioned SHA-256-pinned benchmark manifests |
 
+Every stored change and incident analysis reports the schema, engine, scoring
+policy, and graph-policy version that produced it. Historical rows created
+before provenance capture are labelled `legacy-unversioned`; the API never
+pretends they were produced by the current engine.
+
 ## Safety and data truth
 
 Data origin is part of the domain model and is visible in both API responses and the UI:
@@ -196,7 +201,7 @@ docker compose config --quiet
 python scripts/evaluate_benchmarks.py --output .runtime/evaluation-results.json
 ```
 
-The current regression baseline is 56 backend tests and 50 frontend tests. Test counts are not a claim of complete code coverage. CI also runs migration smoke tests, container builds, CodeQL, dependency review, and OpenSSF Scorecard.
+Backend and frontend regression suites are required in CI; exact test counts are intentionally not used as a quality or coverage claim. CI also exercises the Alembic chain on SQLite and PostgreSQL, runs an engine-backed synthetic evaluation, and builds containers alongside CodeQL, dependency review, and OpenSSF Scorecard.
 
 ## Documentation and community
 

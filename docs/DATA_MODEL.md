@@ -204,10 +204,12 @@ Synthetic seed ทำงานแบบ idempotent แต่ explicit seed check
 - change statistics และ explicit evidence inputs
 - `risk` JSON snapshot
 - `blast_radius` JSON snapshot
+- `analysis_schema_version`, `engine_version`, `scoring_policy_version` และ
+  `graph_version` เป็น immutable provenance ของผลลัพธ์
 
 JSON ช่วยคืน `ChangeDetail` aggregate ได้เร็ว แต่ database ยังตรวจ reference
-ภายใน `evidence_ids` หรือ node/edge ไม่ได้ และ snapshot ยังไม่มี schema/scoring
-version
+ภายใน `evidence_ids` หรือ node/edge ไม่ได้ Version bundle และ canonical topology
+อยู่ใน analysis digest เพื่อไม่ reuse ผลจาก engine/policy คนละรุ่น
 
 ### `incidents`
 
@@ -219,6 +221,9 @@ time range, affected services, correlated change และ optional assignee
 เป็น relational record แยก การเพิ่มทั้งสองแบบไม่ rewrite evidence เดิม
 `resolved` เป็น terminal lifecycle state และ assignee ต้องเป็น workspace member
 Incident lifecycle/note mutation lock incident row บน PostgreSQL
+Incident snapshot เก็บ version bundle เช่นเดียวกับ change แต่ใช้
+`evidence-ranker-v1` และ `graph_version=not-applicable` เพราะ RCA ranker ปัจจุบัน
+ไม่ได้ traverse service graph
 
 ### `incident_feedback`
 
@@ -331,6 +336,7 @@ Application startup เรียก Alembic upgrade ถึง `head`
 | `0005` | Durable GitHub Check publication identity, retry และ provider state |
 | `0006` | Canonical GitHub deployment lifecycle records |
 | `0007` | Durable background job/outbox state |
+| `0008` | Analysis snapshot schema/engine/scoring/graph provenance |
 
 - empty database ถูกสร้างจาก migration chain
 - production ปฏิเสธ non-empty database ที่ไม่มี `alembic_version`
@@ -351,7 +357,8 @@ Application startup เรียก Alembic upgrade ถึง `head`
 ## Current limitations
 
 - PostgreSQL RLS ยังไม่มี; tenant isolation พึ่ง application query + FK
-- JSON snapshots ยังไม่มี schema/scoring/graph version
+- JSON content ยังไม่มี database-level referential integrity; version provenance
+  อยู่ใน relational snapshot columns แล้ว
 - ไม่มี scheduled retention, workspace deletion cascade workflow หรือ legal hold
 - ไม่มี raw telemetry store และไม่มี field-level encryption
 - มี backup และ read-only restore-check helpers แบบ explicit แต่ยังไม่มี managed scheduler/storage หรือ restore drill automation

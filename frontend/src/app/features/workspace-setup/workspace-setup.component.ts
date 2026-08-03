@@ -58,6 +58,7 @@ export class WorkspaceSetupComponent implements OnInit {
   readonly githubCandidates = signal<GitHubRepositoryCandidate[]>([]);
   readonly workspaces = signal<WorkspaceSummary[]>([]);
   readonly activeWorkspace = signal<WorkspaceSummary | null>(null);
+  readonly loadedWorkspaceId = signal<string | null>(null);
   readonly repositories = signal<RepositorySummary[]>([]);
   readonly members = signal<MembershipSummary[]>([]);
   readonly invitations = signal<InvitationSummary[]>([]);
@@ -69,13 +70,18 @@ export class WorkspaceSetupComponent implements OnInit {
   readonly error = signal('');
   readonly notice = signal('');
 
+  readonly hasWorkspaceSnapshot = computed(() => {
+    const workspace = this.activeWorkspace();
+    return Boolean(workspace && this.loadedWorkspaceId() === workspace.id);
+  });
   readonly canManage = computed(() => {
+    if (!this.hasWorkspaceSnapshot()) return false;
     const role = this.activeWorkspace()?.role;
     return role === 'owner' || role === 'admin';
   });
   readonly activationStep = computed(() => {
     if (!this.user()) return 1;
-    if (!this.activeWorkspace()) return 2;
+    if (!this.hasWorkspaceSnapshot()) return 2;
     if (!this.repositories().length) return 3;
     return 4;
   });
@@ -185,10 +191,7 @@ export class WorkspaceSetupComponent implements OnInit {
     this.user.set(null);
     this.workspaces.set([]);
     this.activeWorkspace.set(null);
-    this.repositories.set([]);
-    this.members.set([]);
-    this.invitations.set([]);
-    this.auditEvents.set([]);
+    this.clearWorkspaceData();
     this.latestInvite.set(null);
     this.notice.set('');
     this.error.set('');
@@ -265,12 +268,14 @@ export class WorkspaceSetupComponent implements OnInit {
           if (notifyParent) this.contextChanged.emit(context);
           this.loadWorkspaceContext(workspace);
         },
-        error: (error) => this.fail(error)
+        error: (error) => {
+          if (requestId === this.workspaceRequestId) this.fail(error);
+        }
       });
   }
 
   connectRepository(): void {
-    const workspace = this.activeWorkspace();
+    const workspace = this.currentWorkspace();
     if (!workspace || this.repositoryForm.invalid || this.isBusy()) return;
     this.begin();
     const payload = this.repositoryForm.getRawValue();
@@ -284,6 +289,7 @@ export class WorkspaceSetupComponent implements OnInit {
       .pipe(finalize(() => this.isBusy.set(false)))
       .subscribe({
         next: (repository) => {
+          if (!this.isCurrentWorkspace(workspace.id)) return;
           this.repositories.update((items) => [...items, repository]);
           this.repositoryForm.reset({
             fullName: '',
@@ -297,24 +303,33 @@ export class WorkspaceSetupComponent implements OnInit {
           );
           this.refreshAudit();
         },
-        error: (error) => this.fail(error)
+        error: (error) => {
+          if (this.isCurrentWorkspace(workspace.id)) this.fail(error);
+        }
       });
   }
 
   installGitHub(): void {
-    const workspace = this.activeWorkspace();
+    const workspace = this.currentWorkspace();
     if (!workspace || this.isBusy()) return;
     this.begin();
     this.api
       .startGitHubInstall(workspace.id)
       .pipe(finalize(() => this.isBusy.set(false)))
       .subscribe({
-        next: ({ install_url }) => globalThis.location.assign(install_url),
-        error: (error) => this.fail(error)
+        next: ({ install_url }) => {
+          if (this.isCurrentWorkspace(workspace.id)) {
+            globalThis.location.assign(install_url);
+          }
+        },
+        error: (error) => {
+          if (this.isCurrentWorkspace(workspace.id)) this.fail(error);
+        }
       });
   }
 
   toggleGitHubRepository(candidate: GitHubRepositoryCandidate): void {
+    if (!this.hasWorkspaceSnapshot()) return;
     this.githubCandidates.update((items) =>
       items.map((item) =>
         item.provider_repository_id === candidate.provider_repository_id
@@ -325,7 +340,7 @@ export class WorkspaceSetupComponent implements OnInit {
   }
 
   syncGitHubRepositories(): void {
-    const workspace = this.activeWorkspace();
+    const workspace = this.currentWorkspace();
     const repositoryIds = this.githubCandidates()
       .filter((item) => item.selected && !item.archived)
       .map((item) => item.provider_repository_id);
@@ -341,15 +356,18 @@ export class WorkspaceSetupComponent implements OnInit {
       .pipe(finalize(() => this.isBusy.set(false)))
       .subscribe({
         next: ({ imported }) => {
+          if (!this.isCurrentWorkspace(workspace.id)) return;
           this.notice.set(`${imported} GitHub repositories synchronized.`);
           this.loadWorkspaceContext(workspace);
         },
-        error: (error) => this.fail(error)
+        error: (error) => {
+          if (this.isCurrentWorkspace(workspace.id)) this.fail(error);
+        }
       });
   }
 
   inviteMember(): void {
-    const workspace = this.activeWorkspace();
+    const workspace = this.currentWorkspace();
     if (!workspace || this.invitationForm.invalid || this.isBusy()) return;
     this.begin();
     const payload = this.invitationForm.getRawValue();
@@ -362,6 +380,7 @@ export class WorkspaceSetupComponent implements OnInit {
       .pipe(finalize(() => this.isBusy.set(false)))
       .subscribe({
         next: (invitation) => {
+          if (!this.isCurrentWorkspace(workspace.id)) return;
           this.latestInvite.set(invitation);
           this.invitations.update((items) => [invitation, ...items]);
           this.invitationForm.reset({ email: '', role: 'viewer' });
@@ -374,7 +393,9 @@ export class WorkspaceSetupComponent implements OnInit {
           );
           this.refreshAudit();
         },
-        error: (error) => this.fail(error)
+        error: (error) => {
+          if (this.isCurrentWorkspace(workspace.id)) this.fail(error);
+        }
       });
   }
 
@@ -400,7 +421,7 @@ export class WorkspaceSetupComponent implements OnInit {
   }
 
   revokeInvitation(invitation: InvitationSummary): void {
-    const workspace = this.activeWorkspace();
+    const workspace = this.currentWorkspace();
     if (!workspace || this.isBusy()) return;
     this.begin();
     this.api
@@ -408,6 +429,7 @@ export class WorkspaceSetupComponent implements OnInit {
       .pipe(finalize(() => this.isBusy.set(false)))
       .subscribe({
         next: (updated) => {
+          if (!this.isCurrentWorkspace(workspace.id)) return;
           this.invitations.update((items) =>
             items.map((item) => (item.id === updated.id ? updated : item))
           );
@@ -419,7 +441,9 @@ export class WorkspaceSetupComponent implements OnInit {
           );
           this.refreshAudit();
         },
-        error: (error) => this.fail(error)
+        error: (error) => {
+          if (this.isCurrentWorkspace(workspace.id)) this.fail(error);
+        }
       });
   }
 
@@ -499,8 +523,10 @@ export class WorkspaceSetupComponent implements OnInit {
 
   private loadWorkspaceContext(workspace: WorkspaceSummary): void {
     const requestId = ++this.workspaceRequestId;
+    this.activeWorkspace.set(workspace);
+    this.clearWorkspaceData();
     this.begin();
-    this.loadGitHubContext(workspace);
+    this.loadGitHubContext(workspace, requestId);
     const context = {
       repositories: this.api.repositories(workspace.id),
       members: this.api.members(workspace.id),
@@ -521,13 +547,16 @@ export class WorkspaceSetupComponent implements OnInit {
           next: (data) => {
             if (requestId !== this.workspaceRequestId) return;
             this.repositories.set(data.repositories);
-            this.loadConnectedChanges(workspace, data.repositories);
             this.members.set(data.members);
             this.connectorHealth.set(data.connectorHealth);
             this.invitations.set(data.invitations);
             this.auditEvents.set(data.auditEvents);
+            this.loadedWorkspaceId.set(workspace.id);
+            this.loadConnectedChanges(workspace, data.repositories, requestId);
           },
-          error: (error) => this.fail(error)
+          error: (error) => {
+            if (requestId === this.workspaceRequestId) this.fail(error);
+          }
         });
       return;
     }
@@ -541,17 +570,23 @@ export class WorkspaceSetupComponent implements OnInit {
         next: (data) => {
           if (requestId !== this.workspaceRequestId) return;
           this.repositories.set(data.repositories);
-          this.loadConnectedChanges(workspace, data.repositories);
           this.members.set(data.members);
           this.connectorHealth.set(data.connectorHealth);
           this.invitations.set([]);
           this.auditEvents.set([]);
+          this.loadedWorkspaceId.set(workspace.id);
+          this.loadConnectedChanges(workspace, data.repositories, requestId);
         },
-        error: (error) => this.fail(error)
+        error: (error) => {
+          if (requestId === this.workspaceRequestId) this.fail(error);
+        }
       });
   }
 
-  private loadGitHubContext(workspace: WorkspaceSummary): void {
+  private loadGitHubContext(
+    workspace: WorkspaceSummary,
+    requestId: number
+  ): void {
     if (!this.capabilities()?.github_app) {
       this.githubConnection.set(null);
       this.connectorHealth.set([]);
@@ -560,17 +595,25 @@ export class WorkspaceSetupComponent implements OnInit {
     }
     this.api.githubStatus(workspace.id).subscribe({
       next: (connection) => {
+        if (requestId !== this.workspaceRequestId) return;
         this.githubConnection.set(connection);
         if (connection.connection_state !== 'connected') {
           this.githubCandidates.set([]);
           return;
         }
         this.api.githubRepositories(workspace.id).subscribe({
-          next: (repositories) => this.githubCandidates.set(repositories),
-          error: (error) => this.fail(error)
+          next: (repositories) => {
+            if (requestId === this.workspaceRequestId) {
+              this.githubCandidates.set(repositories);
+            }
+          },
+          error: (error) => {
+            if (requestId === this.workspaceRequestId) this.fail(error);
+          }
         });
       },
       error: (error: HttpErrorResponse) => {
+        if (requestId !== this.workspaceRequestId) return;
         if (error.status === 404) {
           this.githubConnection.set(null);
           this.githubCandidates.set([]);
@@ -583,7 +626,8 @@ export class WorkspaceSetupComponent implements OnInit {
 
   private loadConnectedChanges(
     workspace: WorkspaceSummary,
-    repositories: RepositorySummary[]
+    repositories: RepositorySummary[],
+    requestId: number
   ): void {
     const connected = repositories.filter(
       (repository) => repository.data_mode === 'connected'
@@ -597,20 +641,49 @@ export class WorkspaceSetupComponent implements OnInit {
         this.api.connectedChanges(workspace.id, repository.id)
       )
     ).subscribe({
-      next: (groups) =>
+      next: (groups) => {
+        if (requestId !== this.workspaceRequestId) return;
         this.connectedChanges.set(
           groups.flat().sort((a, b) => b.created_at.localeCompare(a.created_at))
-        ),
-      error: (error) => this.fail(error)
+        );
+      },
+      error: (error) => {
+        if (requestId === this.workspaceRequestId) this.fail(error);
+      }
     });
   }
 
   private refreshAudit(): void {
-    const workspace = this.activeWorkspace();
+    const workspace = this.currentWorkspace();
     if (!workspace || !this.canManage()) return;
     this.api.auditEvents(workspace.id).subscribe({
-      next: (events) => this.auditEvents.set(events)
+      next: (events) => {
+        if (this.isCurrentWorkspace(workspace.id)) this.auditEvents.set(events);
+      }
     });
+  }
+
+  private currentWorkspace(): WorkspaceSummary | null {
+    const workspace = this.activeWorkspace();
+    return workspace && this.loadedWorkspaceId() === workspace.id
+      ? workspace
+      : null;
+  }
+
+  private isCurrentWorkspace(workspaceId: string): boolean {
+    return this.currentWorkspace()?.id === workspaceId;
+  }
+
+  private clearWorkspaceData(): void {
+    this.loadedWorkspaceId.set(null);
+    this.githubConnection.set(null);
+    this.connectorHealth.set([]);
+    this.githubCandidates.set([]);
+    this.repositories.set([]);
+    this.members.set([]);
+    this.invitations.set([]);
+    this.auditEvents.set([]);
+    this.connectedChanges.set([]);
   }
 
   private begin(): void {

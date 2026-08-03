@@ -58,7 +58,7 @@ FORM: Repository operations ledger extending the shared DeployGuard shell.
     </div>
   }
 
-  @if (isLoading() && !activeWorkspace()) {
+  @if (isLoading() && !hasWorkspaceSnapshot()) {
     <div class="operations-loading" aria-label="Loading workspace operations">
       @for (row of [1, 2, 3, 4]; track row) {
         <span class="operations-skeleton"></span>
@@ -80,6 +80,20 @@ FORM: Repository operations ledger extending the shared DeployGuard shell.
         (click)="workspaceSetupRequested.emit()"
       >
         {{ copy('Open workspace setup', 'เปิดการตั้งค่า Workspace') }}
+      </button>
+    </section>
+  } @else if (!hasWorkspaceSnapshot()) {
+    <section class="access-state" aria-live="polite">
+      <p class="system-kicker">{{ copy('Workspace data unavailable', 'โหลดข้อมูล Workspace ไม่สำเร็จ') }}</p>
+      <h2>{{ copy('This workspace snapshot is not ready', 'ข้อมูลของ Workspace นี้ยังไม่พร้อม') }}</h2>
+      <p>
+        {{ copy(
+          'No records from another workspace are shown. Retry to load a fresh tenant-scoped snapshot.',
+          'ระบบซ่อนข้อมูลจาก Workspace ก่อนหน้าแล้ว โปรดลองอีกครั้งเพื่อโหลดข้อมูลใหม่ภายใต้ขอบเขต tenant นี้'
+        ) }}
+      </p>
+      <button type="button" class="button button--primary" (click)="refresh()">
+        {{ copy('Retry workspace load', 'ลองโหลด Workspace อีกครั้ง') }}
       </button>
     </section>
   } @else {

@@ -270,6 +270,7 @@ Overview
 ```text
 ChangeDetail
   id, workspace_id, repository_id, repository, commit_sha, branch, data_mode
+  analysis_schema_version, engine_version, scoring_policy_version, graph_version
   deployment_status, deployment_environment
   changed_services[]
   risk:
@@ -284,9 +285,18 @@ ChangeDetail
 ```text
 IncidentDetail
   id, scenario_id, data_mode
+  analysis_schema_version, engine_version, scoring_policy_version, graph_version
   severity, status, assignee_user_id, started_at, resolved_at
   timeline[], evidence[], hypotheses[], feedback[]
 ```
+
+Version fields are persisted snapshot provenance, not values calculated at read
+time. A change currently reports `risk-weighted-v1` and
+`dependency-bfs-v1`; an incident reports `evidence-ranker-v1` and
+`not-applicable` because hypothesis ranking does not traverse the service graph.
+Rows created before revision `0008` report `legacy-unversioned` rather than
+claiming unverifiable current-engine provenance. These fields are response-only;
+clients cannot choose the engine or scoring policy in an analysis request.
 
 Responder note ถูก append เป็น typed `TimelineEvent(type="incident_note")` และ
 คืนจาก `POST /notes`
