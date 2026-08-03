@@ -1,135 +1,236 @@
-# DeployGuard AI Design System — Investigation Ledger
+---
+name: DeployGuard AI
+description: A repository-native evidence workspace for change risk and incident investigation.
+colors:
+  canvas: "#f6f8fa"
+  surface: "#ffffff"
+  surface-subtle: "#f6f8fa"
+  surface-hover: "#f3f4f6"
+  text: "#1f2328"
+  text-muted: "#636c76"
+  border: "#d0d7de"
+  border-strong: "#afb8c1"
+  accent: "#0969da"
+  accent-soft: "#ddf4ff"
+  success: "#1a7f37"
+  success-soft: "#dafbe1"
+  attention: "#9a6700"
+  attention-soft: "#fff8c5"
+  danger: "#cf222e"
+  danger-soft: "#ffebe9"
+  header: "#25292f"
+  header-deep: "#010409"
+  header-border: "#3d444d"
+  header-control: "#57606a"
+  header-muted: "#8c959f"
+  nav-indicator: "#fd8c73"
+  accent-dark: "#58a6ff"
+typography:
+  headline:
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans Thai', sans-serif"
+    fontSize: "clamp(1.5rem, 3vw, 2rem)"
+    fontWeight: 600
+    lineHeight: 1.25
+    letterSpacing: "-0.02em"
+  body:
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans Thai', sans-serif"
+    fontSize: "0.875rem"
+    fontWeight: 400
+    lineHeight: 1.5
+  body-small:
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans Thai', sans-serif"
+    fontSize: "0.8125rem"
+    fontWeight: 400
+    lineHeight: 1.5
+  title:
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans Thai', sans-serif"
+    fontSize: "1rem"
+    fontWeight: 600
+    lineHeight: 1.5
+  title-large:
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans Thai', sans-serif"
+    fontSize: "1.25rem"
+    fontWeight: 600
+    lineHeight: 1.4
+  score:
+    fontFamily: "'SFMono-Regular', 'Cascadia Code', Consolas, monospace"
+    fontSize: "clamp(2rem, 4vw, 2.875rem)"
+    fontWeight: 600
+    lineHeight: 1
+  label:
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans Thai', sans-serif"
+    fontSize: "0.75rem"
+    fontWeight: 600
+    lineHeight: 1.33
+  measure:
+    fontFamily: "'SFMono-Regular', 'Cascadia Code', Consolas, monospace"
+    fontSize: "0.875rem"
+    fontWeight: 400
+    lineHeight: 1.4
+rounded:
+  micro: "2px"
+  tight: "4px"
+  control: "6px"
+  panel: "6px"
+  overlay: "12px"
+  pill: "999px"
+spacing:
+  xs: "4px"
+  sm: "8px"
+  md: "16px"
+  lg: "24px"
+  xl: "32px"
+components:
+  button-primary:
+    backgroundColor: "{colors.success}"
+    textColor: "{colors.surface}"
+    rounded: "{rounded.control}"
+    padding: "5px 16px"
+    height: "32px"
+  button-secondary:
+    backgroundColor: "{colors.surface-subtle}"
+    textColor: "{colors.text}"
+    rounded: "{rounded.control}"
+    padding: "5px 12px"
+    height: "32px"
+  panel:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.text}"
+    rounded: "{rounded.panel}"
+    padding: "16px"
+---
 
-<!-- impeccable:design-system 3 -->
+# Design System: DeployGuard AI
 
-## Direction Contract
+## Overview
 
-**THESIS:** DeployGuard is an operational investigation ledger where every conclusion can be opened, challenged, and traced. It refuses the generic observability grid of detached metric cards.
+**Creative North Star: "The Repository Evidence Room"**
 
-**OWN-WORLD:** Cool instrument-paper surfaces in light mode, obsidian glassmorphism with glowing accents in dark mode, carbon ink, blueprint cobalt, signal vermilion, ruled evidence rows, registered graph lines, square status marks, and compact laboratory annotations inspired by Magic UI design aesthetics.
+DeployGuard should feel immediately familiar to engineers who work in repository hosting tools: repository context first, compact global controls, underlined section navigation, bordered ledgers, status labels, and evidence arranged like inspectable activity rather than marketing analytics. This is a GitHub/Primer-inspired interaction grammar, not a copy of GitHub branding or assets.
 
-**STORY:** Select a change, inspect its computed risk and dependency propagation, replay the incident, compare ranked hypotheses, then record a human verdict.
+The interface is calm, dense, and operational. It prioritizes traceability over spectacle: users can always see which workspace, repository, data origin, change, and incident they are examining. Surfaces stay flat and structured; color appears only when it communicates selection, severity, confidence, or completion.
 
-**FIRST VIEWPORT:** A narrow change rail anchors the left; the central registered topology is the dominant artifact; a risk ledger and evidence inspector share the right; the incident recorder spans the bottom.
+**Key Characteristics:**
 
-**FORM:** Scientific hypothesis ledger with a surface/X-ray evidence reveal and Magic UI glowing node topography.
+- Repository-first hierarchy with workspace and data-origin context always visible.
+- Compact, border-led surfaces designed for scanning under time pressure.
+- One shared visual language across investigation, change risk, DORA, scenarios, operations, and setup.
+- Evidence, counter-evidence, uncertainty, and human decisions remain visually distinct.
+- Connected and synthetic data are never visually interchangeable.
 
-## Magic UI Aesthetic Enhancements
+## Colors
 
-- **Purposeful glass**: `backdrop-filter: blur(18px) saturate(145%)` is reserved for the fixed command rail and sticky command bar. Working panels stay opaque for evidence readability.
-- **Instrument illumination**: Selected graph nodes, focus rings, and active paths receive restrained cobalt illumination; state surfaces use solid semantic tints rather than neon halos.
-- **Micro-interactions**: 160–220ms control and selection transitions use exponential ease-out. Incident replay is the only continuous authored motion.
+The light palette uses cool repository canvas neutrals; dark mode uses near-black code-hosting surfaces. Blue means navigation and inspection, green means a safe affirmative action or successful check, amber means attention, and red means risk or failure.
 
-- Mode: Operate.
-- Scene: an on-call engineer investigating on a laptop or operations display in a mixed-light office.
-- The app follows the user’s saved or system theme. Obsidian mode supports mixed-light on-call work; the cool low-glare light mode preserves dense evidence legibility and useful captures.
+### Primary
 
-## Color Strategy
+- **Repository Blue**: Interactive links, focus, current navigation, selected records, and evidence connections.
 
-Restrained, with semantic color reserved for state.
+### Secondary
 
-Light mode:
+- **Verified Green**: Successful checks and the main affirmative action when an operation is safe and user-controlled.
+- **Attention Amber**: Incomplete data, waiting connectors, uncertainty, and non-blocking warnings.
+- **Incident Red**: High risk, failed checks, destructive actions, and incident severity.
 
-- `--canvas`: `#eef2f7`; `--surface`: `#ffffff`; `--surface-subtle`: `#f4f7fb`.
-- `--ink`: `#111827`; `--ink-strong`: `#07101e`; `--muted`: `#5b687a`.
-- `--line`: `#dbe2ea`; `--line-strong`: `#bfc9d6`.
-- `--cobalt`: `#155eef`; `--vermilion`: `#c9362b`; `--amber`: `#9a5b00`; `--green`: `#087f5b`.
+### Neutral
 
-Dark mode:
+- **Repository Canvas**: Page background and empty workspace regions.
+- **Evidence Surface**: Primary panels, dialogs, forms, and ledgers.
+- **Carbon Text**: Primary labels and conclusions.
+- **Muted Metadata**: Timestamps, provenance, IDs, and helper copy.
+- **Rule Border**: The main structural device between rows, sections, and panels.
 
-- `--canvas`: `#07101e`; `--surface`: `#0d192b`; `--surface-subtle`: `#111f33`.
-- `--ink`: `#edf4ff`; `--muted`: `#98a8bd`; `--line`: `#203049`.
-- `--cobalt`: `#6d9cff`; `--vermilion`: `#ff766c`; `--amber`: `#f2bb5d`; `--green`: `#47d6a0`.
+### Named Rules
 
-State is always paired with a label, shape, or icon.
+**The Evidence Color Rule.** A semantic color is always paired with readable text, an icon, a border, or a state label; hue never carries meaning alone.
 
-### Token architecture
-
-The system uses a strict three-layer token model:
-
-1. **Primitive tokens** are fixed palette, type, spacing, radius, and motion values. Feature styles never consume primitives directly.
-2. **Semantic tokens** describe purpose, such as `--color-surface`, `--color-text-muted`, `--color-danger`, and `--color-on-danger`. Theme switching happens only at this layer.
-3. **Component tokens** define shared geometry and interaction, such as `--component-control-min-height`, `--component-control-radius`, and `--component-focus-width`.
-
-Legacy short names such as `--surface`, `--cobalt`, and `--radius-sm` are compatibility aliases only. New work uses semantic or component tokens, and migrations remove aliases only after every consumer has moved.
-
-Every filled semantic state has a matching theme-aware foreground token: `--color-on-accent`, `--color-on-success`, `--color-on-warning`, and `--color-on-danger`. Never hard-code white or near-black text on a semantic background.
+**The Connected Truth Rule.** Connected, synthetic, waiting, and unavailable states use explicit labels at the point where the user acts.
 
 ## Typography
 
-- UI family: `"Segoe UI Variable", "Noto Sans Thai", "Leelawadee UI", Tahoma, sans-serif`.
-- Measurement/code family: `"Cascadia Code", "SFMono-Regular", Consolas, monospace`.
-- The stable compact scale is `--type-2xs` (12px metadata), `--type-xs` (13px secondary copy), `--type-sm` (14px body), `--type-md` (16px), and `--type-lg` (20px).
-- User-facing text never drops below 12px. Use 12px only for terse instrument metadata; explanatory copy starts at 13px.
-- Headings remain compact (18–28px), with no decorative display face.
-- Evidence IDs, timestamps, commit hashes, and measured values use the measurement family.
-- Labels use sentence case; tracked all-caps is limited to compact physical-instrument tags.
+**Display Font:** System UI with Segoe UI and Noto Sans Thai fallbacks
 
-## Composition and Surfaces
+**Body Font:** System UI with Segoe UI and Noto Sans Thai fallbacks
+**Label/Mono Font:** SFMono-Regular, Cascadia Code, Consolas, monospace
 
-- Use a fixed 232px command rail plus a sticky 72px command bar and registered evidence workspace. Below 900px the rail becomes an off-canvas drawer.
-- Prefer ruled sections, split panes, ledgers, and graph canvases over collections of same-sized cards.
-- Borders carry structure; shadows are reserved for the mobile drawer, raised analysis form, and sticky chrome.
-- Panel radius is 12px; control radius is 8px. Pills are limited to short statuses.
-- Dense content aligns to an 8px base rhythm with 4px substeps.
-- Interactive controls use a 44px minimum height and width where the entire surface is actionable. Compact visual treatments must not reduce the hit area.
-- Desktop keeps topology, risk, and evidence simultaneously visible; tablet stacks evidence below topology; mobile uses a single active workspace with a persistent context switcher.
+**Character:** Native, technical, and quiet. The system stack makes the product feel fast and familiar, while the measurement stack distinguishes hashes, timestamps, IDs, scores, and event payloads.
 
-## Signature Interaction
+### Hierarchy
 
-The global `Evidence X-ray` switch keeps the topology spatially fixed while changing node annotations from operational status to the exact evidence and score contribution behind each conclusion. Shared geometry must not jump between the two states.
+- **Headline** (600, fluid 24–32px, 1.25): Page and incident titles only.
+- **Title** (600, 16px, 1.5): Panel headings and major ledger sections.
+- **Body** (400, 14px, 1.5): Explanations, evidence statements, and form content; long copy stays below 72 characters per line where possible.
+- **Label** (600, 12px, 1.33): Controls, navigation, status metadata, and table headings.
+- **Measure** (400–600, 12–14px): Scores, hashes, event IDs, timestamps, and code-adjacent values.
 
-## Components and States
+**The Sentence Case Rule.** Use sentence case for controls and headings. Uppercase is reserved for short externally defined identifiers such as DORA or severity codes.
 
-- Workspace scope switcher: exposes the current synthetic repository and scenario from typed API data; repository search and switching stay inside this focused component.
-- Workspace activation: a four-step operating ledger for development identity, tenant creation, repository fixture connection, and team invitation. Every substitute is labelled at the point of action.
-- Command center: `Ctrl/Cmd + K` opens actual navigation, repository switching, X-ray, and deep-link actions. It never lists unavailable integration or collaboration actions.
-- Change queue: selected, reviewed, high-risk, incomplete-data, and deployment states.
-- Risk ledger: overall score plus weighted dimensions, each with its reason and data-quality marker.
-- Topology node: service, database, queue, or external dependency; selected and impacted states use both shape and label.
-- Hypothesis row: rank, confidence band, evidence count, counter-evidence count, and human verdict.
-- Incident recorder: deploy, symptom, alert, mitigation, recovery, and feedback events.
-- Every action supports default, hover, keyboard focus, active, disabled, loading, error, and empty states.
-- Loading uses registered skeleton rows; errors state the failure and recovery action.
+## Layout
 
-### Component styling contract
+The application uses three persistent horizontal layers: a compact global header, a repository-context row, and an underlined repository navigation row. Main content sits in a centered container up to 1280px with 24px desktop gutters. Evidence-heavy views may use the full container but must retain a single clear reading order.
 
-- Global CSS owns tokens, reset, document base, and primitives only. New feature/layout components colocate their styles with the Angular component.
-- Each element gets one stable semantic class. State uses `aria-*`, `data-state`, or a component-level CSS custom property instead of stacked `.is-*` classes.
-- Feature selectors must stay flat: no selector may depend on more than one DOM relationship, and new components should not require descendant selectors for state.
-- Shared primitives expose `data-variant` and `data-size` instead of multiplying BEM modifier classes. Existing modifier classes are migration aliases, not the target API.
-- Feature styles consume semantic and component tokens only. Literal color, typography, control-height, radius, focus, and transition values are not accepted in new component CSS.
-- React Bits is an interaction reference, not a dependency. Stepper, Animated List, and Spotlight ideas may be translated to Angular/CSS, but React is not added as a second runtime.
+Panels are not a card grid. Prefer issue-style rows, data tables, split inspectors, registered timelines, and bordered sections. Desktop can show a primary ledger beside a narrower inspector. Tablet collapses secondary inspectors below the ledger. Mobile becomes a single column, lets repository navigation scroll horizontally, and raises action targets to at least 44px.
 
-### Stylesheet ownership and migration
+## Elevation & Depth
 
-- `frontend/src/styles.scss` is the source of truth for tokens, reset, document defaults, accessibility primitives, and shared controls.
-- `frontend/src/app/app.scss` owns application shell layout and chrome.
-- Feature component styles own their workspace layout and local presentation.
-- The current global investigation and change-risk rules are legacy migration debt. Move them feature by feature; do not add new feature selectors to the global stylesheet.
+Surfaces are flat by default. Borders and background contrast provide structure. Shadows are reserved for overlays, menus, drawers, and sticky chrome separation; working panels do not float above the page.
 
-## Motion
+**The Flat Workspace Rule.** If a surface can be separated with one border or a canvas change, do not add a shadow.
 
-- 160–220ms state transitions with exponential ease-out; do not animate layout dimensions.
-- The one authored motion is incident replay: a time cursor advances across the recorder while affected graph edges illuminate in causal order.
-- Command search uses a single short list-insertion sequence inspired by React Bits Animated List; all other motion communicates selection or state change.
-- `prefers-reduced-motion` disables replay animation and reveals the final state immediately.
-- Reduced motion is selective: stop continuous spinner, shimmer, and edge-flow animation; retain an 80ms state-change transition so focus and selection feedback do not disappear. Never use a blanket `0.01ms` override.
+## Shapes
 
-## Accessibility
+Controls and panels use restrained 6px corners. Overlays may use 12px. Pills are limited to small statuses, counters, and branch-like metadata; content panels and buttons never become capsules.
 
-- Minimum 4.5:1 text contrast and 3:1 large-text/UI contrast.
-- Visible 2px focus outline with offset.
-- Minimum 44px pointer targets for every action on coarse-pointer and mobile layouts.
-- Filled semantic surfaces always use their `--color-on-*` foreground token and are verified in both themes.
-- Dialogs and off-canvas navigation trap focus, close with Escape, restore focus to the trigger, and keep background content inert while open.
-- Composite widgets implement their declared keyboard model. Do not add `listbox`, `option`, or `listitem` roles to native buttons unless the complete interaction pattern exists.
-- Forms expose visible validation copy, `aria-invalid`, and `aria-describedby`; a disabled submit button is not the only error signal.
-- SVG topology includes a text summary and keyboard-selectable services.
-- Risk is never represented by hue alone.
+## Components
 
-## Content Integrity
+### Buttons
 
-- Seed data is labeled `Synthetic demo`.
-- Never display invented customers, measured accuracy, or operational savings.
-- Hypotheses use calibrated language: “likely”, “possible”, “unsupported”, and “contradicted”.
+- **Shape:** Compact rectangle with 6px corners; 32px desktop height and 44px minimum on touch layouts.
+- **Primary:** Verified green for user-confirmed creation or save; repository blue is reserved for navigation, focus, and analysis selection.
+- **Hover / Focus:** Tonal darkening on hover and a visible 2px blue focus ring with offset.
+- **Secondary / Ghost:** Neutral raised canvas, explicit border, and carbon text; destructive actions use red text and border before confirmation.
+
+### Chips
+
+- **Style:** Small bordered labels for severity, confidence, data origin, lifecycle, and counts.
+- **State:** Each state includes words or symbols and retains readable contrast in both themes.
+
+### Cards / Containers
+
+- **Corner Style:** Restrained 6px corners.
+- **Background:** Evidence surface on repository canvas.
+- **Shadow Strategy:** None at rest.
+- **Border:** One rule border around a grouped region; internal rows share dividers instead of individual card outlines.
+- **Internal Padding:** 16px standard, 8–12px for dense ledger rows.
+
+### Inputs / Fields
+
+- **Style:** Visible label above a 32–36px bordered input with 6px corners.
+- **Focus:** Blue border plus 2px focus ring.
+- **Error / Disabled:** Inline explanation and state border; disabled controls are never the only explanation.
+
+### Navigation
+
+Global actions stay in the top header. Repository areas use a horizontal underlined navigation with leading icons and optional counts. Settings-style subnavigation may use a labeled vertical list. Current state is expressed with `aria-current` and a strong underline or left inset, not a filled promotional tile.
+
+### Evidence Ledger
+
+Evidence rows expose provenance, time, service, support/counter status, and the claim they affect. Selecting a row opens details without changing the surrounding investigation context.
+
+## Do's and Don'ts
+
+### Do:
+
+- **Do** keep workspace, repository, data origin, and connection health visible near the top of every primary workspace.
+- **Do** use bordered ledgers, tables, timelines, and split inspectors for operational data.
+- **Do** preserve typed API truth, empty states, loading states, permission states, and retry actions.
+- **Do** support English and Thai copy without truncating labels or shrinking readable type.
+- **Do** keep keyboard focus and responsive navigation visible.
+
+### Don't:
+
+- **Don't** copy GitHub logos, marks, illustrations, or branded assets.
+- **Don't** create a dashboard of unrelated floating metric cards.
+- **Don't** use gradients, glassmorphism, glowing panels, or ornamental motion in the working interface.
+- **Don't** hide synthetic data, unavailable integrations, or uncertainty behind optimistic status color.
+- **Don't** add autonomous deploy, rollback, remediation, or shell-execution controls.

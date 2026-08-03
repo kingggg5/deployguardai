@@ -1,25 +1,27 @@
 :host {
   display: block;
+  width: 100%;
 }
 
 .palette-trigger {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 40px;
-  padding: 0 9px;
-  border: 1px solid var(--line);
+  width: 100%;
+  min-height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--color-header-control);
   border-radius: var(--radius-sm);
-  background: var(--surface-subtle);
-  color: var(--muted-strong);
+  background: transparent;
+  color: #b1bac4;
   cursor: pointer;
 }
 
 .palette-trigger:hover,
 .palette-trigger:focus-visible {
-  border-color: var(--cobalt);
-  background: var(--surface-hover);
-  color: var(--ink);
+  border-color: var(--color-header-muted);
+  background: #32383f;
+  color: #f0f6fc;
 }
 
 .palette-trigger-icon,
@@ -32,10 +34,10 @@
 .palette-trigger-shortcut,
 .palette-search-shortcut {
   padding: 2px 5px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--color-header-control);
   border-radius: 4px;
-  background: var(--surface);
-  color: var(--muted);
+  background: rgb(255 255 255 / 6%);
+  color: #b1bac4;
   font: 10px/1.4 "Cascadia Code", Consolas, monospace;
 }
 
@@ -44,8 +46,7 @@
   z-index: 90;
   inset: 0;
   border: 0;
-  background: rgb(3 10 22 / 58%);
-  backdrop-filter: blur(4px);
+  background: rgb(1 4 9 / 58%);
   cursor: default;
 }
 
@@ -59,9 +60,9 @@
   max-height: min(620px, 76vh);
   overflow: hidden;
   border: 1px solid var(--line-strong);
-  border-radius: var(--radius-lg);
+  border-radius: 12px;
   background: var(--surface);
-  box-shadow: 0 28px 72px -28px rgb(0 0 0 / 72%);
+  box-shadow: var(--shadow-float);
   transform: translateX(-50%);
   animation: palette-enter 220ms var(--ease-out);
 }
@@ -113,7 +114,7 @@
   min-height: 54px;
   padding: 8px 10px;
   border: 1px solid transparent;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--ink);
   text-align: left;
@@ -126,8 +127,8 @@
 .palette-item:focus-visible {
   --palette-mark-color: var(--cobalt);
   --palette-arrow-opacity: 1;
-  border-color: var(--cobalt);
-  background: var(--cobalt-soft);
+  border-color: transparent;
+  background: var(--surface-hover);
   outline: 0;
 }
 

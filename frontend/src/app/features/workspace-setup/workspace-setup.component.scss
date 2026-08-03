@@ -1,8 +1,8 @@
 :host { display: block; }
 .setup-shell { max-width: 1220px; margin: 0 auto; color: var(--ink); }
 .setup-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
-.setup-heading p, .stage-copy > span, .work-heading span { margin: 0; color: var(--cobalt-strong); font: 700 10px "Cascadia Code", monospace; text-transform: uppercase; }
-.setup-heading h1 { margin: 7px 0 8px; color: var(--ink-strong); font-size: clamp(26px, 4vw, 44px); letter-spacing: -0.035em; }
+.setup-heading p, .stage-copy > span, .work-heading span { margin: 0; color: var(--muted); font-size: 12px; font-weight: 600; }
+.setup-heading h1 { margin: 6px 0 8px; color: var(--ink-strong); font-size: clamp(24px, 4vw, 32px); font-weight: 600; letter-spacing: -0.02em; }
 .setup-heading div > span { max-width: 72ch; display: block; color: var(--muted-strong); line-height: 1.55; }
 .activation-rail { margin: 26px 0 18px; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); list-style: none; border-block: 1px solid var(--line); }
 .activation-rail li { min-height: 58px; display: flex; align-items: center; gap: 10px; color: var(--muted); }
@@ -12,24 +12,24 @@
 .setup-notice { margin-bottom: 14px; padding: 11px 13px; border: 1px solid var(--line); border-radius: 8px; }
 .setup-notice[data-tone="error"] { border-color: var(--vermilion); background: var(--vermilion-soft); color: var(--vermilion); }
 .setup-notice[data-tone="success"] { border-color: var(--green); background: var(--green-soft); color: var(--green); }
-.activation-stage { min-height: 360px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 0.65fr); border: 1px solid var(--line); border-radius: 12px; background: var(--surface); overflow: hidden; }
+.activation-stage { min-height: 360px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 0.65fr); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); overflow: hidden; }
 .stage-copy { padding: clamp(28px, 6vw, 72px); background: var(--surface-subtle); }
 .stage-copy h2 { margin: 9px 0; color: var(--ink-strong); font-size: 28px; }
 .stage-copy p { max-width: 52ch; color: var(--muted-strong); line-height: 1.6; }
 .stage-form { padding: 34px; display: flex; flex-direction: column; justify-content: center; gap: 16px; }
 .stage-form label, .compact-form label { display: grid; gap: 6px; color: var(--muted-strong); font-size: var(--type-xs); font-weight: 700; }
-.stage-form input, .compact-form input, .compact-form select { min-height: 44px; padding: 0 11px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface-subtle); color: var(--ink); }
-.setup-action { min-height: 44px; padding: 0 15px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); color: var(--ink-strong); font-weight: 750; }
-.setup-action[data-variant="primary"] { border-color: var(--cobalt); background: var(--cobalt); color: var(--color-on-accent); }
+.stage-form input, .compact-form input, .compact-form select { min-height: 36px; padding: 0 11px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); }
+.setup-action { min-height: 36px; padding: 0 15px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface-subtle); color: var(--ink-strong); font-weight: 600; }
+.setup-action[data-variant="primary"] { border-color: var(--green); background: var(--green); color: var(--color-on-success); }
 .setup-action:disabled { cursor: not-allowed; opacity: .5; }
 .identity-strip { min-height: 48px; margin-bottom: 14px; padding: 0 14px; display: flex; align-items: center; gap: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
 .identity-strip code { color: var(--cobalt-strong); }
 .identity-strip small { margin-left: auto; color: var(--muted); }
 .workspace-grid { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 14px; align-items: start; }
-.workspace-register, .work-panel, .audit-panel { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); overflow: hidden; }
+.workspace-register, .work-panel, .audit-panel { border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); overflow: hidden; }
 .workspace-register header, .audit-panel header { min-height: 48px; padding: 0 13px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
 .workspace-row { width: 100%; min-height: 64px; padding: 10px 13px; display: grid; gap: 4px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--ink); text-align: left; }
-.workspace-row[aria-current="page"] { background: var(--cobalt-soft); }
+.workspace-row[aria-current="page"] { background: var(--surface-hover); color: var(--ink-strong); }
 .workspace-row span { color: var(--muted); font-size: var(--type-2xs); }
 .activation-work { display: grid; gap: 14px; }
 .work-heading { min-height: 64px; padding: 12px 15px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--line); }
@@ -51,7 +51,7 @@
 .provider-health[data-state="degraded"], .provider-health[data-state="revoked"] { background: var(--vermilion-soft); }
 .provider-health[data-state="pending"] { background: var(--amber-soft); }
 .repository-picker { padding: 12px 15px; display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; }
-.repository-picker button { min-height: 76px; padding: 10px; display: grid; gap: 4px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-subtle); color: var(--ink); text-align: left; }
+.repository-picker button { min-height: 76px; padding: 10px; display: grid; gap: 4px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); text-align: left; }
 .repository-picker button[aria-selected="true"] { border-color: var(--cobalt); background: var(--cobalt-soft); }
 .repository-picker span, .repository-picker small { color: var(--muted); font-size: var(--type-2xs); }
 .repository-picker button[aria-selected="true"] span { color: var(--cobalt-strong); }

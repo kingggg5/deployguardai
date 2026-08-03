@@ -29,11 +29,12 @@ Every risk dimension and root-cause hypothesis is traceable to evidence, exposes
 
 ## Operating Context
 
-- Local portfolio demo with reproducible synthetic incidents.
-- GitHub pull-request and deployment metadata.
-- OpenTelemetry traces, metrics, and logs in later integration phases.
+- Multi-tenant repository workspace for platform, reliability, and incident-response teams.
+- Connected GitHub pull-request and deployment metadata through a verified GitHub App.
+- Authenticated normalized telemetry events with explicit provenance; native OTLP gateway packaging remains follow-up work.
 - Service dependency graphs and temporal incident evidence.
 - High-pressure investigation where fast scanning, clear uncertainty, and reversible actions matter.
+- Explicitly labelled synthetic scenarios for deterministic evaluation, disabled by default in a fresh runtime.
 
 ## Capabilities and Constraints
 
@@ -47,8 +48,9 @@ Every risk dimension and root-cause hypothesis is traceable to evidence, exposes
 - Run seeded, reproducible scenarios without external credentials.
 - Switch between repository-backed synthetic scenarios from a searchable scope selector.
 - Open existing product actions through a keyboard command center and copy the current view as a deep link.
-- Persist demo state locally in SQLite and support PostgreSQL through configuration.
-- Create tenant workspaces, connect development-fixture repositories, invite members, enforce workspace roles, and inspect audit events through a truthful local activation flow.
+- Persist local state in SQLite and support PostgreSQL through configuration and migrations.
+- Create tenant workspaces, connect verified GitHub repositories, invite members, enforce workspace roles, and inspect audit events. Development substitutes appear only when the configured environment explicitly enables them.
+- Operate through a repository-native UI with global search, visible workspace/repository scope, responsive navigation, settings-style operations, and bilingual English/Thai copy.
 
 ### Constraints
 
@@ -64,6 +66,7 @@ Every risk dimension and root-cause hypothesis is traceable to evidence, exposes
 - Product name: DeployGuard AI
 - Voice: calm, exact, evidence-first, and free of autonomous-AI hype.
 - Product language prefers “hypothesis”, “evidence”, “counter-evidence”, “uncertainty”, and “verify next” over claims of certainty.
+- Interaction language is familiar to repository users, but DeployGuard does not copy GitHub branding or product assets.
 
 ## Evidence on Hand
 

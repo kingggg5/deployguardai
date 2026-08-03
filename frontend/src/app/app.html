@@ -1,9 +1,9 @@
 <!--
-THESIS: An evidence cockpit that keeps change, propagation, proof, and human verdict in one traceable workspace instead of a generic analytics card wall.
-OWN-WORLD: Obsidian instrument surfaces, cool paper light mode, blueprint registration lines, cobalt selection, and semantic square marks.
-STORY: Choose a repository-backed scenario, jump by command, inspect service impact, replay evidence, compare hypotheses, share the exact view, and close the loop with a human verdict.
-FIRST VIEWPORT: A repository scope rail, searchable command center, dominant topology canvas, adjacent evidence ledger, incident header, and replay controls visible without hunting.
-FORM: Investigation cockpit, pinned by the product brief; direction seed intentionally skipped.
+THESIS: A repository-native evidence room where change risk, propagation, proof, and human verdict stay traceable without becoming a generic analytics dashboard.
+OWN-WORLD: Familiar repository chrome, flat ruled ledgers, underlined navigation, compact metadata labels, and DeployGuard's own evidence-first shield identity.
+STORY: Confirm workspace and repository scope, inspect a change, follow blast radius and runtime evidence, compare hypotheses, coordinate the incident, and record the human decision.
+FIRST VIEWPORT: Global product controls, explicit repository and data-origin context, horizontal product navigation, then the active investigation or operations ledger.
+FORM: GitHub/Primer-inspired repository workspace; interaction grammar is familiar while branding, domain language, and product assets remain original.
 -->
 
 <a class="skip-link" href="#workspace-content">{{ t('skip_to_content') }}</a>
@@ -26,30 +26,12 @@ FORM: Investigation cockpit, pinned by the product brief; direction seed intenti
       </div>
     </div>
   </main>
-} @else if (activeTab() === 'workspace' && !overview()) {
-  <main id="workspace-content" class="workspace" tabindex="-1">
-    <app-workspace-setup
-      [language]="lang()"
-      [activateContextOnLoad]="true"
-      (contextChanged)="handleWorkspaceContextChanged($event)"
-    />
-  </main>
-} @else if (activeTab() === 'operations' && !overview()) {
-  <main id="workspace-content" class="workspace" tabindex="-1">
-    @defer (on immediate) {
-      <app-operations-center
-        [language]="lang()"
-        [incident]="null"
-        (workspaceSetupRequested)="setActiveTab('workspace')"
-        (contextChanged)="handleOperationsContextChanged($event)"
-      />
-    } @placeholder {
-      <div class="empty-state" aria-busy="true">
-        <strong>{{ t('loading_operations') }}</strong>
-      </div>
-    }
-  </main>
-} @else if (loadError() && !overview()) {
+} @else if (
+  loadError() &&
+  !overview() &&
+  activeTab() !== 'workspace' &&
+  activeTab() !== 'operations'
+) {
   <main class="fatal-state">
     <span class="fatal-state__mark" aria-hidden="true">!</span>
     <p class="system-kicker">{{ t('connection_interrupted') }}</p>
@@ -65,7 +47,7 @@ FORM: Investigation cockpit, pinned by the product brief; direction seed intenti
       Open sign-in and workspace setup
     </button>
   </main>
-} @else if (overview(); as data) {
+} @else {
   <div class="cockpit-shell" [class.is-sidebar-open]="isSidebarOpen()">
     <button
       type="button"
@@ -74,7 +56,7 @@ FORM: Investigation cockpit, pinned by the product brief; direction seed intenti
       (click)="toggleSidebar()"
     ></button>
 
-    <aside class="command-rail" [attr.aria-label]="t('main_navigation')">
+    <header class="command-rail">
       <div class="rail-brand">
         <svg class="brand-mark" viewBox="0 0 38 38" aria-hidden="true">
           <path class="brand-shield" d="M19 3 33 8.4v9.2c0 8.5-5.6 14-14 17.4C10.6 31.6 5 26.1 5 17.6V8.4L19 3Z"/>
@@ -84,6 +66,95 @@ FORM: Investigation cockpit, pinned by the product brief; direction seed intenti
           <strong>DeployGuard AI</strong>
           <span>{{ t('app_subtitle_short') }}</span>
         </div>
+      </div>
+
+      <div class="global-search">
+        <app-command-palette
+          [scenarios]="scenarios()"
+          [language]="lang()"
+          (actionSelected)="handlePaletteAction($event)"
+        />
+      </div>
+
+      <div class="command-actions">
+        <div class="language-control" [attr.aria-label]="t('language_selector')">
+          <button type="button" [class.is-active]="lang() === 'th'" (click)="setLang('th')">TH</button>
+          <button type="button" [class.is-active]="lang() === 'en'" (click)="setLang('en')">EN</button>
+        </div>
+
+        <button
+          type="button"
+          class="icon-button"
+          [attr.aria-label]="isDarkMode() ? t('theme_light') : t('theme_dark')"
+          [attr.title]="isDarkMode() ? t('theme_light') : t('theme_dark')"
+          (click)="toggleTheme()"
+        >
+          @if (isDarkMode()) {
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10Zm0-5 1 3h-2l1-3Zm0 20-1-3h2l-1 3ZM2 12l3-1v2l-3-1Zm20 0-3 1v-2l3 1ZM4.2 4.2l2.8 1.4L5.6 7 4.2 4.2Zm15.6 15.6L17 18.4l1.4-1.4 1.4 2.8Zm0-15.6L18.4 7 17 5.6l2.8-1.4ZM4.2 19.8 5.6 17 7 18.4l-2.8 1.4Z"/></svg>
+          } @else {
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.4 15.5A8.5 8.5 0 0 1 8.5 3.6 8.5 8.5 0 1 0 20.4 15.5Z"/></svg>
+          }
+        </button>
+
+        <button
+          type="button"
+          class="icon-button"
+          [disabled]="isRefreshing()"
+          [attr.aria-label]="t('refresh_data')"
+          [attr.title]="t('refresh_data')"
+          (click)="refreshDashboard(true)"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" [class.is-spinning]="isRefreshing()">
+            <path d="M18.2 5.8A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.5-4L13 11h8V3l-2.8 2.8Z"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="cockpit-main">
+      <section class="command-bar" [attr.aria-label]="t('workspace_summary')">
+        <div class="command-bar__context">
+          <button
+            type="button"
+            class="icon-button mobile-menu"
+            [attr.aria-label]="t('open_navigation')"
+            (click)="toggleSidebar()"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18v2H3V5Zm0 6h18v2H3v-2Zm0 6h18v2H3v-2Z"/></svg>
+          </button>
+          <app-scope-switcher
+            [scenarios]="scenarios()"
+            [activeScenarioId]="activeScenarioId()"
+            [language]="lang()"
+            (scenarioSelected)="activateScenario($event)"
+            (shareRequested)="copyCurrentView()"
+          />
+        </div>
+
+        <dl class="command-stats" [attr.aria-label]="t('workspace_summary')">
+          <div>
+            <dt>{{ t('open_incidents') }}</dt>
+            <dd>{{ overview()?.stats?.open_incidents ?? 0 }}</dd>
+          </div>
+          <div>
+            <dt>{{ t('high_risk_changes') }}</dt>
+            <dd>{{ overview()?.stats?.high_risk_changes ?? 0 }}</dd>
+          </div>
+          <div>
+            <dt>{{ t('evidence_quality') }}</dt>
+            <dd>{{ (overview()?.stats?.evidence_quality ?? 0) | percent:'1.0-0' }}</dd>
+          </div>
+        </dl>
+
+        <div class="rail-foot">
+          <span class="connection-state"><i aria-hidden="true"></i>{{ t('api_connected') }}</span>
+          <time [attr.datetime]="lastUpdated()">
+            {{ t('last_sync') }} {{ lastUpdated() | date:'HH:mm:ss':'UTC' }} UTC
+          </time>
+        </div>
+      </section>
+
+      <nav class="rail-navigation" [attr.aria-label]="t('main_navigation')">
         <button
           type="button"
           class="icon-button rail-close"
@@ -92,17 +163,6 @@ FORM: Investigation cockpit, pinned by the product brief; direction seed intenti
         >
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.3 4.9 12.8 12.8-1.4 1.4L4.9 6.3l1.4-1.4Zm11.4 0 1.4 1.4L6.3 19.1l-1.4-1.4L17.7 4.9Z"/></svg>
         </button>
-      </div>
-
-      <app-scope-switcher
-        [scenarios]="scenarios()"
-        [activeScenarioId]="activeScenarioId()"
-        [language]="lang()"
-        (scenarioSelected)="activateScenario($event)"
-        (shareRequested)="copyCurrentView()"
-      />
-
-      <nav class="rail-navigation">
         <button
           type="button"
           [class.is-active]="activeTab() === 'investigation'"
@@ -157,115 +217,21 @@ FORM: Investigation cockpit, pinned by the product brief; direction seed intenti
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm12.5 0a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7Zm0 2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"/></svg>
           <span>{{ t('tab_workspace') }}</span>
         </button>
+        @if (activeTab() === 'investigation') {
+          <button
+            type="button"
+            class="control-button xray-control"
+            role="switch"
+            [attr.aria-checked]="isEvidenceXray()"
+            [class.is-active]="isEvidenceXray()"
+            (click)="toggleEvidenceXray()"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 3 3 3-2 2-3-3 2-2Zm14 0 2 2-3 3-2-2 3-3ZM8.7 9.3l6 6-1.4 1.4-6-6 1.4-1.4Zm6.6 0 1.4 1.4-6 6-1.4-1.4 6-6ZM3 19l3-3 2 2-3 3-2-2Zm13-1 2-2 3 3-2 2-3-3Z"/></svg>
+            <span>{{ t('evidence_xray') }}</span>
+            <i class="switch-dot" aria-hidden="true"></i>
+          </button>
+        }
       </nav>
-
-      <div class="rail-foot">
-        <div>
-          <span class="context-label">{{ t('last_sync') }}</span>
-          <time [attr.datetime]="lastUpdated()">
-            {{ lastUpdated() | date:'HH:mm:ss':'UTC' }} UTC
-          </time>
-        </div>
-        <span class="connection-state"><i aria-hidden="true"></i>{{ t('api_connected') }}</span>
-      </div>
-    </aside>
-
-    <div class="cockpit-main">
-      <header class="command-bar">
-        <div class="command-bar__context">
-          <button
-            type="button"
-            class="icon-button mobile-menu"
-            [attr.aria-label]="t('open_navigation')"
-            (click)="toggleSidebar()"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18v2H3V5Zm0 6h18v2H3v-2Zm0 6h18v2H3v-2Z"/></svg>
-          </button>
-          <div>
-            <span class="system-kicker">{{ t('workspace_label') }}</span>
-            <strong>
-              @switch (activeTab()) {
-                @case ('change_risk') { {{ t('tab_change_risk') }} }
-                @case ('dora') { {{ t('tab_dora') }} }
-                @case ('scenarios') { {{ t('tab_scenarios') }} }
-                @case ('operations') { {{ t('tab_operations') }} }
-                @case ('workspace') { {{ t('tab_workspace') }} }
-                @default { {{ t('tab_investigation') }} }
-              }
-            </strong>
-          </div>
-        </div>
-
-        <dl class="command-stats" [attr.aria-label]="t('workspace_summary')">
-          <div>
-            <dt>{{ t('open_incidents') }}</dt>
-            <dd>{{ data.stats.open_incidents }}</dd>
-          </div>
-          <div>
-            <dt>{{ t('high_risk_changes') }}</dt>
-            <dd>{{ data.stats.high_risk_changes }}</dd>
-          </div>
-          <div>
-            <dt>{{ t('evidence_quality') }}</dt>
-            <dd>{{ data.stats.evidence_quality | percent:'1.0-0' }}</dd>
-          </div>
-        </dl>
-
-        <div class="command-actions">
-          <app-command-palette
-            [scenarios]="scenarios()"
-            [language]="lang()"
-            (actionSelected)="handlePaletteAction($event)"
-          />
-
-          @if (activeTab() === 'investigation') {
-            <button
-              type="button"
-              class="control-button xray-control"
-              role="switch"
-              [attr.aria-checked]="isEvidenceXray()"
-              [class.is-active]="isEvidenceXray()"
-              (click)="toggleEvidenceXray()"
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 3 3 3-2 2-3-3 2-2Zm14 0 2 2-3 3-2-2 3-3ZM8.7 9.3l6 6-1.4 1.4-6-6 1.4-1.4Zm6.6 0 1.4 1.4-6 6-1.4-1.4 6-6ZM3 19l3-3 2 2-3 3-2-2Zm13-1 2-2 3 3-2 2-3-3Z"/></svg>
-              <span>{{ t('evidence_xray') }}</span>
-              <i class="switch-dot" aria-hidden="true"></i>
-            </button>
-          }
-
-          <div class="language-control" [attr.aria-label]="t('language_selector')">
-            <button type="button" [class.is-active]="lang() === 'th'" (click)="setLang('th')">TH</button>
-            <button type="button" [class.is-active]="lang() === 'en'" (click)="setLang('en')">EN</button>
-          </div>
-
-          <button
-            type="button"
-            class="icon-button"
-            [attr.aria-label]="isDarkMode() ? t('theme_light') : t('theme_dark')"
-            [attr.title]="isDarkMode() ? t('theme_light') : t('theme_dark')"
-            (click)="toggleTheme()"
-          >
-            @if (isDarkMode()) {
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10Zm0-5 1 3h-2l1-3Zm0 20-1-3h2l-1 3ZM2 12l3-1v2l-3-1Zm20 0-3 1v-2l3 1ZM4.2 4.2l2.8 1.4L5.6 7 4.2 4.2Zm15.6 15.6L17 18.4l1.4-1.4 1.4 2.8Zm0-15.6L18.4 7 17 5.6l2.8-1.4ZM4.2 19.8 5.6 17 7 18.4l-2.8 1.4Z"/></svg>
-            } @else {
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.4 15.5A8.5 8.5 0 0 1 8.5 3.6 8.5 8.5 0 1 0 20.4 15.5Z"/></svg>
-            }
-          </button>
-
-          <button
-            type="button"
-            class="icon-button"
-            [disabled]="isRefreshing()"
-            [attr.aria-label]="t('refresh_data')"
-            [attr.title]="t('refresh_data')"
-            (click)="refreshDashboard(true)"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" [class.is-spinning]="isRefreshing()">
-              <path d="M18.2 5.8A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.5-4L13 11h8V3l-2.8 2.8Z"/>
-            </svg>
-          </button>
-        </div>
-      </header>
 
       @if (loadError()) {
         <div class="notice notice--error" role="alert">
@@ -876,7 +842,7 @@ FORM: Investigation cockpit, pinned by the product brief; direction seed intenti
             [metrics]="doraMetrics()"
             [isLoading]="isDoraLoading()"
             [error]="doraError()"
-            [dataMode]="data.data_mode"
+            [dataMode]="overview()?.data_mode ?? 'connected'"
             [language]="lang()"
             (retryRequested)="loadDoraMetrics()"
           />
@@ -891,6 +857,7 @@ FORM: Investigation cockpit, pinned by the product brief; direction seed intenti
         } @else if (activeTab() === 'workspace') {
           <app-workspace-setup
             [language]="lang()"
+            [activateContextOnLoad]="true"
             (contextChanged)="handleWorkspaceContextChanged($event)"
           />
         } @else if (activeTab() === 'operations') {

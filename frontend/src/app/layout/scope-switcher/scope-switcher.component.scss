@@ -1,78 +1,117 @@
 :host {
   display: block;
-  margin: 24px 0 18px;
 }
 
 .scope-switcher {
-  --scope-chevron-rotate: 0deg;
   position: relative;
-  display: grid;
-  gap: 7px;
-}
-
-.scope-switcher[data-open='true'] {
-  --scope-chevron-rotate: 180deg;
-}
-
-.scope-label,
-.scope-workspace,
-.scope-option-mode,
-.scope-search-label {
-  color: var(--muted);
-  font-size: var(--type-xs);
-  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 
 .scope-trigger {
-  position: relative;
-  display: grid;
-  width: 100%;
-  min-height: 62px;
-  padding: 10px 34px 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  background: var(--surface-subtle);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  min-height: 36px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
   color: var(--ink);
   text-align: left;
-  cursor: pointer;
 }
 
 .scope-trigger:hover,
 .scope-trigger:focus-visible {
-  border-color: var(--cobalt);
   background: var(--surface-hover);
 }
 
+.scope-repository-icon,
+.scope-option-mark {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  fill: currentColor;
+}
+
+.scope-repository-icon {
+  margin-right: 2px;
+  color: var(--muted);
+}
+
+.scope-workspace,
 .scope-repository {
   overflow: hidden;
-  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.scope-chevron {
-  position: absolute;
-  top: 21px;
-  right: 13px;
+.scope-workspace {
+  color: var(--cobalt-strong);
+  font-size: 14px;
+}
+
+.scope-separator {
   color: var(--muted);
-  font-size: 18px;
-  transform: rotate(var(--scope-chevron-rotate));
-  transition: transform 180ms var(--ease-out);
+}
+
+.scope-repository {
+  color: var(--cobalt-strong);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.scope-full-name {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.scope-chevron {
+  margin-left: 3px;
+  color: var(--muted);
+  font-size: 16px;
+  transform: rotate(0deg);
+  transition: transform 120ms var(--ease-out);
+}
+
+.scope-switcher[data-open='true'] .scope-chevron {
+  transform: rotate(180deg);
 }
 
 .scope-mode {
-  display: flex;
+  display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
+  min-height: 24px;
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
   color: var(--muted-strong);
-  font-size: var(--type-xs);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .scope-mode-mark {
-  width: 7px;
-  height: 7px;
-  border-radius: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
   background: var(--cobalt);
+}
+
+.scope-mode[data-mode='connected'] .scope-mode-mark {
+  background: var(--green);
+}
+
+.scope-mode[data-mode='unscoped'] .scope-mode-mark {
+  background: var(--muted);
 }
 
 .scope-scrim {
@@ -80,24 +119,23 @@
   z-index: 80;
   inset: 0;
   border: 0;
-  background: rgb(3 10 22 / 52%);
-  cursor: default;
+  background: rgb(1 4 9 / 42%);
 }
 
 .scope-menu {
   position: fixed;
   z-index: 81;
-  top: 82px;
-  left: 16px;
+  top: 128px;
+  left: max(16px, calc((100vw - 1280px) / 2));
   display: grid;
-  width: min(430px, calc(100vw - 32px));
-  max-height: min(620px, calc(100vh - 104px));
+  width: min(420px, calc(100vw - 32px));
+  max-height: min(600px, calc(100vh - 152px));
   overflow: hidden;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-lg);
   background: var(--surface);
   box-shadow: var(--shadow-float);
-  animation: scope-enter 220ms var(--ease-out);
+  animation: scope-enter 160ms var(--ease-out);
 }
 
 .scope-menu-header,
@@ -105,7 +143,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 15px 16px;
+  padding: 12px 16px;
 }
 
 .scope-menu-header {
@@ -117,94 +155,83 @@
   gap: 2px;
 }
 
-.scope-heading-label {
+.scope-heading-label,
+.scope-search-label,
+.scope-option-mode {
   color: var(--muted);
-  font-size: var(--type-xs);
+  font-size: 12px;
 }
 
 .scope-heading-title {
-  font-size: 15px;
+  font-size: 14px;
 }
 
 .scope-close {
-  width: var(--component-control-min-width);
-  height: var(--component-control-min-height);
-  border: 1px solid var(--line);
+  width: 32px;
+  height: 32px;
+  border: 0;
   border-radius: var(--radius-sm);
-  background: var(--surface-subtle);
+  background: transparent;
+  color: var(--muted-strong);
+  font-size: 22px;
+}
+
+.scope-close:hover {
+  background: var(--surface-hover);
   color: var(--ink);
-  font-size: 21px;
-  cursor: pointer;
 }
 
 .scope-search {
   display: grid;
   gap: 6px;
-  padding: 14px 16px;
+  padding: 12px 16px;
 }
 
 .scope-search-input {
   width: 100%;
-  min-height: var(--component-control-min-height);
-  padding: 0 12px;
-  border: 1px solid var(--line);
+  min-height: 32px;
+  padding: 5px 10px;
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
-  background: var(--surface-subtle);
+  background: var(--surface);
   color: var(--ink);
-  outline: 0;
 }
 
-.scope-search-input:focus {
+.scope-search-input:focus-visible {
   border-color: var(--focus);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus) 24%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--focus) 28%, transparent);
+  outline-offset: 0;
 }
 
 .scope-options {
   display: grid;
-  gap: 6px;
   min-height: 120px;
-  padding: 0 10px 12px;
+  padding: 0 8px 8px;
   overflow-y: auto;
 }
 
 .scope-option {
-  --scope-mark-color: var(--surface);
-  position: relative;
   display: grid;
-  grid-template-columns: 12px minmax(0, 1fr) auto;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
-  min-height: 58px;
-  padding: 10px 12px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
+  min-height: 54px;
+  padding: 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--ink);
   text-align: left;
-  cursor: pointer;
-  transition:
-    background-color 180ms var(--ease-out),
-    border-color 180ms var(--ease-out);
 }
 
 .scope-option:hover,
-.scope-option:focus-visible {
-  border-color: var(--line-strong);
+.scope-option:focus-visible,
+.scope-option[data-state='active'] {
   background: var(--surface-hover);
 }
 
 .scope-option[data-state='active'] {
-  --scope-mark-color: var(--cobalt);
-  border-color: var(--cobalt);
-  background: var(--cobalt-soft);
-}
-
-.scope-option-mark {
-  width: 10px;
-  height: 10px;
-  border: 1px solid var(--line-strong);
-  border-radius: 3px;
-  background: var(--scope-mark-color);
+  color: var(--cobalt-strong);
 }
 
 .scope-option-copy {
@@ -224,10 +251,10 @@
 }
 
 .scope-option-mode {
-  padding: 3px 6px;
+  padding: 2px 7px;
   border: 1px solid var(--line);
-  border-radius: 5px;
-  font-family: "Cascadia Code", Consolas, monospace;
+  border-radius: 999px;
+  font-family: var(--font-family-measure);
 }
 
 .scope-empty {
@@ -242,34 +269,52 @@
 }
 
 .scope-share {
-  min-height: 38px;
-  padding: 0 12px;
+  min-height: 32px;
+  padding: 5px 12px;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   background: var(--surface-subtle);
   color: var(--ink);
-  font-weight: 650;
-  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .scope-share:hover,
 .scope-share:focus-visible {
-  border-color: var(--cobalt);
-  color: var(--cobalt-strong);
+  background: var(--surface-hover);
 }
 
 @keyframes scope-enter {
   from {
-    clip-path: inset(0 0 100% 0 round var(--radius-lg));
-    filter: blur(4px);
-  }
-  to {
-    clip-path: inset(0 0 0 0 round var(--radius-lg));
-    filter: blur(0);
+    opacity: 0;
+    transform: translateY(-6px);
   }
 }
 
-@media (max-width: 680px) {
+@media (max-width: 760px) {
+  .scope-mode {
+    min-height: 20px;
+    padding: 1px 6px;
+    gap: 4px;
+    font-size: 10px;
+  }
+
+  .scope-mode-mark {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scope-menu {
+    top: 124px;
+  }
+}
+
+@media (max-width: 520px) {
+  .scope-workspace,
+  .scope-separator {
+    display: none;
+  }
+
   .scope-menu {
     top: auto;
     bottom: 12px;
@@ -282,10 +327,5 @@
 @media (prefers-reduced-motion: reduce) {
   .scope-menu {
     animation: none;
-  }
-
-  .scope-chevron,
-  .scope-option {
-    transition: none;
   }
 }

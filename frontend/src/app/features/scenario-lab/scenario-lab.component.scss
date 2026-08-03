@@ -20,8 +20,7 @@
   background: var(--surface-subtle);
   color: var(--muted);
   font-size: var(--type-2xs);
-  font-weight: 800;
-  text-transform: uppercase;
+  font-weight: 600;
 }
 
 .scenario-register-body {
@@ -97,7 +96,7 @@
 .scenario-active-mark {
   width: 7px;
   height: 7px;
-  border-radius: 2px;
+  border-radius: 50%;
   background: currentColor;
 }
 
@@ -125,11 +124,11 @@
 .scenario-action {
   min-height: 40px;
   padding: 0 12px;
-  border: 1px solid var(--cobalt);
+  border: 1px solid var(--green);
   border-radius: var(--radius-sm);
-  background: var(--cobalt);
-  color: var(--color-on-accent);
-  font-weight: 750;
+  background: var(--green);
+  color: var(--color-on-success);
+  font-weight: 600;
   cursor: pointer;
 }
 

@@ -3,21 +3,40 @@
 Evidence-first change risk and incident investigation for engineering teams.
 
 [![Backend Tests](https://img.shields.io/badge/backend-45%20tests%20passing-16a34a)](https://github.com/kingggg5/deployguardai)
-[![Frontend Tests](https://img.shields.io/badge/frontend-47%20tests%20passing-16a34a)](https://github.com/kingggg5/deployguardai)
+[![Frontend Tests](https://img.shields.io/badge/frontend-50%20tests%20passing-16a34a)](https://github.com/kingggg5/deployguardai)
 [![Angular Build](https://img.shields.io/badge/Angular%20build-passing-2563eb)](https://github.com/kingggg5/deployguardai)
 
-DeployGuard helps a platform or reliability team answer two practical questions:
+DeployGuard helps platform and reliability teams answer two practical questions:
 
 1. How risky is this change before it reaches production?
 2. When an incident starts, what evidence supports or contradicts each possible cause?
 
-The project combines a deterministic risk engine, service-graph blast-radius analysis, an evidence ledger, ranked RCA hypotheses, human feedback, and a tenant-aware workspace. Real mode is the default: records arrive from a verified GitHub App and authenticated telemetry. Synthetic scenarios are an explicit opt-in for evaluation only.
+The project combines a deterministic risk engine, service-graph blast-radius analysis, an evidence ledger, ranked RCA hypotheses, human feedback, and a tenant-aware workspace. Connected mode is the default: records arrive from a verified GitHub App and authenticated telemetry. Synthetic scenarios are an explicit opt-in for evaluation only.
 
-> **ภาษาไทย:** DeployGuard เป็นระบบช่วยวิเคราะห์ความเสี่ยงของ Pull Request และสืบสวน incident จากหลักฐานจริง เช่น change metadata, deployment events และ telemetry โดยแยกข้อมูลตัวอย่างออกจากข้อมูลที่เชื่อมต่อจริงอย่างชัดเจน
+The interface follows a repository-native, GitHub/Primer-inspired interaction model: global product controls, visible workspace and repository scope, underlined product navigation, issue-style ledgers, settings navigation, compact labels, and evidence timelines. DeployGuard keeps its own identity and does not copy GitHub branding or assets.
 
-![DeployGuard dashboard](docs/assets/dashboard-runtime-desktop.png)
+## Why teams use it
 
-## What is implemented
+- Review risky changes before deployment without turning a score into an automatic gate.
+- See why a risk score changed, which services are affected, and which evidence is missing.
+- Investigate incidents with supporting evidence, counter-evidence, uncertainty, and the next verification step in one place.
+- Keep repository, deployment, telemetry, incident, and human-verdict records inside the same tenant boundary.
+- Reproduce evaluation scenarios without presenting fixtures as production data.
+
+## ภาษาไทย
+
+DeployGuard AI ช่วยทีม Platform, SRE และผู้ดูแลระบบวิเคราะห์ความเสี่ยงของ Pull Request ก่อน deploy และสืบสวน incident หลังเกิดปัญหา โดยเชื่อม change metadata, service dependency, deployment, telemetry และหลักฐานจากมนุษย์เข้าด้วยกัน
+
+ประโยชน์หลัก:
+
+- เห็นเหตุผลของคะแนนความเสี่ยง ไม่ได้เห็นเพียงตัวเลขสรุป
+- ตรวจสอบ blast radius ว่าการเปลี่ยนแปลงกระทบ service ใดและผ่าน dependency เส้นทางไหน
+- เปรียบเทียบสมมติฐานสาเหตุหลัก พร้อมหลักฐานสนับสนุน หลักฐานโต้แย้ง ความไม่แน่นอน และขั้นตอนที่ควรตรวจต่อ
+- จัดการ workspace, repository, role, invitation, service catalog, incident และ audit trail ในขอบเขต tenant เดียวกัน
+- แยก `connected data` กับ `synthetic data` ชัดเจน จึงไม่ทำให้ข้อมูลทดสอบดูเหมือนข้อมูล production
+- ใช้หน้าตาและรูปแบบการนำทางที่คุ้นเคยสำหรับนักพัฒนา เช่น repository context, underline tabs, ledgers, settings navigation และ command palette
+
+## What is implemented / ระบบที่มีแล้ว
 
 - Deterministic change-risk scoring with explicit, testable weights
 - Service dependency graph and bounded blast-radius traversal
@@ -38,22 +57,25 @@ The project combines a deterministic risk engine, service-graph blast-radius ana
 - Human-controlled incident lifecycle, append-only notes, assignments, and notification inbox
 - SMTP workspace invitations with hashed, expiring, single-use claim tokens
 - Append-only audit events for security-sensitive workspace actions
+- Repository-native responsive shell with workspace/repository scope, underlined product navigation, and keyboard command palette
+- Truthful connected, synthetic, waiting, and unavailable states at the point of action
+- Bilingual English/Thai shell and key workflow copy, dark mode, visible keyboard focus, and reduced-motion support
 - SQLite for local development and PostgreSQL for container or production deployments
 - Alembic migrations, including migration of populated legacy databases
 
 DeployGuard does **not** execute shell commands, deploy, roll back, or remediate infrastructure. LLM synthesis remains disabled until an evidence-only contract and evaluation gate are configured.
 
-## Product areas
+## Product areas / ส่วนประกอบของระบบ
 
-| Area | Purpose |
-| --- | --- |
-| Investigation | Review topology, incident evidence, hypotheses, counter-evidence, and verdict history |
-| Change risk | Analyze code size, operational flags, coverage gaps, blast radius, and rollback readiness |
-| DORA metrics | Track deployment frequency, lead time, change failure rate, and mean time to restore |
-| Scenario lab | Run clearly labelled synthetic cases without touching production systems |
-| Operations center | Register services, govern risk policy, inspect accepted events, coordinate incidents, assign responders, and read notifications |
-| Workspace & team | Create tenants, connect repositories, manage roles, invite teammates, inspect connector health, and inspect audit events |
-| Deployment ledger | Normalize signed GitHub deployment lifecycle events, link exact changes by repository + commit SHA, and preserve DORA-compatible status |
+| Area | Purpose | ประโยชน์ |
+| --- | --- | --- |
+| Investigation | Review topology, incident evidence, hypotheses, counter-evidence, and verdict history | สืบสวนเหตุการณ์จากหลักฐานที่ตรวจย้อนกลับได้ |
+| Change risk | Analyze code size, operational flags, coverage gaps, blast radius, and rollback readiness | ประเมินความเสี่ยงก่อน deploy พร้อมเหตุผลและข้อมูลที่ยังขาด |
+| DORA metrics | Track deployment frequency, lead time, change failure rate, and mean time to restore | ติดตามประสิทธิภาพและความเสถียรของกระบวนการส่งมอบ |
+| Scenario lab | Run clearly labelled synthetic cases without touching production systems | ทดสอบ deterministic engines และ workflow โดยไม่กระทบระบบจริง |
+| Operations center | Register services, govern risk policy, inspect accepted events, coordinate incidents, assign responders, and read notifications | รวมงาน service ownership, policy, event และ incident ไว้ใน ledger เดียว |
+| Workspace & team | Create tenants, connect repositories, manage roles, invite teammates, inspect connector health, and inspect audit events | จัดการขอบเขต tenant, สิทธิ์ผู้ใช้ และการเชื่อมต่ออย่างตรวจสอบได้ |
+| Deployment ledger | Normalize signed GitHub deployment lifecycle events, link exact changes by repository + commit SHA, and preserve DORA-compatible status | เชื่อม deployment กับ change ที่ถูกต้องและใช้คำนวณ DORA ได้ |
 
 ## Tech stack
 
@@ -67,6 +89,7 @@ DeployGuard does **not** execute shell commands, deploy, roll back, or remediate
 | Angular Reactive Forms | Workspace, repository, invitation, and analysis inputs |
 | angular-auth-oidc-client 20 | OIDC Authorization Code + PKCE |
 | SCSS | Design tokens, responsive layout, dark mode, and component styling |
+| GitHub Primer patterns | Design reference for repository context, underline navigation, action lists, labels, forms, timelines, and data tables; no Primer runtime dependency |
 | Vitest 4 + jsdom | Frontend unit and interaction tests |
 | Nginx 1.27 | Production static hosting, API proxying, SPA fallback, and security headers |
 
@@ -362,8 +385,8 @@ docker compose config --quiet
 
 Current verification baseline:
 
-- 40 backend tests passing
-- 37 frontend tests passing
+- 45 backend tests passing
+- 50 frontend tests passing
 - Angular production build passing
 - Production npm dependency audit reports 0 vulnerabilities
 - Fresh and populated legacy migration cycles passing
@@ -420,7 +443,28 @@ More detail:
 - [Evaluation](docs/EVALUATION.md)
 - [Thai user guide](docs/USER_GUIDE_TH.md)
 
-## Known limitations
+## Production-readiness roadmap / ระบบที่ควรเพิ่มต่อ
+
+The following items are intentionally **not presented as implemented**. They are the highest-value next systems after the current repository and should be prioritized by deployment risk rather than visual novelty.
+
+รายการต่อไปนี้เป็นงานที่ **ยังไม่เสร็จ** และควรทำตามลำดับความเสี่ยงของการใช้งานจริง ไม่ใช่เพิ่มเพียงเพื่อให้ feature เยอะขึ้น
+
+| Priority | System to add | Why it matters / เหตุผล |
+| --- | --- | --- |
+| P0 | Production identity and provider rollout | Configure real OIDC, a GitHub App, SMTP, telemetry credentials, public HTTPS webhook ingress, and managed secrets. ตัวระบบรองรับสัญญาเหล่านี้แล้ว แต่ต้องมี provider และ credential จริงก่อนใช้งาน production |
+| P0 | Production database operations | Verify PostgreSQL migrations under load, automate encrypted backups and restore drills, define retention, and monitor connection pools. ต้องพิสูจน์การกู้คืนข้อมูลจริงก่อนเปิดใช้กับ incident records |
+| P0 | Continuous integration and release gates | Run backend tests, frontend tests/build/audit, Compose validation, migration smoke tests, and security scanning on every change; publish status badges from those workflows instead of relying on static claims. ป้องกัน regression และทำให้สถานะ release ตรวจสอบได้จริง |
+| P1 | Durable delivery pipeline | Move webhook/event/email processing to a durable queue with bounded retries, dead-letter handling, replay controls, and back-pressure. ป้องกัน event หายหรือยิงซ้ำเมื่อ provider ช้าหรือล่ม |
+| P1 | Edge protection and abuse controls | Add gateway rate limits, request-size enforcement, tenant quotas, bot protection, and alerting for authentication or signature failures. ลดความเสี่ยง DoS และการใช้ ingestion endpoint ผิดวัตถุประสงค์ |
+| P1 | Operational observability | Add structured logs, traces, service health dashboards, SLOs, alert routing, and connector-delivery metrics for DeployGuard itself. ระบบที่ใช้ดูแล production ต้องถูก monitor ได้เช่นเดียวกัน |
+| P1 | Security hardening | Add secret rotation, dependency and container scanning, CSP/reporting, formal threat-model review, audit retention/export, and optional database row-level security. เพิ่ม defense in depth โดยไม่พึ่ง application checks เพียงชั้นเดียว |
+| P2 | Native telemetry gateway | Package an OpenTelemetry Collector/gateway that validates, redacts, normalizes, and forwards supported OTLP signals into the evidence contract. ช่วยให้การเชื่อม telemetry จริงง่ายและปลอดภัยกว่าการเขียน integration เอง |
+| P2 | Evaluation and calibration runner | Run versioned public incident datasets and synthetic scenarios in CI, report ranking/calibration changes, and require review when scoring weights move. ป้องกัน deterministic scoring และ RCA quality ถอยหลังโดยไม่รู้ตัว |
+| P2 | Team workflow integrations | Add configurable Slack/Teams/PagerDuty-style notification adapters, saved filters/views, export policies, and approval-aware incident handoff. ลดงานสลับเครื่องมือแต่ยังคงให้มนุษย์เป็นผู้ตัดสินใจ |
+
+DeployGuard should continue to avoid autonomous deployment, rollback, remediation, and shell execution. Future automation should gather or route evidence, never take irreversible infrastructure action on a score alone.
+
+## Known limitations / ข้อจำกัดปัจจุบัน
 
 - Connected topology remains empty until dependency evidence is ingested.
 - Unknown coverage, rollback, and observability evidence is treated conservatively.

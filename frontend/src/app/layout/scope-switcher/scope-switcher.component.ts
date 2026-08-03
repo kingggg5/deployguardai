@@ -19,6 +19,8 @@ const COPY = {
     repositorySearchLabel: 'ค้นหา Repository',
     selectRepository: 'เลือก Repository',
     synthetic: 'ข้อมูลสาธิต',
+    connected: 'ข้อมูลเชื่อมต่อจริง',
+    unscoped: 'ยังไม่เลือก Repository',
   },
   en: {
     activeScope: 'Active scope',
@@ -28,6 +30,8 @@ const COPY = {
     repositorySearchLabel: 'Search repositories',
     selectRepository: 'Select repository',
     synthetic: 'Synthetic data',
+    connected: 'Connected data',
+    unscoped: 'No repository selected',
   }
 } as const;
 
@@ -56,8 +60,22 @@ export class ScopeSwitcherComponent {
       ) ?? null
   );
   readonly repositoryOwner = computed(
-    () => this.activeScenario()?.repository.split('/')[0] ?? '—'
+    () => this.activeScenario()?.repository.split('/')[0] ?? 'workspace'
   );
+  readonly repositoryName = computed(() => {
+    const repository = this.activeScenario()?.repository;
+    if (!repository) return this.labels().selectRepository;
+    return repository.split('/').slice(1).join('/') || repository;
+  });
+  readonly activeDataMode = computed(
+    () => this.activeScenario()?.data_mode ?? 'unscoped'
+  );
+  readonly activeDataModeLabel = computed(() => {
+    const mode = this.activeDataMode();
+    if (mode === 'connected') return this.labels().connected;
+    if (mode === 'synthetic') return this.labels().synthetic;
+    return this.labels().unscoped;
+  });
   readonly filteredScenarios = computed(() => {
     const query = this.query().trim().toLocaleLowerCase();
     if (!query) return this.scenarios();

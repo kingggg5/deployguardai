@@ -262,6 +262,10 @@ export class App implements OnInit, OnDestroy {
     this.shareError.set('');
     this.workspaceLinks.sync(tab, this.activeScenarioId(), 'push');
     this.document.title = `${this.t(`tab_${tab === 'change_risk' ? 'change_risk' : tab}`)} · DeployGuard AI`;
+    const requiresOverview = tab !== 'workspace' && tab !== 'operations';
+    if (requiresOverview && !this.overview()) {
+      this.refreshDashboard();
+    }
   }
 
   handleOperationsContextChanged(context: UserContext): void {
@@ -979,6 +983,7 @@ export class App implements OnInit, OnDestroy {
 
   private applyTheme(isDark: boolean): void {
     this.document.body.classList.toggle('dark-theme', isDark);
+    this.document.documentElement.classList.toggle('dark-theme', isDark);
     this.document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
   }
 

@@ -7,9 +7,9 @@
 }
 
 .operations-heading {
-  min-height: 116px;
-  margin: 4px 0 14px;
-  padding: 4px 0 20px;
+  min-height: 96px;
+  margin: 0 0 16px;
+  padding: 0 0 16px;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
@@ -25,9 +25,10 @@
   max-width: 760px;
   margin: 5px 0 7px;
   color: var(--ink-strong);
-  font-size: clamp(24px, 3vw, 35px);
-  line-height: 1.13;
-  letter-spacing: -0.028em;
+  font-size: clamp(24px, 3vw, 32px);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
   text-wrap: balance;
 }
 
@@ -57,7 +58,7 @@
 
 .workspace-field select {
   width: min(270px, 34vw);
-  min-height: 42px;
+  min-height: 32px;
   padding: 0 34px 0 11px;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
@@ -198,8 +199,8 @@
   height: 8px;
   flex: 0 0 auto;
   border: 1px solid currentColor;
-  border-radius: 2px;
-  background: color-mix(in srgb, currentColor 28%, transparent);
+  border-radius: 50%;
+  background: currentColor;
 }
 
 .connection-reading small {
@@ -226,7 +227,7 @@
   min-width: 0;
   padding: 12px 10px;
   border-right: 1px solid var(--line);
-  background: var(--surface-subtle);
+  background: var(--surface);
 }
 
 .index-row {
@@ -250,9 +251,9 @@
 }
 
 .index-row[data-state="active"] {
-  border-color: color-mix(in srgb, var(--cobalt) 35%, var(--line));
-  background: var(--cobalt-soft);
-  color: var(--cobalt-strong);
+  border-color: transparent;
+  background: var(--surface-hover);
+  color: var(--ink-strong);
 }
 
 .index-row span {
@@ -305,7 +306,7 @@
   gap: 12px;
   border-bottom: 1px solid var(--line);
   background: var(--surface-subtle);
-  box-shadow: 0 14px 28px -26px rgb(8 24 48 / 70%);
+  box-shadow: none;
 }
 
 .form-title {

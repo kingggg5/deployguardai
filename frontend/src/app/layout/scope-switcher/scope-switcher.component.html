@@ -1,21 +1,29 @@
 <section class="scope-switcher" [attr.data-open]="isOpen()">
-  <span class="scope-label">{{ labels().activeScope }}</span>
   <button
     type="button"
     class="scope-trigger"
     aria-haspopup="dialog"
+    [attr.aria-label]="labels().activeScope + ': ' + repositoryOwner() + ' / ' + repositoryName()"
     [attr.aria-expanded]="isOpen()"
     (click)="toggle()"
   >
+    <svg class="scope-repository-icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M2.75 1.75A1.75 1.75 0 0 1 4.5 0h7a1.75 1.75 0 0 1 1.75 1.75v12.5a.75.75 0 0 1-1.5 0V13h-8v1.25a.75.75 0 0 1-1.5 0V1.75Zm1.5-.25a.5.5 0 0 0-.5.5v9.5h8V2a.5.5 0 0 0-.5-.5h-7Zm1 2.25A.75.75 0 0 1 6 3h4a.75.75 0 0 1 0 1.5H6a.75.75 0 0 1-.75-.75Zm0 3A.75.75 0 0 1 6 6h4a.75.75 0 0 1 0 1.5H6a.75.75 0 0 1-.75-.75Z"/>
+    </svg>
     <span class="scope-workspace">{{ repositoryOwner() }}</span>
+    <span class="scope-separator" aria-hidden="true">/</span>
     <strong class="scope-repository">
-      {{ activeScenario()?.repository ?? labels().selectRepository }}
+      {{ repositoryName() }}
     </strong>
+    @if (activeScenario()) {
+      <span class="scope-full-name">{{ activeScenario()!.repository }}</span>
+    }
     <span class="scope-chevron" aria-hidden="true">⌄</span>
   </button>
-  <span class="scope-mode">
+
+  <span class="scope-mode" [attr.data-mode]="activeDataMode()">
     <i class="scope-mode-mark" aria-hidden="true"></i>
-    {{ labels().synthetic }}
+    {{ activeDataModeLabel() }}
   </span>
 
   @if (isOpen()) {
@@ -68,7 +76,9 @@
             [attr.data-state]="scenario.id === activeScenarioId() ? 'active' : 'idle'"
             (click)="selectScenario(scenario)"
           >
-            <span class="scope-option-mark" aria-hidden="true"></span>
+            <svg class="scope-option-mark" viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M2.75 1.75A1.75 1.75 0 0 1 4.5 0h7a1.75 1.75 0 0 1 1.75 1.75v12.5a.75.75 0 0 1-1.5 0V13h-8v1.25a.75.75 0 0 1-1.5 0V1.75Zm1.5-.25a.5.5 0 0 0-.5.5v9.5h8V2a.5.5 0 0 0-.5-.5h-7Z"/>
+            </svg>
             <span class="scope-option-copy">
               <strong class="scope-option-title">{{ scenario.repository }}</strong>
               <small class="scope-option-subtitle">{{ scenario.name }}</small>

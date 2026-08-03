@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpErrorResponse } from '@angular/common/http';
 import { of, throwError } from 'rxjs';
+import { OidcSecurityService } from 'angular-auth-oidc-client';
 import { App } from './app';
 import { DeployGuardApiService } from './core/api/deployguard-api.service';
 import { WorkspaceApiService } from './core/api/workspace-api.service';
@@ -20,6 +21,8 @@ describe('DeployGuard investigation ledger', () => {
     exportPostMortem: ReturnType<typeof vi.fn>;
   };
   let workspaceApi: {
+    capabilities: ReturnType<typeof vi.fn>;
+    token: ReturnType<typeof vi.fn>;
     workspaces: ReturnType<typeof vi.fn>;
     repositories: ReturnType<typeof vi.fn>;
     currentContext: ReturnType<typeof vi.fn>;
@@ -50,6 +53,23 @@ describe('DeployGuard investigation ledger', () => {
       )
     };
     workspaceApi = {
+      capabilities: vi.fn(() =>
+        of({
+          environment: 'test',
+          auth_provider: 'development',
+          development_identity: true,
+          synthetic_data: false,
+          github_app: false,
+          github_checks: false,
+          email_delivery: 'development_outbox',
+          connected_telemetry: false,
+          telemetry_scope: 'disabled',
+          oidc_authority: null,
+          oidc_client_id: null,
+          oidc_scope: null
+        })
+      ),
+      token: vi.fn(() => null),
       workspaces: vi.fn(() =>
         of([
           {
@@ -101,7 +121,15 @@ describe('DeployGuard investigation ledger', () => {
       imports: [App],
       providers: [
         { provide: DeployGuardApiService, useValue: api },
-        { provide: WorkspaceApiService, useValue: workspaceApi }
+        { provide: WorkspaceApiService, useValue: workspaceApi },
+        {
+          provide: OidcSecurityService,
+          useValue: {
+            checkAuth: vi.fn(() => of({ isAuthenticated: false })),
+            logoff: vi.fn(() => of(null)),
+            authorizeWithPopUp: vi.fn(() => of({ isAuthenticated: false }))
+          }
+        }
       ]
     }).compileComponents();
 
@@ -135,6 +163,17 @@ describe('DeployGuard investigation ledger', () => {
     expect(api.getScenarios).not.toHaveBeenCalled();
   });
 
+  it('keeps workspace setup reachable when no connected scenario exists', () => {
+    component.activeTab.set('workspace');
+    component.overview.set(null);
+    component.loadError.set('No active scenario is configured');
+
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.cockpit-shell')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.fatal-state')).toBeNull();
+  });
+
   it('opens Operations Center without requiring a scenario overview', () => {
     api.getOverview.mockClear();
     api.getScenarios.mockClear();
@@ -147,6 +186,29 @@ describe('DeployGuard investigation ledger', () => {
     expect(component.isLoading()).toBe(false);
     expect(api.getOverview).not.toHaveBeenCalled();
     expect(api.getScenarios).not.toHaveBeenCalled();
+  });
+
+  it('loads the evidence overview when leaving setup for a repository view', () => {
+    component.overview.set(null);
+    api.getOverview.mockClear();
+    api.getScenarios.mockClear();
+
+    component.setActiveTab('investigation');
+
+    expect(api.getOverview).toHaveBeenCalledTimes(1);
+    expect(api.getScenarios).toHaveBeenCalledTimes(1);
+    expect(component.overview()).not.toBeNull();
+  });
+
+  it('applies theme state at the root token scope', () => {
+    const initial = component.isDarkMode();
+
+    component.toggleTheme();
+
+    expect(document.documentElement.classList.contains('dark-theme')).toBe(!initial);
+    expect(document.body.classList.contains('dark-theme')).toBe(!initial);
+
+    component.toggleTheme();
   });
 
   it('switches scenario through the API and replaces the active overview', () => {

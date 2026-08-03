@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-03T00:00:00+07:00",
+  "title": "Design System: DeployGuard AI",
+  "extensions": {
+    "colorMeta": {
+      "canvas": { "role": "neutral", "displayName": "Repository Canvas", "canonical": "#f6f8fa", "tonalRamp": ["#0d1117", "#161b22", "#30363d", "#636c76", "#afb8c1", "#d0d7de", "#f6f8fa", "#ffffff"] },
+      "accent": { "role": "primary", "displayName": "Repository Blue", "canonical": "#0969da", "tonalRamp": ["#071b31", "#033d8b", "#0550ae", "#0969da", "#218bff", "#54aeff", "#b6e3ff", "#ddf4ff"] },
+      "success": { "role": "secondary", "displayName": "Verified Green", "canonical": "#1a7f37", "tonalRamp": ["#0f2d18", "#116329", "#1a7f37", "#2da44e", "#4ac26b", "#6fdd8b", "#aceebb", "#dafbe1"] },
+      "attention": { "role": "tertiary", "displayName": "Attention Amber", "canonical": "#9a6700", "tonalRamp": ["#341a00", "#633c01", "#9a6700", "#bf8700", "#d4a72c", "#eac54f", "#fbe59e", "#fff8c5"] },
+      "danger": { "role": "tertiary", "displayName": "Incident Red", "canonical": "#cf222e", "tonalRamp": ["#3f1115", "#82071e", "#a40e26", "#cf222e", "#fa4549", "#ff8182", "#ffb3ba", "#ffebe9"] },
+      "header": { "role": "neutral", "displayName": "Global Header", "canonical": "#25292f", "tonalRamp": ["#010409", "#0d1117", "#161b22", "#25292f", "#3d444d", "#57606a", "#8c959f", "#f0f6fc"] },
+      "nav-indicator": { "role": "tertiary", "displayName": "Navigation Indicator", "canonical": "#fd8c73", "tonalRamp": ["#4d1714", "#7d2f27", "#a7463c", "#cf5c4e", "#fd8c73", "#ffb3a7", "#ffd3cc", "#fff1ee"] }
+    },
+    "typographyMeta": {
+      "headline": { "displayName": "Headline", "purpose": "Page and incident titles." },
+      "body": { "displayName": "Body", "purpose": "Evidence, forms, and operational copy." },
+      "label": { "displayName": "Label", "purpose": "Navigation, controls, and compact metadata." }
+    },
+    "shadows": [
+      { "name": "overlay", "value": "0 8px 24px rgba(140,149,159,0.2)", "purpose": "Menus, dialogs, and command palette only." }
+    ],
+    "motion": [
+      { "name": "state", "value": "80ms cubic-bezier(0.33, 1, 0.68, 1)", "purpose": "Hover, focus, and selected-state feedback." }
+    ],
+    "breakpoints": [
+      { "name": "mobile", "value": "680px" },
+      { "name": "tablet", "value": "900px" },
+      { "name": "wide", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "User-controlled create and save action.",
+      "html": "<button class=\"ds-btn-primary\">Save changes</button>",
+      "css": ".ds-btn-primary{min-height:32px;padding:5px 16px;border:1px solid rgba(27,31,36,.15);border-radius:6px;background:#1a7f37;color:#fff;font:600 14px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}.ds-btn-primary:hover{background:#116329}.ds-btn-primary:focus-visible{outline:2px solid #0969da;outline-offset:2px}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Neutral repository action.",
+      "html": "<button class=\"ds-btn-secondary\">Refresh</button>",
+      "css": ".ds-btn-secondary{min-height:32px;padding:5px 12px;border:1px solid #d0d7de;border-radius:6px;background:#f6f8fa;color:#1f2328;font:600 14px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}.ds-btn-secondary:hover{background:#f3f4f6;border-color:#afb8c1}.ds-btn-secondary:focus-visible{outline:2px solid #0969da;outline-offset:2px}"
+    },
+    {
+      "name": "Repository Navigation",
+      "kind": "nav",
+      "description": "Underlined horizontal navigation for product areas.",
+      "html": "<nav class=\"ds-repo-nav\"><button aria-current=\"page\">Investigation <span>1</span></button><button>Change risk</button><button>Operations</button></nav>",
+      "css": ".ds-repo-nav{display:flex;gap:8px;border-bottom:1px solid #d0d7de}.ds-repo-nav button{position:relative;min-height:48px;padding:0 10px;border:0;background:transparent;color:#1f2328;font:600 14px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}.ds-repo-nav button:hover{background:#f3f4f6;border-radius:6px}.ds-repo-nav button[aria-current='page']::after{content:'';position:absolute;right:8px;bottom:-1px;left:8px;height:2px;background:#fd8c73;border-radius:2px}.ds-repo-nav span{margin-left:5px;padding:1px 6px;border-radius:999px;background:#afb8c133}"
+    },
+    {
+      "name": "Status Label",
+      "kind": "chip",
+      "description": "Text-backed metadata for data origin and operational state.",
+      "html": "<span class=\"ds-status\"><i></i>Connected</span>",
+      "css": ".ds-status{display:inline-flex;align-items:center;gap:6px;padding:2px 7px;border:1px solid #d0d7de;border-radius:999px;color:#1f2328;font:600 12px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}.ds-status i{width:8px;height:8px;border-radius:50%;background:#1a7f37}"
+    },
+    {
+      "name": "Evidence Panel",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "Flat bordered region with one shared row ledger.",
+      "html": "<section class=\"ds-panel\"><header>Evidence <span>12</span></header><article><strong>checkout-api</strong><small>Trace · 2 minutes ago</small></article><article><strong>orders-db</strong><small>Metric · 4 minutes ago</small></article></section>",
+      "css": ".ds-panel{overflow:hidden;border:1px solid #d0d7de;border-radius:6px;background:#fff;color:#1f2328;font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}.ds-panel header,.ds-panel article{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px}.ds-panel header{background:#f6f8fa;font-weight:600}.ds-panel article+article,.ds-panel header+article{border-top:1px solid #d8dee4}.ds-panel small{color:#636c76}.ds-panel:focus-within{outline:2px solid #0969da;outline-offset:2px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Repository Evidence Room",
+    "overview": "DeployGuard uses familiar repository interaction grammar while preserving its own evidence-first identity. The interface is compact, flat, traceable, and explicit about scope and data origin.",
+    "keyCharacteristics": ["Repository-first hierarchy", "Border-led operational density", "One visual language across every feature", "Explicit connected and synthetic states"],
+    "rules": [
+      { "name": "The Evidence Color Rule", "body": "Semantic color is paired with text, icon, border, or state label.", "section": "colors" },
+      { "name": "The Connected Truth Rule", "body": "Data origin and connection status are labelled at the point of action.", "section": "colors" },
+      { "name": "The Flat Workspace Rule", "body": "Use borders and canvas contrast before shadows.", "section": "elevation" }
+    ],
+    "dos": ["Keep repository scope visible.", "Use ledgers, tables, timelines, and split inspectors.", "Preserve typed API truth and recovery states."],
+    "donts": ["Do not copy GitHub branding assets.", "Do not create unrelated metric-card walls.", "Do not hide synthetic data or uncertainty."]
+  }
+}
