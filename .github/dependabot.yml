@@ -1,0 +1,51 @@
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /backend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      python-runtime:
+        patterns:
+          - fastapi
+          - uvicorn
+          - pydantic*
+          - SQLAlchemy
+          - alembic
+          - PyJWT
+          - psycopg*
+      python-test:
+        patterns:
+          - pytest
+          - httpx
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      angular:
+        patterns:
+          - '@angular/*'
+      frontend-tooling:
+        patterns:
+          - typescript
+          - vitest
+          - jsdom
+
+  - package-ecosystem: docker
+    directory: /backend
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker
+    directory: /frontend
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

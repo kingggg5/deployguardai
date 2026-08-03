@@ -6,8 +6,8 @@
 
 | Check | ผลที่ยืนยันแล้ว |
 |---|---|
-| Backend | 40 tests ผ่าน |
-| Frontend | 37 tests ผ่าน |
+| Backend | 47 tests ผ่าน |
+| Frontend | 50 tests ผ่าน |
 | Angular | Production build ผ่าน |
 | npm production dependencies | `npm audit --omit=dev` = 0 vulnerabilities |
 | API | Investigation, workspace/RBAC, provider, webhook, telemetry และ operations flows มี integration tests |
@@ -16,6 +16,21 @@
 | CORS | `127.0.0.1:4300` และ `localhost:4300` ผ่าน |
 | Compose | `docker compose config` ผ่าน |
 | Docker images | **ยังไม่ยืนยัน** เพราะ Docker Linux daemon ไม่พร้อม |
+
+## Reproducible evidence-only benchmark
+
+The repository now includes the versioned manifest
+`scripts/evaluation/manifest-v1.json` and the runner
+`scripts/evaluate_benchmarks.py`. Run it with:
+
+```powershell
+python scripts/evaluate_benchmarks.py --output evaluation-results.json
+```
+
+The output records the dataset version and SHA-256, top-1/top-3 accuracy, MRR,
+confusion counts, unsupported-claim rate, and citation coverage. CI uploads the
+JSON artifact for review. This is a synthetic regression baseline, not a claim
+about public or production incident accuracy.
 
 ยังไม่มีผล PR-AUC, Top-K บน RCAEval, MRR บน real/public dataset, calibration หรือ production incident outcome ห้ามอนุมานผลเหล่านี้จาก automated engineering tests
 
@@ -61,7 +76,9 @@ RCAEval ระบุ 735 failure cases จาก 3 microservice systems แล�
 - expected next verification step
 - deterministic RCA candidates/evidence
 
-Explicit dataset version, checksum และ random-seed manifest ยังไม่มีและเป็น evaluation-hardening roadmap
+Manifest version and checksum are implemented for the current synthetic suite.
+Random-seed provenance and public benchmark integration remain evaluation-
+hardening work.
 
 Fault catalog ที่เสนอ:
 

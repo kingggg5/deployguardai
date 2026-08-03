@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability (private report)
+    url: https://github.com/kingggg5/deployguardai/security/advisories/new
+    about: Never disclose vulnerability details in a public issue. Use a private GitHub Security Advisory.
+  - name: Documentation and support
+    url: https://github.com/kingggg5/deployguardai/blob/main/SUPPORT.md
+    about: Read support guidance before opening an issue.

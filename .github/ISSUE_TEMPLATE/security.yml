@@ -1,0 +1,45 @@
+name: Security report (private intake confirmation)
+description: Confirm a private security report without disclosing vulnerability details
+title: "[Security intake]: "
+labels:
+  - security
+  - triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Do not disclose vulnerability details here.** Public issues are visible to everyone. Submit the report privately through the [GitHub Security Advisory form](https://github.com/kingggg5/deployguardai/security/advisories/new), or send a private GitHub message to [@kingggg5](https://github.com/kingggg5) if advisories are unavailable.
+  - type: checkboxes
+    id: private-report
+    attributes:
+      label: Private report confirmation
+      options:
+        - label: I have sent the vulnerability details through a private channel and will not add exploit steps, secrets, customer data, or sensitive infrastructure information to this issue.
+          required: true
+  - type: input
+    id: tracking
+    attributes:
+      label: Private report reference (optional)
+      description: Add only a GitHub Advisory number or a safe message reference, never vulnerability details.
+      placeholder: GHSA-xxxx-xxxx-xxxx
+  - type: dropdown
+    id: affected-area
+    attributes:
+      label: Affected area (safe summary)
+      options:
+        - Authentication or authorization
+        - Secrets or configuration
+        - Data isolation or privacy
+        - API or connector
+        - Frontend or browser
+        - Dependency or build
+        - Unsure
+    validations:
+      required: true
+  - type: checkboxes
+    id: rotation
+    attributes:
+      label: Immediate action
+      options:
+        - label: If a credential may have been exposed, I have revoked or rotated it.
+          required: false

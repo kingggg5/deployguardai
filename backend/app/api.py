@@ -12,6 +12,7 @@ from .schemas import (
     FeedbackRequest,
     GitHubWebhookResponse,
     HealthResponse,
+    LivenessResponse,
     IncidentDetail,
     LLMSynthesisResponse,
     Overview,
@@ -47,6 +48,14 @@ from .tenant import (
 router = APIRouter(prefix="/api/v1")
 
 
+@router.get("/health/live", response_model=LivenessResponse)
+def health_live(request: Request) -> LivenessResponse:
+    return LivenessResponse(
+        status="ok",
+        service=request.app.state.settings.app_name,
+    )
+
+
 @router.get("/health", response_model=HealthResponse)
 def health(
     session: Session = Depends(get_session),
@@ -63,6 +72,13 @@ def health(
         service="deployguard-ai",
         data_mode="synthetic" if has_synthetic_records else "connected",
     )
+
+
+@router.get("/health/ready", response_model=HealthResponse)
+def health_ready(
+    session: Session = Depends(get_session),
+) -> HealthResponse:
+    return health(session)
 
 
 @router.get("/overview", response_model=Overview)

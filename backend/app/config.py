@@ -49,6 +49,13 @@ class Settings(BaseSettings):
         ge=1_024,
         le=10_485_760,
     )
+    max_request_body_bytes: int = Field(
+        default=2_097_152,
+        ge=1_024,
+        le=52_428_800,
+    )
+    rate_limit_requests: int = Field(default=120, ge=1, le=10_000)
+    rate_limit_window_seconds: int = Field(default=60, ge=1, le=3_600)
     smtp_host: str = ""
     smtp_port: int = Field(default=587, ge=1, le=65535)
     smtp_username: str = ""

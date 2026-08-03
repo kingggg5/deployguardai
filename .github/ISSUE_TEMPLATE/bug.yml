@@ -1,0 +1,82 @@
+name: Bug report
+description: Report a reproducible problem in DeployGuard AI
+title: "[Bug]: "
+labels:
+  - bug
+  - triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please remove credentials, personal data, private infrastructure details, and unredacted telemetry before submitting.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - Backend API
+        - Frontend UI
+        - Evidence or risk scoring
+        - Connector or ingestion
+        - Database or migration
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Provide a release tag or commit SHA.
+      placeholder: v0.1.0 or abc1234
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead? Include the exact safe error message.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Give the smallest safe set of steps or a minimal repository example.
+      placeholder: |
+        1. Start the API with ...
+        2. Open ...
+        3. Trigger ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or screenshots
+      description: Redact secrets and customer data. Do not upload production traces.
+      render: text
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Python/Node versions, deployment mode, and browser if relevant.
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues and did not find a duplicate.
+          required: true
+        - label: I removed secrets, personal data, and private infrastructure details.
+          required: true
+        - label: If this is a security vulnerability, I will use the private reporting process instead.
+          required: true

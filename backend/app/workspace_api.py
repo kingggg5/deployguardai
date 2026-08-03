@@ -1,3 +1,4 @@
+import re
 from typing import Annotated
 from uuid import uuid4
 
@@ -46,8 +47,13 @@ router = APIRouter(prefix="/api/v1")
 
 
 def request_id(request: Request) -> str:
+    state_id = getattr(request.state, "request_id", "")
+    if state_id:
+        return state_id
     supplied = request.headers.get("X-Request-ID", "").strip()
-    return supplied[:80] if supplied else str(uuid4())
+    if re.fullmatch(r"[A-Za-z0-9._:-]{1,80}", supplied):
+        return supplied
+    return str(uuid4())
 
 
 @router.post(

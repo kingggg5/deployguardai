@@ -48,7 +48,9 @@ Endpoints:
 
 - UI: `http://127.0.0.1:4300`
 - API docs: `http://127.0.0.1:8100/docs`
-- Health: `http://127.0.0.1:8100/api/v1/health`
+- Liveness: `http://127.0.0.1:8100/api/v1/health/live`
+- Readiness: `http://127.0.0.1:8100/api/v1/health/ready`
+- Health (backward-compatible readiness alias): `http://127.0.0.1:8100/api/v1/health`
 - Logs: `.runtime/backend.*.log` และ `.runtime/frontend.*.log`
 
 หยุด process ที่ script สร้าง:
@@ -159,6 +161,22 @@ normalized JSON เข้า tenant operational-event ledger ไม่ใช่ 
 ปฏิเสธ raw root token ควรวาง Collector/gateway หลัง TLS เพื่อทำ redaction,
 body/rate limits และ rotation
 
+## Request protection and access logs
+
+The API adds an `X-Request-ID` response header, emits one-line JSON access logs,
+rejects requests over `MAX_REQUEST_BODY_BYTES`, and rate-limits development
+session, GitHub webhook, and telemetry ingestion routes using
+`RATE_LIMIT_REQUESTS` per `RATE_LIMIT_WINDOW_SECONDS`. These controls are a
+single-process baseline for local or one-instance deployments. Put a shared
+gateway/WAF in front of production and configure distributed quotas before
+exposing public ingestion endpoints.
+
+```dotenv
+MAX_REQUEST_BODY_BYTES=2097152
+RATE_LIMIT_REQUESTS=120
+RATE_LIMIT_WINDOW_SECONDS=60
+```
+
 ## Database migrations
 
 Application startup เรียก Alembic upgrade ถึง `head` อัตโนมัติ การตรวจด้วย CLI:
@@ -202,9 +220,9 @@ Local legacy bootstrap มีไว้ย้าย schema เก่าเฉพ�
 
 ## Health และ observability
 
-`GET /api/v1/health` รัน `SELECT 1` และคืน service/database status ปัจจุบันใช้เป็น
-ทั้ง startup health และ readiness check แต่ยังไม่มี lightweight liveness
-endpoint แยก
+`GET /api/v1/health/ready` รัน `SELECT 1` และคืน service/database status สำหรับ
+readiness ส่วน `GET /api/v1/health/live` เป็น lightweight liveness probe ที่ไม่
+แตะฐานข้อมูล `GET /api/v1/health` ยังคงเป็น readiness alias เพื่อความเข้ากันได้
 
 สิ่งที่ deployment platform ควรเก็บ:
 

@@ -318,7 +318,7 @@ arbitrary outgoing webhook ใน process ของ DeployGuard
 
 มีอยู่แล้ว:
 
-- `/api/v1/health` ตรวจ database ด้วย `SELECT 1`
+- `/api/v1/health/ready` ตรวจ database ด้วย `SELECT 1`; `/api/v1/health/live` เป็น liveness probe แบบไม่แตะ database
 - typed response models และ stable domain error envelope
 - Alembic upgrade ตอน application startup
 - idempotent synthetic seed

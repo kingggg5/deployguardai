@@ -1,0 +1,57 @@
+name: Feature request
+description: Propose a focused improvement to DeployGuard AI
+title: "[Feature]: "
+labels:
+  - enhancement
+  - triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Good feature requests describe the operational problem, not only the preferred implementation. Please do not include private customer information.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: Who is affected, and what is difficult or unsafe today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the smallest useful behavior and the user workflow.
+    validations:
+      required: true
+  - type: textarea
+    id: success
+    attributes:
+      label: Success criteria
+      description: How could we tell that this feature works? Include a measurable outcome where possible.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What workarounds or other designs have you tried?
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Operational priority
+      options:
+        - P0 — blocks safe operation
+        - P1 — materially improves reliability or security
+        - P2 — useful enhancement
+        - Unsure
+    validations:
+      required: true
+  - type: checkboxes
+    id: boundaries
+    attributes:
+      label: Safety and scope
+      options:
+        - label: This request does not require autonomous deployment, rollback, shell execution, or remediation.
+          required: true
+        - label: I searched existing issues and did not find a duplicate.
+          required: true

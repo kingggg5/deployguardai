@@ -49,6 +49,9 @@ services:
       GITHUB_API_VERSION: ${GITHUB_API_VERSION:-2026-03-10}
       GITHUB_CHECKS_ENABLED: ${GITHUB_CHECKS_ENABLED:-false}
       GITHUB_WEBHOOK_MAX_BODY_BYTES: ${GITHUB_WEBHOOK_MAX_BODY_BYTES:-1048576}
+      MAX_REQUEST_BODY_BYTES: ${MAX_REQUEST_BODY_BYTES:-2097152}
+      RATE_LIMIT_REQUESTS: ${RATE_LIMIT_REQUESTS:-120}
+      RATE_LIMIT_WINDOW_SECONDS: ${RATE_LIMIT_WINDOW_SECONDS:-60}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USERNAME: ${SMTP_USERNAME:-}
@@ -65,7 +68,7 @@ services:
         - CMD
         - python
         - -c
-        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8100/api/v1/health')"
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8100/api/v1/health/ready')"
       interval: 10s
       timeout: 4s
       retries: 10

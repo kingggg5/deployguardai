@@ -20,6 +20,11 @@ class HealthResponse(APIModel):
     data_mode: DataMode
 
 
+class LivenessResponse(APIModel):
+    status: Literal["ok"]
+    service: str
+
+
 class RiskDimension(APIModel):
     key: str
     label: str

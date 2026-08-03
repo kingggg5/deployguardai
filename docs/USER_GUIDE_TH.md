@@ -53,7 +53,8 @@ Prerequisites:
 
 - Dashboard: <http://127.0.0.1:4300>
 - API docs: <http://127.0.0.1:8100/docs>
-- Health: <http://127.0.0.1:8100/api/v1/health>
+- Liveness: <http://127.0.0.1:8100/api/v1/health/live>
+- Readiness: <http://127.0.0.1:8100/api/v1/health/ready>
 
 หาก dependencies พร้อมแล้ว:
 
@@ -234,7 +235,7 @@ API shape ตาม contract:
 - รันจาก project root ด้วย `.\scripts\run-dev.ps1`
 - ตรวจ `.runtime\backend.stderr.log` และ `.runtime\frontend.stderr.log`
 - ตรวจ process จาก PID ใน `.runtime\backend.pid` และ `.runtime\frontend.pid`
-- ทดสอบ health โดยตรงที่ `http://127.0.0.1:8100/api/v1/health`
+- ทดสอบ readiness โดยตรงที่ `http://127.0.0.1:8100/api/v1/health/ready`
 - ใช้ `.\scripts\stop-dev.ps1` ก่อนเริ่มใหม่หากมี process เก่าค้าง
 
 ### Port 4300 หรือ 8100 ถูกใช้งาน
@@ -245,11 +246,11 @@ Get-NetTCPConnection -LocalPort 4300,8100 -ErrorAction SilentlyContinue
 
 หยุด DeployGuard instance เดิมด้วย `.\scripts\stop-dev.ps1` หรือหยุด process ที่ครอบครอง port ก่อนเริ่มใหม่ สคริปต์ปัจจุบันใช้ port คงที่
 
-### `/api/v1/health` เชื่อมต่อไม่ได้
+### `/api/v1/health/ready` เชื่อมต่อไม่ได้
 
 - ตรวจ backend process และ base URL
 - ตรวจว่า path มี `/api/v1`
-- ตรวจ `database: "ready"` ใน health response
+- ตรวจ `database: "ready"` ใน readiness response
 - ตรวจ `backend\deployguard.db` และ backend error log
 
 ### UI ว่างแต่ API ทำงาน
@@ -339,12 +340,13 @@ Mobile ต้องใช้ single active workspace และ persistent contex
 
 ## สถานะการตรวจล่าสุด
 
-- Backend: 40 tests ผ่าน
-- Frontend: 37 tests ผ่าน และ Angular production build ผ่านโดยไม่มี budget warning
+- Backend: 47 tests ผ่าน
+- Frontend: 50 tests ผ่าน และ Angular production build ผ่านโดยไม่มี budget warning
 - Production dependency audit: 0 vulnerabilities
 - Browser: desktop และ mobile 390×844 ผ่านทั้ง service catalog, event ledger, incident note และ notification flow
 - API: investigation, workspace, GitHub provider และ operations routes ผ่าน automated integration tests
 - Compose: configuration ผ่าน
+- Request guard: body limit, rate-limit baseline, request ID และ live/ready probes ผ่าน automated tests
 - Docker image build: ยังไม่ตรวจ เพราะ Linux daemon ไม่พร้อม
 - GitHub App, OIDC auth, tenant RBAC และ Alembic migrations implement แล้ว แต่ต้องมี credential/provider จริงจึงจะเชื่อม production
 - Operational event ledger รับ GitHub workflow/deployment events และ manual evidence แล้ว; native OTLP receiver, public/real benchmarks และ LLM ยังไม่ implement

@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
@@ -6,7 +7,9 @@ from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 
 from app import provider_services
+from app.config import Settings
 from app.errors import DomainError
+from app.main import create_app
 from app.models import ChangeRecord, Repository, Scenario, Workspace
 from app.operations_models import OperationalEvent, WorkspaceRiskPolicy
 from app.provider_models import (
@@ -18,6 +21,55 @@ from app.services import (
     analyze_change,
     derive_telemetry_collector_token,
 )
+
+
+def test_health_probes_and_request_id_headers(client: TestClient) -> None:
+    live = client.get("/api/v1/health/live")
+    assert live.status_code == 200
+    assert live.json()["status"] == "ok"
+    assert live.headers["x-request-id"]
+
+    ready = client.get(
+        "/api/v1/health/ready",
+        headers={"X-Request-ID": "ready-check:1"},
+    )
+    assert ready.status_code == 200
+    assert ready.headers["x-request-id"] == "ready-check:1"
+
+
+def test_request_guard_limits_ingress_and_auth_bursts(tmp_path: Path) -> None:
+    settings = Settings(
+        database_url=f"sqlite:///{(tmp_path / 'guard.db').as_posix()}",
+        seed_synthetic_data=True,
+        max_request_body_bytes=1_024,
+        rate_limit_requests=1,
+        rate_limit_window_seconds=60,
+        github_webhook_secret="test-secret",
+        telemetry_ingest_token="test-telemetry-token",
+        _env_file=None,
+    )
+    with TestClient(create_app(settings)) as guarded:
+        first = guarded.post(
+            "/api/v1/auth/development-session",
+            json={"email": "guard@example.com", "display_name": "Guard"},
+        )
+        assert first.status_code == 200
+
+        second = guarded.post(
+            "/api/v1/auth/development-session",
+            json={"email": "guard@example.com", "display_name": "Guard"},
+        )
+        assert second.status_code == 429
+        assert second.json()["code"] == "rate_limit_exceeded"
+        assert second.headers["retry-after"] == "60"
+
+        oversized = guarded.post(
+            "/api/v1/telemetry/events",
+            content=b"x" * 1_025,
+            headers={"content-type": "application/json"},
+        )
+        assert oversized.status_code == 413
+        assert oversized.json()["code"] == "request_body_too_large"
 
 
 def _headers(

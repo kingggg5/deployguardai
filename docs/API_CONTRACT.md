@@ -52,7 +52,9 @@ until a real provider is connected and
 
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
-| `GET` | `/health` | Public | Database connectivity และ service status |
+| `GET` | `/health/live` | Public | Lightweight liveness probe without database access |
+| `GET` | `/health/ready` | Public | Database connectivity และ service status |
+| `GET` | `/health` | Public | Backward-compatible readiness alias |
 | `GET` | `/capabilities` | Public | Runtime auth/provider availability |
 
 ### Identity, context และ workspace

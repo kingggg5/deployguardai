@@ -11,6 +11,7 @@ from .database import Database
 from .errors import DomainError, domain_error_handler
 from .operations_api import router as operations_router
 from .provider_api import router as provider_router
+from .request_guard import RequestGuardMiddleware
 from .seed import seed_database
 from .workspace_api import router as workspace_router
 
@@ -45,6 +46,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         OIDCVerifier(configured_settings)
         if configured_settings.auth_provider == "oidc"
         else None
+    )
+    application.add_middleware(
+        RequestGuardMiddleware,
+        max_body_bytes=configured_settings.max_request_body_bytes,
+        rate_limit_requests=configured_settings.rate_limit_requests,
+        rate_limit_window_seconds=configured_settings.rate_limit_window_seconds,
     )
     application.add_middleware(
         CORSMiddleware,

@@ -2,9 +2,9 @@
 
 Evidence-first change risk and incident investigation for engineering teams.
 
-[![Backend Tests](https://img.shields.io/badge/backend-45%20tests%20passing-16a34a)](https://github.com/kingggg5/deployguardai)
-[![Frontend Tests](https://img.shields.io/badge/frontend-50%20tests%20passing-16a34a)](https://github.com/kingggg5/deployguardai)
-[![Angular Build](https://img.shields.io/badge/Angular%20build-passing-2563eb)](https://github.com/kingggg5/deployguardai)
+[![CI](https://github.com/kingggg5/deployguardai/actions/workflows/ci.yml/badge.svg)](https://github.com/kingggg5/deployguardai/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/kingggg5/deployguardai/actions/workflows/codeql.yml/badge.svg)](https://github.com/kingggg5/deployguardai/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/kingggg5/deployguardai/badge)](https://securityscorecards.dev/viewer/?uri=github.com/kingggg5/deployguardai)
 
 DeployGuard helps platform and reliability teams answer two practical questions:
 
@@ -62,6 +62,9 @@ DeployGuard AI ช่วยทีม Platform, SRE และผู้ดูแ�
 - Bilingual English/Thai shell and key workflow copy, dark mode, visible keyboard focus, and reduced-motion support
 - SQLite for local development and PostgreSQL for container or production deployments
 - Alembic migrations, including migration of populated legacy databases
+- Request IDs, structured JSON access logs, bounded ingress body limits, and an in-process rate-limit baseline for auth and ingestion routes
+- Separate `/health/live` and `/health/ready` probes for container/orchestrator checks
+- Versioned, SHA-256-pinned evidence benchmark manifests with CI-uploaded evaluation results
 
 DeployGuard does **not** execute shell commands, deploy, roll back, or remediate infrastructure. LLM synthesis remains disabled until an evidence-only contract and evaluation gate are configured.
 
@@ -189,7 +192,8 @@ Open:
 
 - UI: [http://127.0.0.1:4300](http://127.0.0.1:4300)
 - OpenAPI: [http://127.0.0.1:8100/docs](http://127.0.0.1:8100/docs)
-- Health check: [http://127.0.0.1:8100/api/v1/health](http://127.0.0.1:8100/api/v1/health)
+- Liveness: [http://127.0.0.1:8100/api/v1/health/live](http://127.0.0.1:8100/api/v1/health/live)
+- Readiness: [http://127.0.0.1:8100/api/v1/health/ready](http://127.0.0.1:8100/api/v1/health/ready)
 
 The default local run starts with an empty connected-mode database. Open **Workspace & team**, create a workspace, and connect a GitHub App before expecting repository, pull request, deployment, or telemetry records. No hardcoded demo repository is used in this mode.
 
@@ -385,7 +389,7 @@ docker compose config --quiet
 
 Current verification baseline:
 
-- 45 backend tests passing
+- 47 backend tests passing
 - 50 frontend tests passing
 - Angular production build passing
 - Production npm dependency audit reports 0 vulnerabilities
@@ -442,24 +446,29 @@ More detail:
 - [Telemetry gateway contract](docs/TELEMETRY_GATEWAY.md)
 - [Evaluation](docs/EVALUATION.md)
 - [Thai user guide](docs/USER_GUIDE_TH.md)
+- [Contributing guide](CONTRIBUTING.md)
+- [Governance](GOVERNANCE.md)
+- [Support](SUPPORT.md)
+- [Changelog](CHANGELOG.md)
+- [Security reporting policy](.github/SECURITY.md)
 
 ## Production-readiness roadmap / ระบบที่ควรเพิ่มต่อ
 
-The following items are intentionally **not presented as implemented**. They are the highest-value next systems after the current repository and should be prioritized by deployment risk rather than visual novelty.
+The following table separates the baselines already implemented in this repository from the production capabilities that still require external infrastructure or a larger operational design. Prioritize by deployment risk rather than visual novelty.
 
-รายการต่อไปนี้เป็นงานที่ **ยังไม่เสร็จ** และควรทำตามลำดับความเสี่ยงของการใช้งานจริง ไม่ใช่เพิ่มเพียงเพื่อให้ feature เยอะขึ้น
+ตารางนี้แยกสิ่งที่ทำแล้วออกจากสิ่งที่ยังต้องทำใน production จริง โดยเรียงตามความเสี่ยง ไม่ใช่เพิ่มเพียงเพื่อให้ feature เยอะขึ้น
 
 | Priority | System to add | Why it matters / เหตุผล |
 | --- | --- | --- |
 | P0 | Production identity and provider rollout | Configure real OIDC, a GitHub App, SMTP, telemetry credentials, public HTTPS webhook ingress, and managed secrets. ตัวระบบรองรับสัญญาเหล่านี้แล้ว แต่ต้องมี provider และ credential จริงก่อนใช้งาน production |
-| P0 | Production database operations | Verify PostgreSQL migrations under load, automate encrypted backups and restore drills, define retention, and monitor connection pools. ต้องพิสูจน์การกู้คืนข้อมูลจริงก่อนเปิดใช้กับ incident records |
-| P0 | Continuous integration and release gates | Run backend tests, frontend tests/build/audit, Compose validation, migration smoke tests, and security scanning on every change; publish status badges from those workflows instead of relying on static claims. ป้องกัน regression และทำให้สถานะ release ตรวจสอบได้จริง |
-| P1 | Durable delivery pipeline | Move webhook/event/email processing to a durable queue with bounded retries, dead-letter handling, replay controls, and back-pressure. ป้องกัน event หายหรือยิงซ้ำเมื่อ provider ช้าหรือล่ม |
-| P1 | Edge protection and abuse controls | Add gateway rate limits, request-size enforcement, tenant quotas, bot protection, and alerting for authentication or signature failures. ลดความเสี่ยง DoS และการใช้ ingestion endpoint ผิดวัตถุประสงค์ |
-| P1 | Operational observability | Add structured logs, traces, service health dashboards, SLOs, alert routing, and connector-delivery metrics for DeployGuard itself. ระบบที่ใช้ดูแล production ต้องถูก monitor ได้เช่นเดียวกัน |
+| P0 | Production database operations | Verify PostgreSQL migrations under load, automate encrypted backups and restore drills, define retention, and monitor connection pools. Application migration checks exist; backup/restore execution still belongs to the deployment platform. ต้องพิสูจน์การกู้คืนข้อมูลจริงก่อนเปิดใช้กับ incident records |
+| P0 | Continuous integration and release gates | **Baseline implemented:** GitHub Actions runs backend/frontend tests, build/audit, Compose validation, migration smoke tests, dependency audit, CodeQL, dependency review, and Scorecard. Repository branch protection and release signing still need owner configuration. ป้องกัน regression และทำให้สถานะ release ตรวจสอบได้จริง |
+| P1 | Durable delivery pipeline | Move webhook/event/email processing to a durable queue with bounded retries, dead-letter handling, replay controls, and back-pressure. Current records are idempotent and retry-aware, but delivery remains in-process. ป้องกัน event หายหรือยิงซ้ำเมื่อ provider ช้าหรือล่ม |
+| P1 | Edge protection and abuse controls | **Application baseline implemented:** request IDs, body-size limits, structured access logs, and bounded rate limits protect auth and ingestion routes. Add distributed gateway limits, tenant quotas, bot protection, and alert routing in production. ลดความเสี่ยง DoS และการใช้ ingestion endpoint ผิดวัตถุประสงค์ |
+| P1 | Operational observability | **Baseline implemented:** JSON access logs and separate liveness/readiness probes. Add traces, metrics, service dashboards, SLOs, alert routing, and connector-delivery metrics for DeployGuard itself. ระบบที่ใช้ดูแล production ต้องถูก monitor ได้เช่นเดียวกัน |
 | P1 | Security hardening | Add secret rotation, dependency and container scanning, CSP/reporting, formal threat-model review, audit retention/export, and optional database row-level security. เพิ่ม defense in depth โดยไม่พึ่ง application checks เพียงชั้นเดียว |
 | P2 | Native telemetry gateway | Package an OpenTelemetry Collector/gateway that validates, redacts, normalizes, and forwards supported OTLP signals into the evidence contract. ช่วยให้การเชื่อม telemetry จริงง่ายและปลอดภัยกว่าการเขียน integration เอง |
-| P2 | Evaluation and calibration runner | Run versioned public incident datasets and synthetic scenarios in CI, report ranking/calibration changes, and require review when scoring weights move. ป้องกัน deterministic scoring และ RCA quality ถอยหลังโดยไม่รู้ตัว |
+| P2 | Evaluation and calibration runner | **Baseline implemented:** versioned manifests, SHA-256 provenance, top-k/MRR/confusion metrics, and CI artifacts. Add public incident datasets, calibration curves, and mandatory review when scoring weights move. ป้องกัน deterministic scoring และ RCA quality ถอยหลังโดยไม่รู้ตัว |
 | P2 | Team workflow integrations | Add configurable Slack/Teams/PagerDuty-style notification adapters, saved filters/views, export policies, and approval-aware incident handoff. ลดงานสลับเครื่องมือแต่ยังคงให้มนุษย์เป็นผู้ตัดสินใจ |
 
 DeployGuard should continue to avoid autonomous deployment, rollback, remediation, and shell execution. Future automation should gather or route evidence, never take irreversible infrastructure action on a score alone.
@@ -470,6 +479,7 @@ DeployGuard should continue to avoid autonomous deployment, rollback, remediatio
 - Unknown coverage, rollback, and observability evidence is treated conservatively.
 - SMTP delivery is synchronous in the current MVP.
 - Event processing is in-process; durable queues, retention automation, and outbox delivery remain production-hardening work.
+- The built-in rate limiter is process-local; production deployments still require a shared gateway or distributed limiter.
 - Deployment signal grouping/correlation is intentionally not automatic yet; deployment records are canonical, while incident linkage remains human/evidence controlled.
 - PostgreSQL row locks are used where available, but database-enforced row-level security is not included.
 - Provider credentials are not included in this repository.
@@ -477,4 +487,6 @@ DeployGuard should continue to avoid autonomous deployment, rollback, remediatio
 
 ## License
 
-No license file is currently included. Add one before distributing or accepting external contributions.
+DeployGuard AI is released under the [Apache License 2.0](LICENSE). See
+[CONTRIBUTING.md](CONTRIBUTING.md), [GOVERNANCE.md](GOVERNANCE.md), and
+[.github/SECURITY.md](.github/SECURITY.md) before contributing.
