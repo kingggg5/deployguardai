@@ -42,7 +42,12 @@ jobs:
 
       - name: Run backend tests
         working-directory: backend
-        run: pytest
+        env:
+          # Use the interpreter installed by setup-python and avoid an
+          # extension/plugin injected by the hosted runner changing pytest's
+          # command-line behavior.
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'
+        run: python -m pytest
 
       - name: Audit Python dependencies
         working-directory: backend
