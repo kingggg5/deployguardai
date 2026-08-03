@@ -39,6 +39,32 @@ groundedness score. CI uploads the JSON artifact for review. This is a five-case
 synthetic regression baseline, not a claim about public or production incident
 accuracy.
 
+## .NET 10 read-only migration spike
+
+The isolated [`spikes/dotnet-readonly`](../spikes/dotnet-readonly/README.md)
+project ports the three deterministic engines and a small read-only contract
+slice. It consumes the same golden corpus and representative response fixtures;
+it cannot write to DeployGuard or become a production authority.
+
+The current local comparison produced the following median over three
+independent runs (3,000 batches per run, nine cases per batch):
+
+| Gate | Result | Interpretation |
+| --- | ---: | --- |
+| Golden corpus parity | 9/9 | Canonical output hashes match Python 100% |
+| Representative OpenAPI/read responses | 5/5 | The selected read-only slice matches the captured v1 fixtures |
+| PostgreSQL RLS probe | Pass | Non-owner role, active RLS, and fail-closed unscoped reads matched the Python baseline (A=1, B=1) |
+| Engine p95 | Python 204.2µs / .NET 305.1µs | .NET was 1.49× slower in this local engine-only sample |
+
+The performance row is a reproducible local sample, not a capacity claim. It
+measures only in-process engine work and excludes HTTP, PostgreSQL, worker
+leases, provider calls, and container startup. Since no operational benefit has
+been measured yet, the spike does not justify a production rewrite. The RLS
+result is a read-only posture probe against an ephemeral local PostgreSQL
+cluster; it does not prove full CRUD, auth, worker, or failure-injection parity.
+The next gate is a reference PostgreSQL/worker workload with fault injection and
+an operational cost/SLO comparison.
+
 ## Deterministic verification foundations
 
 The versioned `scripts/evaluation/golden-corpus-v1.json` freezes ordinary and

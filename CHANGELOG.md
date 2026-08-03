@@ -21,6 +21,11 @@ release notes from `main` and will use semantic versioning for tagged releases.
 - Current GitHub Actions and CodeQL/Scorecard runners, plus the latest Nginx
   Alpine base image for the web container, with exact Node/Python/Nginx patch
   tags for reproducible container builds.
+- An isolated .NET 10 read-only spike with 100% golden-engine parity,
+  representative GET contract checks, and a read-only PostgreSQL RLS posture
+  probe. Three same-workload samples measured a 1.49x .NET p95 latency versus
+  Python, so there is no performance-led migration claim. It is not a
+  production authority and does not change the FastAPI runtime.
 - Apache-2.0 open-source foundation with contribution, governance, support, and security policies.
 - GitHub issue forms, pull request checklist, CODEOWNERS, Dependabot, CI, CodeQL, dependency review, and OpenSSF Scorecard workflows.
 - Request IDs, structured access logs, request body limits, bounded ingress rate limits, and separate liveness/readiness probes.

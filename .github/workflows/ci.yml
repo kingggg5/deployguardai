@@ -200,6 +200,46 @@ jobs:
           path: evaluation-results.json
           if-no-files-found: error
 
+  dotnet-spike:
+    name: .NET 10 read-only parity spike
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build read-only spike
+        run: >-
+          dotnet build spikes/dotnet-readonly/DeployGuard.ReadOnlySpike.csproj
+          --configuration Release --nologo
+
+      - name: Verify golden and read-contract parity
+        run: >-
+          dotnet run --project spikes/dotnet-readonly/DeployGuard.ReadOnlySpike.csproj
+          --configuration Release --no-build -- --verify --output dotnet-spike-report.json
+
+      - name: Compare same-workload engine benchmark
+        run: >-
+          python scripts/compare_runtime_benchmarks.py
+          --iterations 1000 --repetitions 3
+          --output runtime-benchmark-comparison.json
+
+      - name: Upload .NET spike evidence
+        uses: actions/upload-artifact@v6
+        with:
+          name: deployguard-dotnet-spike
+          path: |
+            dotnet-spike-report.json
+            runtime-benchmark-comparison.json
+          if-no-files-found: error
+
   containers:
     name: Build application containers
     runs-on: ubuntu-latest

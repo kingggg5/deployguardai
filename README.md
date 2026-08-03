@@ -136,6 +136,18 @@ The backend owns authorization and workspace boundaries. Provider adapters norma
 | Delivery | Docker Compose, Nginx, Uvicorn, GitHub Actions, GHCR | Local/production-shaped runtime and signed multi-architecture images |
 | Verification | Pytest, HTTPX, Vitest, jsdom, pip-audit, npm audit | Backend/API tests, frontend tests, builds, and dependency checks |
 
+### Runtime migration evidence
+
+The production authority remains the FastAPI modular monolith. A separate
+[.NET 10 read-only spike](spikes/dotnet-readonly/README.md) ports the deterministic
+engines and verifies golden hashes, representative GET contracts, optional RLS
+posture, and same-workload performance before any migration is considered. This
+keeps the project useful to Python teams today while giving .NET adopters an
+evidence-based path instead of a speculative rewrite. The current evidence is
+9/9 golden cases, 5/5 representative read responses, a passing read-only RLS
+probe, and a three-sample engine benchmark where .NET p95 is 1.49× slower than
+Python; full CRUD/worker and operational parity remain intentionally gated.
+
 ## Quick start
 
 ### Local development requirements
@@ -290,6 +302,7 @@ Backend and frontend regression suites are required in CI; exact test counts are
 - [Security model](docs/SECURITY.md) — authentication, authorization, and provider handling
 - [Operations runbook](docs/OPERATIONS.md) — deployment, probes, backups, retention, and recovery
 - [Evaluation](docs/EVALUATION.md) — benchmark provenance and scoring
+- [.NET 10 read-only spike](spikes/dotnet-readonly/README.md) — parity gates and runtime comparison
 - [Thai user guide](docs/USER_GUIDE_TH.md) — คู่มือการใช้งานภาษาไทย
 - [Contributing](CONTRIBUTING.md) · [Governance](GOVERNANCE.md) · [Support](SUPPORT.md) · [Changelog](CHANGELOG.md) · [Release guide](docs/RELEASE.md)
 

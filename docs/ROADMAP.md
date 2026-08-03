@@ -44,6 +44,7 @@ Roadmap นี้เรียงตาม dependency และความเส
 | LLM synthesis | ⏸ | Endpoint เป็น `501`; รอ evidence/security/evaluation gate |
 | Hosted public demo | ⬜ | ต้องมี isolated tenancy, cost limits, abuse protection และข้อมูล synthetic ที่ล้างได้ |
 | GitHub App marketplace distribution | ⬜ | ต้องมี production OAuth/App review, installation UX และ support ownership |
+| .NET 10 read-only parity spike | 🟡 | Golden 9/9, read-contract 5/5 และ read-only RLS probe ผ่าน; full CRUD/worker and operational comparison remain gated |
 | ASP.NET Core backend rewrite | ⏸ | .NET 10 LTS ทำได้ แต่ยังไม่มี evidence ว่า rewrite จะเพิ่มความน่าเชื่อถือหรือความสามารถมากกว่าการพัฒนา FastAPI ต่อ |
 
 ## Runtime decision: FastAPI หรือ ASP.NET Core

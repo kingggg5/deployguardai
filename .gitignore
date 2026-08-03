@@ -10,6 +10,10 @@ backend/*.db
 backend/*.db-shm
 backend/*.db-wal
 
+# .NET spike/build artifacts
+**/bin/
+**/obj/
+
 # Angular / Node
 frontend/node_modules/
 frontend/dist/
