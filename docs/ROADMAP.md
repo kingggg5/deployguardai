@@ -44,6 +44,23 @@ Roadmap นี้เรียงตาม dependency และความเส
 | LLM synthesis | ⏸ | Endpoint เป็น `501`; รอ evidence/security/evaluation gate |
 | Hosted public demo | ⬜ | ต้องมี isolated tenancy, cost limits, abuse protection และข้อมูล synthetic ที่ล้างได้ |
 | GitHub App marketplace distribution | ⬜ | ต้องมี production OAuth/App review, installation UX และ support ownership |
+| ASP.NET Core backend rewrite | ⏸ | .NET 10 LTS ทำได้ แต่ยังไม่มี evidence ว่า rewrite จะเพิ่มความน่าเชื่อถือหรือความสามารถมากกว่าการพัฒนา FastAPI ต่อ |
+
+## Runtime decision: FastAPI หรือ ASP.NET Core
+
+ASP.NET Core 10 ([.NET support policy](https://dotnet.microsoft.com/platform/support/policy)) เป็นตัวเลือกที่ดีสำหรับองค์กรที่มีมาตรฐาน .NET, ต้องใช้
+integrations ใน ecosystem ของ Microsoft หรือมีทีม C# เป็นหลัก แต่การเปลี่ยน
+runtime ไม่ได้แก้ข้อจำกัดสำคัญของระบบนี้โดยตรง เช่น GitHub App production
+verification, telemetry ingestion, retention automation และ public demo isolation
+
+คำแนะนำปัจจุบันคือรักษา FastAPI เป็น backend หลัก แล้วลงทุนกับ contract,
+security และ operational capabilities ต่อไปก่อน จะไม่ทำ rewrite ข้ามภาษาเพียงเพื่อ
+เปลี่ยน framework. ควรเปิดโครงการ .NET แยกเมื่อมีอย่างน้อยหนึ่งเงื่อนไขต่อไปนี้:
+
+- ผู้ใช้หรือผู้ดูแลระบบต้องการ deploy บนมาตรฐาน .NET อย่างชัดเจน
+- load test บน reference environment แสดง bottleneck ที่แก้ด้วย profiling/cache/DB ไม่ได้
+- มี core contributor ที่จะดูแล C# service และ migration ระยะยาว
+- ต้องการแยก ingestion หรือ enterprise connector เป็น ASP.NET Core service โดยมี API contract เดิมเป็นข้อผูกมัด
 
 ## Foundation ที่ส่งมอบแล้ว
 

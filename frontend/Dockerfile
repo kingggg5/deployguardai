@@ -1,4 +1,4 @@
-FROM node:24-alpine AS build
+FROM node:24.18.0-alpine3.24 AS build
 
 WORKDIR /app
 
@@ -9,7 +9,7 @@ COPY angular.json tsconfig*.json ./
 COPY src ./src
 RUN npm run build
 
-FROM nginx:1.31-alpine
+FROM nginx:1.31.3-alpine3.24
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist/deployguard-ai/browser /usr/share/nginx/html

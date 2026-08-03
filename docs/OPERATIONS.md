@@ -19,7 +19,7 @@ repository ปัจจุบัน ไม่ใช่ใบรับรอง�
 Requirements:
 
 - Python 3.12+
-- Node.js 22+ (Docker build stage ใช้ Node 24)
+- Node.js 24+ (Docker build stage ใช้ Node 24.18.0)
 - npm
 - PowerShell
 

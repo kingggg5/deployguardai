@@ -19,7 +19,8 @@ release notes from `main` and will use semantic versioning for tagged releases.
 - An explicit Angular Router peer dependency and a Dependabot guard that keeps
   TypeScript major upgrades out of the Angular 22 toolchain queue.
 - Current GitHub Actions and CodeQL/Scorecard runners, plus the latest Nginx
-  Alpine base image for the web container.
+  Alpine base image for the web container, with exact Node/Python/Nginx patch
+  tags for reproducible container builds.
 - Apache-2.0 open-source foundation with contribution, governance, support, and security policies.
 - GitHub issue forms, pull request checklist, CODEOWNERS, Dependabot, CI, CodeQL, dependency review, and OpenSSF Scorecard workflows.
 - Request IDs, structured access logs, request body limits, bounded ingress rate limits, and separate liveness/readiness probes.
