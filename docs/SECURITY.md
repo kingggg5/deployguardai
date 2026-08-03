@@ -30,20 +30,24 @@ telemetry source จึงต้องถือ external content ทุกชน
 - request ID, structured access log, bounded request body และ process-local rate
   limit บน auth/ingestion routes
 - durable background job payload guard, idempotency, bounded retry, stale lease
-  recovery, dead-letter และ explicit replay primitives
+  recovery, dead-letter, explicit replay, allow-listed worker และ transactional
+  signed-PR producer
+- PostgreSQL RLS บน data-plane tables พร้อม transaction-local tenant context,
+  non-owner negative CRUD tests และ connection-pool leakage test
 - private low-cardinality metrics endpoint ที่ไม่ใส่ tenant/path/payload labels
-- atomic backup และ read-only restore integrity check helpers
+- OpenTelemetry API/worker traces ผ่าน Collector config ที่ redact sensitive fields
+- atomic backup, read-only validation, isolated writable restore rehearsal และ
+  retention legal-hold/deletion-audit helpers
 - LLM runtime ไม่มี และ reserved endpoint คืน `501`
 
 ### Controls ที่ยังขาดหรือขึ้นกับ deployment
 
-- PostgreSQL RLS
 - distributed API rate limit และ per-workspace quota (repository มี request-body
   limit และ process-local baseline แล้ว)
 - managed secret/KMS integration และ automated rotation
-- worker isolation และ producer wiring (repository มี durable queue retry,
-  dead-letter และ explicit replay primitives แล้ว)
-- scheduled retention/deletion, legal hold และ backup/restore drill
+- production worker isolation/supervision และ dead-letter alert ownership
+- scheduled retention/deletion, workspace deletion และ managed backup storage
+- restore drill ตาม RPO/RTO ใน reference environment
 - raw telemetry redaction pipeline
 - tamper-resistant external audit sink
 - penetration test, production threat review และ incident-response exercise
@@ -123,9 +127,11 @@ Application policy:
 enumeration Foreign IDs เช่น repository, service, incident และ assignee ต้อง
 ถูก resolve พร้อม `workspace_id` ไม่ query ด้วย ID เดี่ยว
 
-ข้อจำกัด: PostgreSQL RLS ยังไม่มี หาก application query ลืม tenant predicate
-database จะไม่ป้องกันให้ การเพิ่ม composite tenant constraints, RLS policies และ
-negative isolation tests เป็น production hardening ที่ยังต้องทำ
+PostgreSQL revision `0009` เปิด RLS บน data-plane tables และทดสอบ negative
+SELECT/INSERT/UPDATE/DELETE, missing context และ connection-pool leakage กับ role
+ที่ไม่เป็น owner Production ต้องแยก schema-owner migration credential ออกจาก
+API/worker runtime role มิฉะนั้น owner จะ bypass policy ได้ Control-plane tables
+ยังคงถูกป้องกันด้วย application authorization และไม่ใช่ RLS scope
 
 ## GitHub App boundary
 
@@ -149,9 +155,10 @@ negative isolation tests เป็น production hardening ที่ยังต
   provider Check ID, attempt/error และ next-retry metadata; retry recover/PATCH
   Check เดิมแทนการสร้าง duplicate
 
-ข้อจำกัด: processing ยัง synchronous แม้มี durable queue/DLQ primitive แล้ว
-ยังไม่มี producer wiring, supervised worker, delivery reconciliation,
-backpressure หรือ persisted raw-body replay
+Signed PR webhook enqueue GitHub Check job ใน transaction เดียวกับ delivery state
+และ worker ทำ delivery reconciliation แบบ allow-listed พร้อม retry/DLQ แล้ว
+ข้อจำกัดที่ยังมีคือ notification/invitation/event บางส่วนยัง synchronous,
+backpressure metrics ยังไม่ครบ และไม่มี persisted raw-body replay
 
 อ้างอิงวิธีตรวจ webhook:
 [Validating webhook deliveries](https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries)
@@ -220,7 +227,7 @@ secret-store adapter หรือ rotation job
 |---|---|---|---|
 | Spoofed webhook | ส่ง deployment ปลอม | Raw-body HMAC | Secret rotation drill |
 | Replay/duplicate | delivery ถูกส่งซ้ำ | Durable unique delivery ID + Check publication identity/recovery | Background scheduler/TTL policy |
-| Cross-tenant access | workspace A อ่าน incident B | Membership + tenant predicates | PostgreSQL RLS/composite constraints |
+| Cross-tenant access | workspace A อ่าน incident B | Membership + tenant predicates + PostgreSQL RLS | Composite constraints/control-plane review |
 | IDOR | เปลี่ยน service/assignee เป็น ID tenant อื่น | Same-workspace validation | Fuzz/negative matrix |
 | Secret leakage | key อยู่ใน log/error | ไม่คืน installation/token ใน API | Central redaction tests/KMS |
 | Telemetry poisoning | source ส่ง evidence ปลอม | Workspace-HMAC bearer + server-owned source/provenance + scope validation | Per-source credential, quota, signing |

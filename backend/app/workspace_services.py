@@ -18,6 +18,7 @@ from .models import (
     Workspace,
     WorkspaceMembership,
 )
+from .rls import set_tenant_context
 from .schemas import (
     AuditEventSummary,
     InvitationCreate,
@@ -60,6 +61,7 @@ def workspace_summary(
     session: Session, membership: WorkspaceMembership
 ) -> WorkspaceSummary:
     workspace = membership.workspace
+    set_tenant_context(session, workspace.id)
     repository_count = session.scalar(
         select(func.count(Repository.id)).where(
             Repository.workspace_id == workspace.id
@@ -174,6 +176,7 @@ def membership_for(
         raise DomainError(
             "You do not have permission for this action", "forbidden", 403
         )
+    set_tenant_context(session, workspace_id)
     return membership
 
 
@@ -241,6 +244,7 @@ def create_workspace(
                 updated_at=timestamp,
             )
         )
+    set_tenant_context(session, workspace.id)
     audit(
         session,
         workspace_id=workspace.id,
@@ -493,6 +497,7 @@ def accept_invitation(
     )
     if invalid:
         raise DomainError("Invitation is invalid", "invalid_invitation", 400)
+    set_tenant_context(session, invitation.workspace_id)
     existing = session.scalar(
         select(WorkspaceMembership).where(
             WorkspaceMembership.workspace_id == invitation.workspace_id,

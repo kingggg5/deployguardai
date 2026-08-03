@@ -33,6 +33,24 @@ IncidentStatus = Literal[
     "open", "acknowledged", "investigating", "mitigated", "resolved"
 ]
 IncidentSeverity = Literal["sev1", "sev2", "sev3", "sev4"]
+BackgroundJobStatus = Literal[
+    "queued", "running", "succeeded", "failed", "dead_letter"
+]
+
+
+class BackgroundJobSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
+
+    id: str
+    job_type: str
+    workspace_id: str
+    status: BackgroundJobStatus
+    attempts: int
+    max_attempts: int
+    request_id: str | None
+    created_at: datetime
+    updated_at: datetime
+    completed_at: datetime | None
 
 
 class OperationsModel(BaseModel):

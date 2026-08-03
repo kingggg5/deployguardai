@@ -15,14 +15,20 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from sqlalchemy.engine import make_url
+from sqlalchemy.engine import URL, make_url
 from sqlalchemy.exc import SQLAlchemyError
 
 
 def _database_url(value: str | None) -> str:
-    database_url = (value or os.getenv("DATABASE_URL", "")).strip()
+    database_url = (
+        value
+        or os.getenv("BACKUP_DATABASE_URL", "")
+        or os.getenv("DATABASE_URL", "")
+    ).strip()
     if not database_url:
-        raise ValueError("DATABASE_URL or --database-url is required")
+        raise ValueError(
+            "BACKUP_DATABASE_URL, DATABASE_URL, or --database-url is required"
+        )
     return database_url
 
 
@@ -84,6 +90,16 @@ def backup_postgres(database_url: str, destination: Path, *, force: bool) -> Non
     _assert_destination(destination, force=force)
     temporary = _temporary_path(destination)
     parsed = make_url(database_url)
+    if not parsed.database:
+        raise ValueError("PostgreSQL database name is required for backup")
+    connection_url = URL.create(
+        drivername="postgresql",
+        username=parsed.username,
+        host=parsed.host,
+        port=parsed.port,
+        database=parsed.database,
+        query=parsed.query,
+    ).render_as_string(hide_password=False)
     command = [
         "pg_dump",
         "--format=custom",
@@ -91,16 +107,9 @@ def backup_postgres(database_url: str, destination: Path, *, force: bool) -> Non
         "--no-acl",
         "--file",
         str(temporary),
+        "--dbname",
+        connection_url,
     ]
-    if parsed.host:
-        command.extend(["--host", parsed.host])
-    if parsed.port:
-        command.extend(["--port", str(parsed.port)])
-    if parsed.username:
-        command.extend(["--username", parsed.username])
-    if not parsed.database:
-        raise ValueError("PostgreSQL database name is required for backup")
-    command.append(parsed.database)
     environment = os.environ.copy()
     if parsed.password:
         # Keep the password out of the process command line. pg_dump reads
@@ -128,7 +137,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--database-url",
-        help="Database URL (defaults to DATABASE_URL)",
+        help=(
+            "Database URL (defaults to BACKUP_DATABASE_URL, then DATABASE_URL "
+            "for local SQLite)"
+        ),
     )
     parser.add_argument(
         "--output",
@@ -156,6 +168,11 @@ def main() -> int:
         else:
             if make_url(database_url).get_backend_name() != "postgresql":
                 raise ValueError("Only SQLite and PostgreSQL URLs are supported")
+            if not args.database_url and not os.getenv("BACKUP_DATABASE_URL"):
+                raise ValueError(
+                    "PostgreSQL backup requires --database-url or the dedicated "
+                    "BACKUP_DATABASE_URL maintenance credential"
+                )
             backup_postgres(database_url, destination, force=args.force)
             archive_format = "postgresql-custom"
         print(

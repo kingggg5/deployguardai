@@ -21,6 +21,19 @@ release notes from `main` and will use semantic versioning for tagged releases.
   incident snapshots, including an honest `legacy-unversioned` migration path.
 - PostgreSQL migration-chain coverage in CI, including an upgrade/downgrade/
   re-upgrade cycle from the previous release revision.
+- Versioned golden corpus, property tests, captured OpenAPI/HTTP contracts, and
+  a reproducible local performance-result schema.
+- Transactional GitHub Check job producer, separately supervised allow-listed
+  worker, trace propagation, crash recovery, queue visibility, and audited
+  replay for failed/dead-letter jobs.
+- PostgreSQL tenant RLS policies with transaction-local context, negative CRUD
+  and pool-leakage tests, runtime role posture checks, and role grant templates.
+- Optional OpenTelemetry API/worker traces and redacting local/production
+  Collector configurations.
+- Batched retention with legal hold and execution audit, plus isolated writable
+  restore rehearsal with runtime grants and post-restore RLS probes.
+- Fail-closed production readiness checks and one-shot migrations separated
+  from non-root API/worker containers.
 
 ### Changed
 
@@ -38,5 +51,9 @@ release notes from `main` and will use semantic versioning for tagged releases.
 
 ### Still required for production
 
-- Configure real OIDC, GitHub App, SMTP, telemetry, HTTPS ingress, managed secrets, backups, distributed rate limits, and monitoring.
-- Wire the durable queue/outbox into external event and invitation producers, deploy a supervised worker, and complete a production restore rehearsal before processing critical external events.
+- Configure real OIDC, GitHub App, SMTP, HTTPS/WAF, managed secrets, distributed
+  rate limits, durable telemetry, encrypted backup storage, alerts, and on-call.
+- Schedule retention and backup jobs, export audits to immutable storage, and
+  complete a recorded restore rehearsal against the target environment/RPO/RTO.
+- Notifications, invitations, and normalized event ingestion remain
+  synchronous until each producer receives a provider-specific reliability review.

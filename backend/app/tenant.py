@@ -19,6 +19,7 @@ from .models import (
     WorkspaceMembership,
 )
 from .schemas import UserContextResponse, UserContextUpdate
+from .rls import set_tenant_context
 from .workspace_services import ROLE_LEVEL, now_utc
 
 
@@ -108,6 +109,7 @@ def ensure_context(
             409,
         )
 
+    set_tenant_context(session, membership.workspace_id)
     repository = _default_repository(session, membership.workspace_id)
     scenario = _default_scenario(
         session,
@@ -140,6 +142,7 @@ def select_user_context(
     if membership is None:
         raise DomainError("Workspace not found", "workspace_not_found", 404)
 
+    set_tenant_context(session, payload.workspace_id)
     repository: Repository | None = None
     if payload.repository_id is not None:
         repository = session.scalar(
@@ -236,6 +239,7 @@ def resolve_tenant_scope(
             "forbidden",
             403,
         )
+    set_tenant_context(session, context.workspace_id)
     return TenantScope(
         user=user,
         workspace_id=context.workspace_id,

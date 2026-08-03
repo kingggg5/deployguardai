@@ -75,6 +75,19 @@ docker compose ps
 Compose รอ PostgreSQL health ก่อนเริ่ม API และรอ API health ก่อนเริ่ม web
 application Nginx proxy `/api/` ไป FastAPI
 
+Compose เริ่ม `worker` หลัง API พร้อมใช้งานเพื่อประมวลผล allow-listed jobs จาก
+`background_jobs` ส่วน migration release job เป็น operations profile และรันแบบ
+one-shot เท่านั้น:
+
+```powershell
+docker compose --profile operations run --rm migrate
+docker compose up --build
+```
+
+ถ้าใช้ managed PostgreSQL ให้กำหนด `COMPOSE_DATABASE_URL` เป็น credential ของ
+runtime role และ `MIGRATION_DATABASE_URL` เป็น schema-owner credential ที่ inject
+เฉพาะ one-shot migration container ห้ามส่ง owner credential เข้า API หรือ worker
+
 หยุด containers:
 
 ```powershell
@@ -180,7 +193,20 @@ RATE_LIMIT_WINDOW_SECONDS=60
 
 ## Database migrations
 
-Application startup เรียก Alembic upgrade ถึง `head` อัตโนมัติ การตรวจด้วย CLI:
+Local/container startup เรียก Alembic upgrade ถึง `head` อัตโนมัติ Production
+ต้องกำหนด `RUN_MIGRATIONS_ON_STARTUP=false`; API และ worker จะตรวจว่า database
+อยู่ที่ head แล้ว fail startup ถ้า release migration ยังไม่เสร็จ
+
+รัน production migration ด้วย short-lived schema-owner credential:
+
+```powershell
+Set-Location backend
+$env:MIGRATION_DATABASE_URL = "postgresql+psycopg://deployguard_owner:...@db/deployguard"
+python -m app.migrate
+Remove-Item Env:MIGRATION_DATABASE_URL
+```
+
+การตรวจด้วย CLI:
 
 ```powershell
 Set-Location backend
@@ -190,6 +216,20 @@ alembic upgrade head
 ```
 
 `migrations/env.py` อ่าน `DATABASE_URL` จาก environment ถ้ามี
+
+หลัง migrate ให้ provision grants สำหรับ non-owner runtime role ด้วยบัญชี admin:
+
+```powershell
+psql $env:MIGRATION_DATABASE_URL `
+  --set=schema_owner=deployguard_owner `
+  --set=application_role=deployguard_app `
+  --file deploy/postgres/runtime-role-grants.sql
+```
+
+Runtime role ต้องไม่เป็น owner, superuser, `BYPASSRLS`, `CREATEDB`, `CREATEROLE`
+หรือ member ของ schema-owner Migration `0009` เปิด RLS บน tenant data-plane
+tables; request และ worker bind workspace ผ่าน transaction-local context จึงไม่
+รั่วไป connection ถัดไป Control-plane tables ยังใช้ application authorization
 
 ห้าม apply revision ที่สร้างจาก `alembic revision --autogenerate` โดยไม่ review
 ปัจจุบัน metadata กับ revision `0003` มี representation drift ของ unique
@@ -235,6 +275,12 @@ Endpoint นี้เป็น aggregate ของ process เดียวแล
 backend; ให้ expose เฉพาะ private network/service monitor และตั้งค่า auth หรือ
 network policy ที่ reverse proxy เมื่อ deploy จริง กระบวนการ restart จะ reset
 counter จึงควรใช้ Prometheus counter semantics และ scrape ทุก replica
+
+กำหนด `OTEL_TRACES_ENDPOINT` เพื่อส่ง API/worker traces ผ่าน OTLP/HTTP ไปยัง
+trusted Collector Repository มี `deploy/otel/collector.yaml` สำหรับ local debug
+และ `deploy/otel/collector.production.yaml` สำหรับ authenticated durable backend
+ทั้งสอง config ลบ authorization/cookie, SQL statement, user/workspace/repository
+attributes ก่อน export ห้ามเปิด Collector receivers ต่อ public internet
 
 สิ่งที่ deployment platform ควรเก็บเพิ่มเติม:
 
@@ -320,8 +366,9 @@ Notification เป็น in-app rows ไม่มี delivery worker ปัจ�
 
 ## Backup, restore และ retention
 
-Repository มี helper แบบ explicit สำหรับ backup และ retention report แต่ยังไม่มี
-scheduler/managed storage ให้ production owner ต่อเข้ากับ platform ขององค์กร:
+Repository มี helper สำหรับ backup, isolated restore rehearsal และ retention
+ที่ตรวจ legal hold/deletion audit ได้ แต่ยังไม่มี scheduler/managed storage ให้
+production owner ต่อเข้ากับ platform ขององค์กร:
 
 สร้าง SQLite backup แบบ atomic (ไม่ overwrite โดย default):
 
@@ -336,7 +383,7 @@ PostgreSQL ใช้ `pg_dump` custom archive และต้องมี Postgr
 
 ```powershell
 python scripts/backup_database.py `
-  --database-url $env:DATABASE_URL `
+  --database-url $env:BACKUP_DATABASE_URL `
   --output .runtime/backups/deployguard-$(Get-Date -Format yyyyMMdd-HHmmss).dump
 ```
 
@@ -349,18 +396,37 @@ target database:
 ```powershell
 python scripts/restore_check.py `
   --backup .runtime/backups/deployguard-20260803.db `
-  --format sqlite --expected-head 0008
+  --format sqlite --expected-head 0009
 ```
 
-สำหรับ PostgreSQL custom archive ใช้ `--format postgresql-custom` ซึ่งเรียก
-`pg_restore --list` เท่านั้น การ restore จริงต้องทำใน isolated target พร้อม
-approval, credential, RPO/RTO และบันทึกผล restore drill
+ทดสอบ restore SQLite บน writable disposable copy:
+
+```powershell
+python scripts/restore_rehearsal.py `
+  --backup .runtime/backups/deployguard-20260803.db `
+  --format sqlite --expected-head 0009 `
+  --report .runtime/restore-rehearsal-20260803.json
+```
+
+PostgreSQL rehearsal สร้าง database ชื่อ `deployguard_restore_*`, restore, ตรวจ
+schema/write probe แล้ว drop ใน `finally` โดยปฏิเสธ target ที่มีอยู่เดิม:
+
+```powershell
+python scripts/restore_rehearsal.py `
+  --backup .runtime/backups/deployguard-20260803.dump `
+  --format postgresql-custom `
+  --admin-database-url $env:RESTORE_ADMIN_DATABASE_URL `
+  --application-database-url $env:RESTORE_APPLICATION_DATABASE_URL `
+  --target-database deployguard_restore_release_20260803 `
+  --confirm CREATE-AND-DROP-ISOLATED-DATABASE `
+  --expected-head 0009
+```
 
 ตรวจ retention candidates แบบ read-only ก่อน:
 
 ```powershell
 python scripts/retention_report.py `
-  --database-url $env:DATABASE_URL `
+  --database-url $env:RETENTION_DATABASE_URL `
   --days 90
 ```
 
@@ -371,14 +437,18 @@ authorization state) ไม่รวม users, workspaces, incidents หรื�
 
 ```powershell
 python scripts/retention_report.py `
-  --database-url $env:DATABASE_URL `
+  --database-url $env:RETENTION_DATABASE_URL `
   --days 90 --table notifications `
-  --apply --confirm DELETE-EXPIRED-ROWS
+  --apply --confirm DELETE-EXPIRED-ROWS `
+  --legal-hold-file deploy/retention-legal-hold.json `
+  --audit-log .runtime/retention-audit.jsonl `
+  --operator retention-scheduler
 ```
 
-ก่อน apply ต้องตรวจ backup, legal hold และผล dry-run เสมอ การ implement
-scheduler, deletion audit และ workspace/legal-hold workflow ยังเป็นหน้าที่ของ
-production owner
+ก่อน apply ต้องตรวจ backup, legal hold และผล dry-run เสมอ การลบแบ่ง transaction
+เป็น batch และ append `retention_started`, `retention_completed` หรือ
+`retention_failed` ลง JSONL พร้อม fsync การตั้ง schedule, ป้องกัน/ส่งต่อ audit
+log และ workspace deletion workflow ยังเป็นหน้าที่ของ production owner
 
 Production owner ต้องกำหนด:
 
@@ -421,7 +491,7 @@ docker compose config
 Backup validation (read-only):
 
 ```powershell
-python scripts/restore_check.py --backup .runtime/backups/deployguard.db --format sqlite --expected-head 0008
+python scripts/restore_check.py --backup .runtime/backups/deployguard.db --format sqlite --expected-head 0009
 ```
 
 Migration smoke:
@@ -437,6 +507,12 @@ alembic current
 
 ## Production release checklist
 
+เริ่มด้วย fail-closed gate และเก็บ JSON result คู่กับ release evidence:
+
+```powershell
+python scripts/production_readiness.py --json
+```
+
 - [ ] Release commit และ image digest ถูก pin
 - [ ] Backend/frontend tests และ build ผ่านจาก clean environment
 - [ ] Dependency/image scan ไม่มี unresolved critical finding
@@ -444,10 +520,11 @@ alembic current
 - [ ] Secrets มาจาก managed secret provider
 - [ ] Database backup และ restore rehearsal ล่าสุดอยู่ใน policy
 - [ ] Alembic current/target ถูกต้อง
+- [ ] API/worker ใช้ non-owner runtime role และ PostgreSQL RLS negative tests ผ่าน
 - [ ] GitHub webhook secret/body limit และ optional Checks permission ถูก review
 - [ ] CORS, TLS, CSP และ reverse-proxy limits ถูกตั้งค่า
-- [ ] Tenant/RBAC negative tests ผ่านบน PostgreSQL
-- [ ] Rate limit/queue/retention controls พร้อม หรือ risk ถูกยอมรับเป็นลายลักษณ์อักษร
+- [ ] Worker ถูก supervise และ dead-letter growth มี alert
+- [ ] Distributed rate limit, retention schedule/legal hold/audit พร้อม
 - [ ] Dashboards/alerts และ on-call ownership พร้อม
 - [ ] Synthetic/connected label ยังแสดงตาม data source จริง
 - [ ] ไม่มี deploy, rollback, shell หรือ cluster credential ใน application

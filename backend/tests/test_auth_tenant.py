@@ -124,7 +124,7 @@ def test_user_context_prevents_cross_workspace_legacy_reads(
 
 def test_oidc_routes_require_bearer_credentials(tmp_path) -> None:
     settings = Settings(
-        environment="production",
+        environment="test",
         auth_provider="oidc",
         oidc_issuer="https://identity.example",
         oidc_audience="deployguard-api",

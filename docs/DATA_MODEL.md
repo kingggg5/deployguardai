@@ -180,7 +180,8 @@ block pipeline เอง Optional GitHub Check ใช้ policy นี้สร�
 - เก็บ attempt count, last error, next retry, details URL และ timestamps
 
 ตารางนี้ทำให้ signed webhook retry หรือ explicit responder retry เดินต่อได้โดย
-ไม่สร้าง Check ซ้ำ แต่ยังไม่มี background scheduler/worker
+ไม่สร้าง Check ซ้ำ Signed PR webhook enqueue job แบบ transactional และ supervised
+worker ทำ create/find/PATCH recovery โดยไม่สร้าง provider side effect ซ้ำ
 
 ## Investigation domain
 
@@ -287,9 +288,10 @@ shell เอง:
 - `locked_at`/`locked_by` สำหรับ stale-lease recovery และ `request_id` สำหรับ trace
 
 Queue primitive ปฏิเสธ credential-like keys ใน payload, unknown handler จะ fail
-closed และ dead-letter replay ต้องเรียก explicit service operation ปัจจุบัน
-webhook, notification และ invitation producers ยัง synchronous; การ deploy
-worker และ wiring side effects เป็นขั้นต่อไปที่ต้อง review แยกตาม provider
+closed และ dead-letter replay ต้องเรียก explicit service operation Signed PR
+webhook ใช้ producer สำหรับ GitHub Check แล้ว และ worker มี handler allowlist
+ชัดเจน ส่วน notification, invitation และ normalized event บางเส้นทางยัง
+synchronous และต้อง review แยกก่อนย้ายเข้า queue
 
 ## Audit events
 
@@ -356,12 +358,12 @@ Application startup เรียก Alembic upgrade ถึง `head`
 
 ## Current limitations
 
-- PostgreSQL RLS ยังไม่มี; tenant isolation พึ่ง application query + FK
+- PostgreSQL RLS ปกป้อง data-plane tables; production ต้องใช้ runtime role ที่ไม่เป็น owner/superuser/`BYPASSRLS`
 - JSON content ยังไม่มี database-level referential integrity; version provenance
   อยู่ใน relational snapshot columns แล้ว
-- ไม่มี scheduled retention, workspace deletion cascade workflow หรือ legal hold
+- มี legal-hold control และ deletion audit ใน retention CLI แต่ schedule และ workspace deletion cascade ยังเป็น operator workflow
 - ไม่มี raw telemetry store และไม่มี field-level encryption
-- มี backup และ read-only restore-check helpers แบบ explicit แต่ยังไม่มี managed scheduler/storage หรือ restore drill automation
+- มี backup, read-only validation และ isolated writable restore rehearsal แต่ยังไม่มี managed scheduler/storage
 - audit ledger ยังไม่ tamper-proof
 - service dependency DAG ตรวจใน application ไม่ได้ enforce ด้วย database
 - SQLite ไม่ใช่ production concurrency target

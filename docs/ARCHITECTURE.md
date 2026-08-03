@@ -15,8 +15,8 @@ rollback, รัน shell หรือเข้าถึง cluster
 - **implemented แต่ต้องตั้งค่า credential** — code path มีอยู่จริง แต่จะทำงาน
   เมื่อกำหนด OIDC, GitHub App, SMTP หรือ telemetry token ที่เกี่ยวข้อง
 - **ยังไม่เป็น production control** — มี contract หรือบางส่วนของระบบแล้ว แต่
-  ยังขาด operational hardening เช่น queue producer integration, retention
-  scheduler, distributed rate limiting, PostgreSQL RLS หรือ backup/restore drill
+  ยังขาด operational ownership เช่น retention scheduler, distributed rate
+  limiting, managed secrets, durable telemetry backend หรือรอบ restore drill จริง
 - **deferred** — ไม่มี runtime path ในปัจจุบัน
 
 สถานะปัจจุบัน:
@@ -30,11 +30,11 @@ rollback, รัน shell หรือเข้าถึง cluster
 | Invitation email ผ่าน SMTP | Implemented; local ใช้ development outbox |
 | Normalized telemetry event endpoint | Implemented; ใช้ workspace-derived collector bearer และ tenant-scoped ledger |
 | OTLP protocol receiver | ไม่มีใน FastAPI; ใช้ Collector แปลงเป็น normalized event |
-| Alembic schema migration | ใช้งานแล้วตอน application startup |
-| Durable background job/outbox primitive | มี table `background_jobs`, bounded retry, stale-lease recovery, dead-letter และ explicit replay; ยังไม่มี producer integration/worker deployment |
+| Alembic schema migration | local/container รันตอน startup; production ใช้ schema-owner release job และ runtime ตรวจ head |
+| Durable background job/outbox | signed PR webhook enqueue GitHub Check แบบ transactional; worker มี allowlist, bounded retry, stale-lease recovery, dead-letter, trace propagation และ idempotent provider recovery |
 | Process metrics | มี private, low-cardinality Prometheus endpoint; dashboard/alerts ยังเป็น deployment concern |
-| Backup/retention tooling | มี explicit SQLite/PostgreSQL backup และ allow-listed retention dry-run/apply helpers; scheduler, legal hold และ deletion audit ยังไม่มี |
-| PostgreSQL | รองรับผ่าน SQLAlchemy/psycopg; production verification ยังต้องทำ |
+| Backup/retention tooling | มี isolated writable restore rehearsal และ allow-listed retention dry-run/apply พร้อม legal hold, batching และ deletion audit; schedule/storage เป็น deployment concern |
+| PostgreSQL | รองรับผ่าน SQLAlchemy/psycopg และ RLS revision `0009`; production ต้องแยก owner/runtime roles |
 | LLM synthesis | Deferred; endpoint ปัจจุบันคืน `501` |
 
 ## System context
@@ -149,8 +149,10 @@ viewer < responder < admin < owner
 - `admin` จัดการ service catalog, risk policy, repository, provider และ invitation
 - `owner` มีสิทธิ์ระดับสูงสุด รวมถึงเชิญสมาชิก role `admin`
 
-Application-level tenant filtering ใช้งานแล้ว แต่ PostgreSQL RLS ยังไม่มี จึง
-ต้องถือ RLS เป็น defense-in-depth ที่ยังค้าง ไม่ใช่ control ที่มีอยู่แล้ว
+Application-level tenant filtering ทำงานร่วมกับ PostgreSQL RLS บน data-plane
+tables โดยใช้ transaction-local workspace context หากไม่มี context policy จะ
+fail closed Production runtime role ต้องไม่เป็น table owner, superuser หรือมี
+`BYPASSRLS`; control-plane tables ยังคงอาศัย application authorization
 
 ## Change analysis
 
@@ -211,12 +213,10 @@ sequenceDiagram
 Webhook delivery ID มี unique constraint และ signature ถูกตรวจบน raw body
 การ publish GitHub Check มี durable publication state, stable external identity,
 attempt/error/next-retry metadata และ create-or-PATCH recovery ต่อ repository/head
-SHA อย่างไรก็ตาม webhook processing ยัง synchronous และยังไม่ได้ใช้ durable
-queue worker, dead-letter replay หรือ background retry scheduler การเขียน GitHub
-Check ปิดโดย default และไม่ใช่ deployment gate ปัจจุบันมี queue primitive ใน
-`background_jobs` แล้ว แต่ยังไม่ถูกนำมา wire เข้ากับ webhook/notification
-producer หรือ worker runtime Responder สามารถ retry ผ่าน explicit
-endpoint ได้เมื่อ workspace/repository/change scope ถูกต้อง
+SHA Signed PR webhook บันทึก change และ job intent ใน transaction เดียวก่อนตอบ
+จากนั้น supervised worker ที่มี handler allowlist จะ publish/reconcile GitHub
+Check แบบ at-least-once การเขียน GitHub Check ปิดโดย default และไม่ใช่ deployment
+gate ส่วน Responder ยัง retry ผ่าน explicit endpoint ได้เมื่อ scope ถูกต้อง
 
 PR delivery เดินสถานะ `processing → processed|failed` Signed retry ที่มี
 installation/repository identity ตรงกับ delivery เดิมสามารถประมวลผล PR ที่ยัง
@@ -328,7 +328,7 @@ arbitrary outgoing webhook ใน process ของ DeployGuard
 
 - `/api/v1/health/ready` ตรวจ database ด้วย `SELECT 1`; `/api/v1/health/live` เป็น liveness probe แบบไม่แตะ database
 - typed response models และ stable domain error envelope
-- Alembic upgrade ตอน application startup
+- Alembic upgrade ตอน local/container startup; production ใช้ one-shot owner job และ runtime head check
 - idempotent synthetic seed
 - provider webhook และ operational-event dedupe
 - signed webhook retry reconciliation สำหรับ PR/workflow/deployment records
@@ -336,12 +336,10 @@ arbitrary outgoing webhook ใน process ของ DeployGuard
 
 ยังต้องทำก่อนเรียก production-ready:
 
-- background queue producer integration, supervised worker และ reconciliation
 - distributed rate limit และ per-workspace quota (มี request-body limit และ process-local baseline แล้ว)
-- scheduled retention/deletion, legal hold และ deletion audit
-- PostgreSQL RLS และ concurrency/integration test
-- backup/restore drill และ migration rollback procedure (มี helper แต่ไม่มี scheduler/storage policy)
-- telemetry/alerts สำหรับตัว DeployGuard เอง (มี low-cardinality process metrics baseline)
+- retention schedule/workspace deletion policy และ managed backup storage
+- restore drill ตาม RPO/RTO บน reference environment (มี isolated rehearsal helper)
+- durable telemetry backend, SLO alerts และ on-call ownership (มี metrics/tracing/Collector baseline)
 
 Runbook สำหรับ deployment และ failure handling อยู่ใน
 [OPERATIONS.md](OPERATIONS.md) ส่วน security controls และ known gaps อยู่ใน

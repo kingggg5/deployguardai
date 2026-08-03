@@ -27,6 +27,8 @@ if (-not $SkipInstall) {
 
 $backendOut = Join-Path $runtimeRoot 'backend.stdout.log'
 $backendErr = Join-Path $runtimeRoot 'backend.stderr.log'
+$workerOut = Join-Path $runtimeRoot 'worker.stdout.log'
+$workerErr = Join-Path $runtimeRoot 'worker.stderr.log'
 $frontendOut = Join-Path $runtimeRoot 'frontend.stdout.log'
 $frontendErr = Join-Path $runtimeRoot 'frontend.stderr.log'
 
@@ -39,6 +41,39 @@ $backendProcess = Start-Process `
     -RedirectStandardError $backendErr `
     -PassThru
 
+$apiReady = $false
+for ($attempt = 0; $attempt -lt 60; $attempt++) {
+    if ($backendProcess.HasExited) {
+        break
+    }
+    try {
+        $response = Invoke-WebRequest `
+            -Uri 'http://127.0.0.1:8100/api/v1/health/ready' `
+            -TimeoutSec 1 `
+            -UseBasicParsing
+        if ($response.StatusCode -eq 200) {
+            $apiReady = $true
+            break
+        }
+    }
+    catch {
+        Start-Sleep -Milliseconds 500
+    }
+}
+if (-not $apiReady) {
+    Stop-Process -Id $backendProcess.Id -ErrorAction SilentlyContinue
+    throw "DeployGuard API did not become ready. Inspect $backendErr"
+}
+
+$workerProcess = Start-Process `
+    -FilePath $pythonExe `
+    -ArgumentList '-m', 'app.worker', '--poll-interval', '1', '--lease-timeout', '300' `
+    -WorkingDirectory $backendRoot `
+    -WindowStyle Hidden `
+    -RedirectStandardOutput $workerOut `
+    -RedirectStandardError $workerErr `
+    -PassThru
+
 $frontendProcess = Start-Process `
     -FilePath $nodeExe `
     -ArgumentList $angularCli, 'serve', '--host', '127.0.0.1', '--port', '4300' `
@@ -49,8 +84,10 @@ $frontendProcess = Start-Process `
     -PassThru
 
 Set-Content -LiteralPath (Join-Path $runtimeRoot 'backend.pid') -Value $backendProcess.Id
+Set-Content -LiteralPath (Join-Path $runtimeRoot 'worker.pid') -Value $workerProcess.Id
 Set-Content -LiteralPath (Join-Path $runtimeRoot 'frontend.pid') -Value $frontendProcess.Id
 
 Write-Output "DeployGuard API: http://127.0.0.1:8100/docs"
 Write-Output "DeployGuard UI:  http://127.0.0.1:4300"
+Write-Output "Worker:          PID $($workerProcess.Id)"
 Write-Output "Logs:            $runtimeRoot"

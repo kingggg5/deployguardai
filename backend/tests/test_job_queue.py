@@ -5,7 +5,9 @@ import pytest
 
 from app.database import Database
 from app.job_queue import (
+    JobContext,
     JobStateError,
+    PermanentJobError,
     claim_next_job,
     complete_job,
     enqueue_job,
@@ -48,6 +50,53 @@ def test_enqueue_is_idempotent_and_rejects_credentials(queue_session) -> None:
             job_type="provider.sync",
             payload={"access_token": "never-store-this"},
         )
+
+
+def test_enqueue_can_join_the_producer_transaction(queue_session) -> None:
+    job = enqueue_job(
+        queue_session,
+        job_type="safe.noop",
+        payload={"value": 1},
+        idempotency_key="transactional-intent",
+        commit=False,
+    )
+    assert queue_session.get(type(job), job.id) is not None
+
+    queue_session.rollback()
+    assert queue_session.get(type(job), job.id) is None
+
+
+def test_handler_receives_correlation_context_and_can_fail_permanently(
+    queue_session,
+) -> None:
+    now = datetime(2026, 8, 3, 12, 0, tzinfo=UTC)
+    enqueue_job(
+        queue_session,
+        job_type="safe.validate",
+        payload={"value": 1},
+        request_id="request-123",
+        available_at=now,
+    )
+    observed: list[JobContext] = []
+
+    def reject(_payload, context: JobContext):
+        observed.append(context)
+        raise PermanentJobError("invalid immutable reference")
+
+    failed = run_one_job(
+        queue_session,
+        worker_id="worker-a",
+        handlers={"safe.validate": reject},
+        now=now,
+    )
+    assert failed is not None
+    assert failed.status == "failed"
+    assert failed.attempts == 1
+    assert observed[0].request_id == "request-123"
+    assert observed[0].attempt == 1
+    replayed = replay_dead_letter_job(queue_session, failed.id, now=now)
+    assert replayed.status == "queued"
+    assert replayed.attempts == 0
 
 
 def test_claim_complete_and_unknown_handler_fail_closed(queue_session) -> None:

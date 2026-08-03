@@ -66,6 +66,8 @@ flowchart LR
     API --> Engines["Risk, graph, and evidence engines"]
     API --> Ops["Operations and audit ledgers"]
     API --> Queue["Durable job/outbox state"]
+    Queue --> Worker["Supervised allow-listed worker"]
+    Worker --> GitHub
     Auth --> DB[("SQLite or PostgreSQL")]
     Engines --> DB
     Ops --> DB
@@ -83,7 +85,8 @@ The backend owns authorization and workspace boundaries. Provider adapters norma
 | UI | SCSS design tokens and GitHub/Primer-inspired patterns | Repository context, tabs, labels, forms, timelines, tables, dark mode, and keyboard navigation |
 | Backend | Python 3.12, FastAPI, Pydantic 2 | Typed REST API, validation, and OpenAPI |
 | Data | SQLAlchemy 2, Alembic, SQLite, PostgreSQL 16, psycopg 3 | Tenant-scoped persistence and schema evolution |
-| Security | PyJWT, cryptography, OIDC/JWKS, GitHub App HMAC | Identity verification and signed provider events |
+| Security | PyJWT, cryptography, OIDC/JWKS, GitHub App HMAC, PostgreSQL RLS | Identity verification, signed provider events, and database tenant isolation |
+| Observability | OpenTelemetry, OTLP/HTTP, Prometheus, Collector | Correlated API/worker traces, low-cardinality metrics, and redaction |
 | Delivery | Docker Compose, Nginx, Uvicorn, GitHub Actions | Local/production-shaped runtime and release checks |
 | Verification | Pytest, HTTPX, Vitest, jsdom, pip-audit, npm audit | Backend/API tests, frontend tests, builds, and dependency checks |
 
@@ -163,25 +166,41 @@ For a read-only live-contract check (no DeployGuard or GitHub records are create
 
 ## Operational foundations included
 
-- Durable `background_jobs` outbox with idempotent enqueue, atomic claim, bounded retry/backoff, stale-lease recovery, dead-letter state, explicit replay, and credential-like payload rejection.
+- Durable `background_jobs` outbox with transactional GitHub Check enqueue, an allow-listed supervised worker, idempotent provider recovery, bounded retry/backoff, stale-lease recovery, dead-letter state, explicit replay, W3C trace propagation, and credential-like payload rejection.
+- Responder-visible failed/dead-letter queue summaries and admin-only audited replay without exposing job payloads or stored error text.
+- PostgreSQL RLS policies on data-plane tables, transaction-local tenant context, fail-closed behavior without context, and negative cross-tenant CRUD/pool-leakage tests against a non-owner role.
 - Private low-cardinality Prometheus metrics at `/api/v1/metrics`; no path, tenant, request ID, or payload labels.
+- Optional OpenTelemetry API/worker tracing through redacting local and production Collector configurations.
 - Request IDs, structured JSON access logs, body-size limits, and process-local ingress rate limiting.
 - Atomic SQLite backup and PostgreSQL custom-archive backup with no-overwrite-by-default behavior.
-- Read-only backup validation through `scripts/restore_check.py` and dry-run-first retention reports through `scripts/retention_report.py`.
+- Isolated writable restore rehearsals through `scripts/restore_rehearsal.py`; dry-run-first, batched retention with legal-hold control and append-only deletion audit through `scripts/retention_report.py`.
 - Liveness/readiness probes, Alembic migration checks, CI, CodeQL, dependency review, Scorecard, container builds, and reproducible evaluation artifacts.
 
-These are application-level foundations. A separately supervised worker, shared gateway, managed secret store, scheduled retention, legal hold, and restore drill are still deployment responsibilities.
+Compose includes the API, web app, PostgreSQL, supervised worker, one-shot migration job, and an optional local Collector. A shared gateway, managed secrets, retention schedule, durable telemetry backend, backup storage, alerts, and on-call ownership remain deployment responsibilities because the repository cannot truthfully provision organization-specific infrastructure or credentials.
 
 ## Production readiness
 
 | Status | Meaning | Examples |
 | --- | --- | --- |
-| Implemented in repository | Tested runtime path exists | Deterministic engines, tenant/RBAC checks, signed webhook verification, migrations, queue primitives, metrics, backup helpers |
+| Implemented in repository | Tested runtime path exists | Deterministic engines, tenant/RBAC + PostgreSQL RLS, signed webhook verification, worker/outbox, OTLP tracing, migrations, retention and restore tooling |
 | Provider/configuration gated | Requires operator-owned credentials or external service | OIDC, GitHub App, SMTP, normalized telemetry, PostgreSQL deployment |
 | Deployment required | Cannot be safely provided by application code alone | HTTPS/WAF, distributed rate limiting, managed secrets, alerting, on-call, encrypted backup storage |
 | Deliberately not implemented | Safety boundary or missing evaluation gate | Autonomous remediation, shell/cluster access, arbitrary outbound webhooks, LLM synthesis |
 
 DeployGuard should be described as **production-integratable**, not production-hardened, until deployment-specific controls and drills are complete.
+
+Run the fail-closed readiness gate before a production release:
+
+```powershell
+python scripts/production_readiness.py
+```
+
+The gate validates the application configuration and requires explicit operator attestations for TLS, managed secrets, distributed rate limiting, supervised workers, retention, restore, durable telemetry, alerting, and on-call ownership. It never invents or prints credentials.
+
+Production database duties use separate short-lived credentials: the API and
+worker use a non-owner RLS role, while migration, backup, retention, and restore
+jobs receive their own audited URLs. See the [operations runbook](docs/OPERATIONS.md)
+and `deploy/postgres/runtime-role-grants.sql`.
 
 ## Verification
 
@@ -220,11 +239,11 @@ DeployGuard is licensed under [Apache-2.0](LICENSE). Report security issues priv
 
 - Connected dependency topology remains empty until dependency evidence is ingested.
 - Missing coverage, rollback, and observability evidence is treated conservatively as unknown.
-- The queue/outbox is a safe persistence primitive; webhook, event, notification, and invitation producers remain synchronous until a separately supervised worker is deployed.
+- Signed PR webhooks enqueue GitHub Check publication transactionally; manual Check retry, notifications, invitations, and normalized event processing remain synchronous by design.
 - The built-in rate limiter is process-local; multi-replica deployments need a shared gateway or distributed limiter.
-- PostgreSQL RLS is not enabled; application tenant predicates require PostgreSQL defense-in-depth and negative isolation testing before high-assurance use.
-- Retention helpers are allow-listed and explicit, but scheduling, legal hold, workspace deletion, deletion audit, and backup expiry remain external policy/workflow work.
-- Native OTLP ingestion, Slack/Teams/PagerDuty adapters, production SLO dashboards, public evaluation datasets, and calibration reports are not bundled.
+- RLS protects data-plane tables only. Authentication, invitation claims, provider mapping, webhook ledgers, and worker queues remain control-plane tables guarded by application authorization; production must use a non-owner, non-superuser, non-`BYPASSRLS` runtime role.
+- Retention scheduling, backup expiry/storage, workspace deletion, and legal-hold ownership remain operator workflows; the included scripts provide fail-closed controls and auditable execution primitives.
+- Native OTLP evidence ingestion, Slack/Teams/PagerDuty adapters, organization-specific SLO dashboards, public evaluation datasets, and calibration reports are not bundled.
 
 ## สรุปภาษาไทย
 
@@ -232,4 +251,4 @@ DeployGuard AI เป็นระบบช่วยทีม Platform และ 
 
 ระบบใช้ deterministic engine ที่มีน้ำหนักคะแนนชัดเจน แยก `connected` กับ `synthetic` อย่างชัดเจน และไม่มีความสามารถในการ deploy, rollback, รัน shell หรือแก้ infrastructure อัตโนมัติ
 
-ใน repository มีระบบ tenant/RBAC, signed GitHub webhook, durable job/outbox foundation, metrics, backup/restore verification, retention report, migration, CI และ security baseline แล้ว ส่วนการเปิดใช้งาน production จริงยังต้องเตรียม OIDC, GitHub App, SMTP, HTTPS, managed secrets, distributed rate limit, PostgreSQL hardening, monitoring, backup policy และผู้รับผิดชอบระบบให้ครบถ้วน
+ใน repository มีระบบ tenant/RBAC, PostgreSQL RLS, signed GitHub webhook, durable worker/outbox, metrics และ OpenTelemetry, การทดสอบ restore แบบ isolated, retention ที่รองรับ legal hold และ deletion audit, migration release job, CI และ security baseline แล้ว การเปิดใช้ production จริงยังต้องเตรียม OIDC, GitHub App, SMTP, HTTPS/WAF, managed secrets, distributed rate limit, telemetry backend, backup storage, alerting และผู้รับผิดชอบ on-call ให้ครบถ้วน จากนั้นรัน `python scripts/production_readiness.py` เพื่อยืนยัน readiness แบบ fail-closed ก่อน release

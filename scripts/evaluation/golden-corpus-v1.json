@@ -1,0 +1,183 @@
+{
+  "schema": "deployguard-golden-corpus/v1",
+  "version": "1.0.0",
+  "data_mode": "synthetic",
+  "license": "Apache-2.0",
+  "engine_contract": {
+    "analysis_schema_version": "1.0.0",
+    "engine_version": "1.0.0",
+    "risk_scoring_policy_version": "risk-weighted-v1",
+    "graph_version": "dependency-bfs-v1",
+    "rca_scoring_policy_version": "evidence-ranker-v1"
+  },
+  "canonical_output": "UTF-8 JSON with sorted keys and compact separators",
+  "cases": [
+    {
+      "id": "risk-ordinary-review",
+      "engine": "calculate_change_risk",
+      "input": {
+        "files_changed": 6,
+        "lines_added": 120,
+        "lines_deleted": 30,
+        "changed_services": ["checkout-api", "payment-adapter"],
+        "flags": ["retry-policy"],
+        "test_coverage": 0.82,
+        "rollback_ready": true,
+        "observability_score": 0.9,
+        "previous_failures": 1,
+        "service_tiers": {"checkout-api": "tier-1", "payment-adapter": "tier-2"},
+        "evidence_prefix": "golden-risk-ordinary"
+      },
+      "expected_summary": {"overall_score": 45, "level": "moderate", "data_quality": 0.95},
+      "expected_sha256": "d7c6de5cf540cbec69f3820c5aff4be8e3cb19724e7b78d502685326949ed311"
+    },
+    {
+      "id": "risk-boundary-clamping",
+      "engine": "calculate_change_risk",
+      "input": {
+        "files_changed": -4,
+        "lines_added": -9,
+        "lines_deleted": -2,
+        "changed_services": [],
+        "flags": ["unknown-flag", "unknown-flag"],
+        "test_coverage": 1.8,
+        "rollback_ready": false,
+        "observability_score": -0.4,
+        "previous_failures": -2,
+        "service_tiers": {},
+        "evidence_prefix": "golden-risk-boundary"
+      },
+      "expected_summary": {"overall_score": 20, "level": "low", "data_quality": 0.7},
+      "expected_sha256": "1fefbafda0ffc137ba11190f7e3e345c542a81f159661a89ae01a29b16783953"
+    },
+    {
+      "id": "risk-boundary-saturation",
+      "engine": "calculate_change_risk",
+      "input": {
+        "files_changed": 1000000,
+        "lines_added": 1000000000,
+        "lines_deleted": 1000000000,
+        "changed_services": ["identity", "orders", "payments", "shipping"],
+        "flags": ["database-migration", "schema-change", "auth-change"],
+        "test_coverage": -1,
+        "rollback_ready": false,
+        "observability_score": 0,
+        "previous_failures": 1000000,
+        "service_tiers": {"identity": "tier-1"},
+        "evidence_prefix": "golden-risk-saturation"
+      },
+      "expected_summary": {"overall_score": 100, "level": "critical", "data_quality": 0.65},
+      "expected_sha256": "c1ff484be9f934de34895f3778be6e84b1715c591315ed974b6cde27c4ebde04"
+    },
+    {
+      "id": "graph-ordinary-branch",
+      "engine": "calculate_blast_radius",
+      "input": {
+        "nodes": [
+          {"id": "api", "label": "API", "kind": "service", "team": "Core", "tier": "tier-1", "health": "healthy"},
+          {"id": "orders", "label": "Orders", "kind": "service", "team": "Orders", "tier": "tier-1", "health": "degraded"},
+          {"id": "payments", "label": "Payments", "kind": "service", "team": "Money", "tier": "tier-1", "health": "healthy"},
+          {"id": "email", "label": "Email", "kind": "service", "team": "Comms", "tier": "tier-3", "health": "healthy"}
+        ],
+        "edges": [
+          {"source": "api", "target": "orders", "relation": "calls", "confidence": 0.9, "active": true},
+          {"source": "api", "target": "payments", "relation": "calls", "confidence": 0.8, "active": true},
+          {"source": "orders", "target": "email", "relation": "publishes", "confidence": 0.7, "active": true}
+        ],
+        "changed_services": ["api"],
+        "evidence_prefix": "golden-graph-ordinary",
+        "max_hops": 4,
+        "decay": 0.72
+      },
+      "expected_summary": {"node_ids": ["api", "orders", "payments", "email"], "edge_count": 3, "max_hop": 2},
+      "expected_sha256": "83b0ee58fe0c90dba0bab426c91388cb7d02fd6e3250b96023cad8520fbce1b6"
+    },
+    {
+      "id": "graph-boundary-cycle-duplicate-and-hop-limit",
+      "engine": "calculate_blast_radius",
+      "input": {
+        "nodes": [
+          {"id": "a", "label": "A", "kind": "service", "team": "Core", "tier": "tier-1", "health": "healthy"},
+          {"id": "b", "label": "B", "kind": "service", "team": "Core", "tier": "tier-2", "health": "unknown"},
+          {"id": "c", "label": "C", "kind": "service", "team": "Core", "tier": "tier-3", "health": "critical"},
+          {"id": "d", "label": "D", "kind": "service", "team": "Core", "tier": "tier-3", "health": "healthy"}
+        ],
+        "edges": [
+          {"source": "a", "target": "b", "relation": "calls", "confidence": 1.4, "active": true},
+          {"source": "a", "target": "b", "relation": "calls", "confidence": -0.2, "active": true},
+          {"source": "b", "target": "c", "relation": "calls", "confidence": 0.8, "active": true},
+          {"source": "c", "target": "a", "relation": "calls", "confidence": 1.0, "active": true},
+          {"source": "c", "target": "d", "relation": "calls", "confidence": 1.0, "active": true},
+          {"source": "a", "target": "ghost", "relation": "calls", "confidence": 1.0, "active": true},
+          {"source": "a", "target": "d", "relation": "calls", "confidence": 1.0, "active": false}
+        ],
+        "changed_services": ["a", "a"],
+        "evidence_prefix": "golden-graph-boundary",
+        "max_hops": 2,
+        "decay": 0.72
+      },
+      "expected_summary": {"node_ids": ["a", "b", "c"], "edge_count": 3, "max_hop": 2},
+      "expected_sha256": "c5f6738b28c6b00e57da9a75524209487b43e37009d2e565138ef0b7f2d32431"
+    },
+    {
+      "id": "graph-boundary-empty-origin",
+      "engine": "calculate_blast_radius",
+      "input": {
+        "nodes": [],
+        "edges": [],
+        "changed_services": [],
+        "evidence_prefix": "golden-graph-empty",
+        "max_hops": 0,
+        "decay": 0.72
+      },
+      "expected_summary": {"node_ids": [], "edge_count": 0, "max_hop": 0},
+      "expected_sha256": "57501e5c6808b3e14852a4ea21dc7873abf9409032a06f9b740c973e83f62cf7"
+    },
+    {
+      "id": "rca-ordinary-counter-evidence",
+      "engine": "rank_hypotheses",
+      "input": {
+        "evidence": [
+          {"id": "trace-1", "type": "trace", "quality": 0.95, "supports": ["payment"], "contradicts": []},
+          {"id": "metric-1", "type": "metric", "quality": 0.9, "supports": ["payment", "checkout"], "contradicts": []},
+          {"id": "config-1", "type": "config", "quality": 1.0, "supports": [], "contradicts": ["checkout"]}
+        ],
+        "candidates": [
+          {"id": "payment", "cause_service": "payment-adapter", "cause": "Retry amplification", "prior": 0.55, "next_step": "Inspect retry traces."},
+          {"id": "checkout", "cause_service": "checkout-api", "cause": "Worker saturation", "prior": 0.6, "next_step": "Inspect worker metrics."},
+          {"id": "fraud", "cause_service": "fraud-api", "cause": "Policy latency", "prior": 0.4, "next_step": "Inspect policy latency."}
+        ],
+        "limit": 3
+      },
+      "expected_summary": {"ranked_ids": ["payment", "fraud", "checkout"], "scores": [52, 10, 8]},
+      "expected_sha256": "60ec10f2ae23af6b9214ca8ec0da856b7c2c88f58266896caec1965afa7ec05d"
+    },
+    {
+      "id": "rca-boundary-stable-tie",
+      "engine": "rank_hypotheses",
+      "input": {
+        "evidence": [],
+        "candidates": [
+          {"id": "z-cause", "cause_service": "z", "cause": "Z cause", "prior": 0.5, "next_step": "Inspect Z."},
+          {"id": "a-cause", "cause_service": "a", "cause": "A cause", "prior": 0.5, "next_step": "Inspect A."}
+        ],
+        "limit": 2
+      },
+      "expected_summary": {"ranked_ids": ["a-cause", "z-cause"], "scores": [12, 12]},
+      "expected_sha256": "8246dd8c6f476ff2bcbfd41a9eb773e07e21ebf5f35cea137b2e98945e897d8d"
+    },
+    {
+      "id": "rca-boundary-zero-limit",
+      "engine": "rank_hypotheses",
+      "input": {
+        "evidence": [],
+        "candidates": [
+          {"id": "only", "cause_service": "only", "cause": "Only cause", "prior": 1.0, "next_step": "Inspect."}
+        ],
+        "limit": 0
+      },
+      "expected_summary": {"ranked_ids": [], "scores": []},
+      "expected_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  ]
+}

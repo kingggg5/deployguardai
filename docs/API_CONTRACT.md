@@ -328,7 +328,19 @@ NotificationResponse
   id, workspace_id, user_id, kind
   title, message, resource_type, resource_id
   read_at, created_at
+
+BackgroundJobSummary
+  id, job_type, workspace_id, status
+  attempts, max_attempts, request_id
+  created_at, updated_at, completed_at
 ```
+
+`GET /workspaces/{workspace_id}/jobs/attention` requires responder access and
+returns only failed/dead-letter summaries. `POST
+/workspaces/{workspace_id}/jobs/{job_id}/replay` requires admin access, accepts
+only terminal `failed` or `dead_letter` rows, resets the retry budget, and writes
+an audit event. Payload, result, lock owner, and stored error text are never
+returned by these endpoints.
 
 ## Representative requests
 

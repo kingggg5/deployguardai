@@ -25,6 +25,7 @@ from .provider_schemas import (
     GitHubRepositorySyncResponse,
     ProductCapabilities,
 )
+from .rls import set_tenant_context
 from .workspace_services import audit, membership_for, new_id, token_digest
 
 
@@ -147,6 +148,7 @@ def complete_github_installation(
             "github_installation_incomplete",
             400,
         )
+    set_tenant_context(session, state.workspace_id)
     installation = github_client(settings).installation(installation_id)
     account = installation.get("account") or {}
     if not account.get("id") or not account.get("login"):

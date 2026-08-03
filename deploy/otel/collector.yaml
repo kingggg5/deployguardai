@@ -1,0 +1,77 @@
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: deployguard-api
+          scrape_interval: 15s
+          metrics_path: /api/v1/metrics
+          static_configs:
+            - targets: [api:8100]
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 70
+    spike_limit_percentage: 20
+  attributes/redact:
+    actions:
+      - key: http.request.header.authorization
+        action: delete
+      - key: http.request.header.cookie
+        action: delete
+      - key: http.response.header.set-cookie
+        action: delete
+      - key: db.statement
+        action: delete
+      - key: enduser.id
+        action: delete
+      - key: user.email
+        action: delete
+      - key: deployguard.workspace_id
+        action: delete
+      - key: deployguard.repository_id
+        action: delete
+      - key: exception.message
+        action: delete
+      - key: exception.stacktrace
+        action: delete
+  resource/redact:
+    attributes:
+      - key: process.command_args
+        action: delete
+      - key: service.instance.id
+        action: delete
+  batch:
+    timeout: 5s
+    send_batch_size: 512
+    send_batch_max_size: 1024
+
+exporters:
+  debug:
+    verbosity: basic
+
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, attributes/redact, resource/redact, batch]
+      exporters: [debug]
+    metrics:
+      receivers: [otlp, prometheus]
+      processors: [memory_limiter, resource/redact, batch]
+      exporters: [debug]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, attributes/redact, resource/redact, batch]
+      exporters: [debug]

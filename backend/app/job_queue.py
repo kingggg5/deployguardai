@@ -8,6 +8,7 @@ no external side effect is performed here.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 import json
 import re
@@ -39,8 +40,23 @@ class JobStateError(RuntimeError):
     """Raised when a job transition is not valid for its current state."""
 
 
+class PermanentJobError(RuntimeError):
+    """Raised by a handler when retrying cannot make the job succeed."""
+
+
+@dataclass(frozen=True, slots=True)
+class JobContext:
+    """Non-secret execution metadata propagated to an allowlisted handler."""
+
+    job_id: str
+    job_type: str
+    workspace_id: str | None
+    request_id: str | None
+    attempt: int
+
+
 JobHandler: TypeAlias = Callable[
-    [Mapping[str, Any]], Mapping[str, Any] | None
+    [Mapping[str, Any], JobContext], Mapping[str, Any] | None
 ]
 
 
@@ -91,6 +107,7 @@ def enqueue_job(
     request_id: str | None = None,
     available_at: datetime | None = None,
     max_attempts: int = DEFAULT_MAX_ATTEMPTS,
+    commit: bool = True,
 ) -> BackgroundJob:
     """Persist a queued job and return the existing row for duplicate intents.
 
@@ -140,6 +157,13 @@ def enqueue_job(
         updated_at=now,
         completed_at=None,
     )
+    if not commit:
+        # The producer owns the surrounding transaction.  Flush now so
+        # constraint failures prevent its success response, but do not commit
+        # independently from the domain state that produced this intent.
+        session.add(job)
+        session.flush()
+        return job
     session.add(job)
     try:
         session.commit()
@@ -232,10 +256,15 @@ def claim_next_job(
                 locked_by=normalized_worker,
                 updated_at=timestamp,
             )
+            .execution_options(synchronize_session=False)
         )
         if result.rowcount:
             session.commit()
-            return session.get(BackgroundJob, candidate.id)
+            return session.get(
+                BackgroundJob,
+                candidate.id,
+                populate_existing=True,
+            )
     return None
 
 
@@ -311,12 +340,13 @@ def replay_dead_letter_job(
     *,
     available_at: datetime | None = None,
     now: datetime | None = None,
+    commit: bool = True,
 ) -> BackgroundJob:
-    """Explicitly requeue a dead-letter job with a fresh retry budget."""
+    """Explicitly requeue a terminal failed job with a fresh retry budget."""
 
     job = _job_or_raise(session, job_id)
-    if job.status != "dead_letter":
-        raise JobStateError(f"job {job_id} is not dead-lettered")
+    if job.status not in {"failed", "dead_letter"}:
+        raise JobStateError(f"job {job_id} is not replayable")
     timestamp = _now(now)
     job.status = "queued"
     job.attempts = 0
@@ -327,7 +357,10 @@ def replay_dead_letter_job(
     job.result = None
     job.updated_at = timestamp
     job.completed_at = None
-    session.commit()
+    if commit:
+        session.commit()
+    else:
+        session.flush()
     return job
 
 
@@ -359,7 +392,24 @@ def run_one_job(
             now=now,
         )
     try:
-        output = handler(job.payload)
+        output = handler(
+            job.payload,
+            JobContext(
+                job_id=job.id,
+                job_type=job.job_type,
+                workspace_id=job.workspace_id,
+                request_id=job.request_id,
+                attempt=job.attempts,
+            ),
+        )
+    except PermanentJobError as exc:
+        return fail_job(
+            session,
+            job.id,
+            error=str(exc),
+            retryable=False,
+            now=now,
+        )
     except Exception as exc:  # handlers decide side effects; queue records failure
         return fail_job(session, job.id, error=str(exc), retryable=True, now=now)
     return complete_job(session, job.id, result=output, now=now)

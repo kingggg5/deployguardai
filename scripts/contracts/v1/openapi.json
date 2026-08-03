@@ -1,0 +1,6416 @@
+{
+  "components": {
+    "schemas": {
+      "AnalyzeChangeRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "author": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Author",
+            "type": "string"
+          },
+          "branch": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch"
+          },
+          "changed_services": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Changed Services",
+            "type": "array"
+          },
+          "commit_sha": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 7,
+                "pattern": "^[0-9a-fA-F]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commit Sha"
+          },
+          "deployment_environment": {
+            "default": "staging",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Deployment Environment",
+            "type": "string"
+          },
+          "files_changed": {
+            "maximum": 100000.0,
+            "minimum": 0.0,
+            "title": "Files Changed",
+            "type": "integer"
+          },
+          "flags": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 100,
+            "title": "Flags",
+            "type": "array"
+          },
+          "lines_added": {
+            "maximum": 10000000.0,
+            "minimum": 0.0,
+            "title": "Lines Added",
+            "type": "integer"
+          },
+          "lines_deleted": {
+            "maximum": 10000000.0,
+            "minimum": 0.0,
+            "title": "Lines Deleted",
+            "type": "integer"
+          },
+          "observability_score": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Observability Score",
+            "type": "number"
+          },
+          "previous_failures": {
+            "maximum": 10000.0,
+            "minimum": 0.0,
+            "title": "Previous Failures",
+            "type": "integer"
+          },
+          "repository": {
+            "maxLength": 240,
+            "minLength": 1,
+            "title": "Repository",
+            "type": "string"
+          },
+          "rollback_ready": {
+            "title": "Rollback Ready",
+            "type": "boolean"
+          },
+          "test_coverage": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Test Coverage",
+            "type": "number"
+          },
+          "title": {
+            "maxLength": 240,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "repository",
+          "author",
+          "files_changed",
+          "lines_added",
+          "lines_deleted",
+          "changed_services",
+          "test_coverage",
+          "rollback_ready",
+          "observability_score",
+          "previous_failures"
+        ],
+        "title": "AnalyzeChangeRequest",
+        "type": "object"
+      },
+      "AuditEventSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "event_metadata": {
+            "additionalProperties": true,
+            "title": "Event Metadata",
+            "type": "object"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "resource_id": {
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "resource_type": {
+            "title": "Resource Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "action",
+          "resource_type",
+          "resource_id",
+          "request_id",
+          "event_metadata",
+          "created_at"
+        ],
+        "title": "AuditEventSummary",
+        "type": "object"
+      },
+      "BackgroundJobSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "attempts": {
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "job_type": {
+            "title": "Job Type",
+            "type": "string"
+          },
+          "max_attempts": {
+            "title": "Max Attempts",
+            "type": "integer"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed",
+              "dead_letter"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "workspace_id": {
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "job_type",
+          "workspace_id",
+          "status",
+          "attempts",
+          "max_attempts",
+          "request_id",
+          "created_at",
+          "updated_at",
+          "completed_at"
+        ],
+        "title": "BackgroundJobSummary",
+        "type": "object"
+      },
+      "BlastEdge": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "confidence": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "relation": {
+            "title": "Relation",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "target",
+          "relation",
+          "confidence",
+          "active"
+        ],
+        "title": "BlastEdge",
+        "type": "object"
+      },
+      "BlastNode": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "health": {
+            "title": "Health",
+            "type": "string"
+          },
+          "hop_distance": {
+            "minimum": 0.0,
+            "title": "Hop Distance",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "impact_score": {
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Impact Score",
+            "type": "integer"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "team": {
+            "title": "Team",
+            "type": "string"
+          },
+          "tier": {
+            "title": "Tier",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "kind",
+          "team",
+          "tier",
+          "health",
+          "impact_score",
+          "hop_distance",
+          "evidence_ids"
+        ],
+        "title": "BlastNode",
+        "type": "object"
+      },
+      "BlastRadius": {
+        "additionalProperties": false,
+        "properties": {
+          "edges": {
+            "items": {
+              "$ref": "#/components/schemas/BlastEdge"
+            },
+            "title": "Edges",
+            "type": "array"
+          },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/BlastNode"
+            },
+            "title": "Nodes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "nodes",
+          "edges"
+        ],
+        "title": "BlastRadius",
+        "type": "object"
+      },
+      "ChangeDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "analysis_schema_version": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Analysis Schema Version",
+            "type": "string"
+          },
+          "author": {
+            "title": "Author",
+            "type": "string"
+          },
+          "blast_radius": {
+            "$ref": "#/components/schemas/BlastRadius"
+          },
+          "branch": {
+            "title": "Branch",
+            "type": "string"
+          },
+          "changed_services": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Changed Services",
+            "type": "array"
+          },
+          "commit_sha": {
+            "title": "Commit Sha",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "data_mode": {
+            "enum": [
+              "synthetic",
+              "connected"
+            ],
+            "title": "Data Mode",
+            "type": "string"
+          },
+          "deployment_environment": {
+            "title": "Deployment Environment",
+            "type": "string"
+          },
+          "deployment_status": {
+            "title": "Deployment Status",
+            "type": "string"
+          },
+          "engine_version": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Engine Version",
+            "type": "string"
+          },
+          "files_changed": {
+            "minimum": 0.0,
+            "title": "Files Changed",
+            "type": "integer"
+          },
+          "flags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Flags",
+            "type": "array"
+          },
+          "graph_version": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Graph Version",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "lines_added": {
+            "minimum": 0.0,
+            "title": "Lines Added",
+            "type": "integer"
+          },
+          "lines_deleted": {
+            "minimum": 0.0,
+            "title": "Lines Deleted",
+            "type": "integer"
+          },
+          "repository": {
+            "title": "Repository",
+            "type": "string"
+          },
+          "repository_id": {
+            "title": "Repository Id",
+            "type": "string"
+          },
+          "risk": {
+            "$ref": "#/components/schemas/RiskLedger"
+          },
+          "scenario_id": {
+            "title": "Scenario Id",
+            "type": "string"
+          },
+          "scoring_policy_version": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Scoring Policy Version",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "workspace_id": {
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workspace_id",
+          "repository_id",
+          "scenario_id",
+          "data_mode",
+          "analysis_schema_version",
+          "engine_version",
+          "scoring_policy_version",
+          "graph_version",
+          "title",
+          "repository",
+          "author",
+          "commit_sha",
+          "branch",
+          "created_at",
+          "deployment_status",
+          "deployment_environment",
+          "changed_services",
+          "files_changed",
+          "lines_added",
+          "lines_deleted",
+          "flags",
+          "risk",
+          "blast_radius"
+        ],
+        "title": "ChangeDetail",
+        "type": "object"
+      },
+      "ConnectorHealthSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "connection_id": {
+            "title": "Connection Id",
+            "type": "string"
+          },
+          "connection_state": {
+            "title": "Connection State",
+            "type": "string"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "last_delivery_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Delivery At"
+          },
+          "last_delivery_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Delivery Status"
+          },
+          "last_failure_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Failure At"
+          },
+          "last_success_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Success At"
+          },
+          "last_synced_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Synced At"
+          },
+          "permanent_failure_count": {
+            "minimum": 0.0,
+            "title": "Permanent Failure Count",
+            "type": "integer"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "retrying_publication_count": {
+            "minimum": 0.0,
+            "title": "Retrying Publication Count",
+            "type": "integer"
+          },
+          "selected_resource_count": {
+            "minimum": 0.0,
+            "title": "Selected Resource Count",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "healthy",
+              "degraded",
+              "revoked"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "stuck_delivery_count": {
+            "minimum": 0.0,
+            "title": "Stuck Delivery Count",
+            "type": "integer"
+          },
+          "workspace_id": {
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "connection_id",
+          "workspace_id",
+          "provider",
+          "status",
+          "connection_state",
+          "selected_resource_count",
+          "last_synced_at",
+          "last_delivery_at",
+          "last_delivery_status",
+          "last_success_at",
+          "last_failure_at",
+          "stuck_delivery_count",
+          "retrying_publication_count",
+          "permanent_failure_count",
+          "error_code",
+          "reasons"
+        ],
+        "title": "ConnectorHealthSummary",
+        "type": "object"
+      },
+      "DeploymentResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "change_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Id"
+          },
+          "commit_sha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commit Sha"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "environment": {
+            "title": "Environment",
+            "type": "string"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "last_event_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Event Id"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "provider_created_at": {
+            "format": "date-time",
+            "title": "Provider Created At",
+            "type": "string"
+          },
+          "provider_deployment_id": {
+            "title": "Provider Deployment Id",
+            "type": "string"
+          },
+          "provider_updated_at": {
+            "format": "date-time",
+            "title": "Provider Updated At",
+            "type": "string"
+          },
+          "provider_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Url"
+          },
+          "ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref"
+          },
+          "repository_id": {
+            "title": "Repository Id",
+            "type": "string"
+          },
+          "service_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Service Ids",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "in_progress",
+              "succeeded",
+              "failed",
+              "cancelled",
+              "inactive",
+              "unknown"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "workspace_id": {
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workspace_id",
+          "repository_id",
+          "change_id",
+          "provider",
+          "provider_deployment_id",
+          "environment",
+          "commit_sha",
+          "ref",
+          "status",
+          "provider_url",
+          "service_ids",
+          "last_event_id",
+          "provider_created_at",
+          "provider_updated_at",
+          "finished_at",
+          "version",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "DeploymentResponse",
+        "type": "object"
+      },
+      "DevelopmentSessionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "maxLength": 320,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          }
+        },
+        "title": "DevelopmentSessionRequest",
+        "type": "object"
+      },
+      "DoraMetricsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "change_failure_rate": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Change Failure Rate",
+            "type": "number"
+          },
+          "change_lead_time_minutes": {
+            "minimum": 0.0,
+            "title": "Change Lead Time Minutes",
+            "type": "number"
+          },
+          "deployment_frequency_per_week": {
+            "minimum": 0.0,
+            "title": "Deployment Frequency Per Week",
+            "type": "number"
+          },
+          "deployment_rework_rate": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Deployment Rework Rate",
+            "type": "number"
+          },
+          "mean_time_to_restore_minutes": {
+            "minimum": 0.0,
+            "title": "Mean Time To Restore Minutes",
+            "type": "number"
+          },
+          "period": {
+            "title": "Period",
+            "type": "string"
+          },
+          "total_deployments": {
+            "minimum": 0.0,
+            "title": "Total Deployments",
+            "type": "integer"
+          },
+          "total_incidents": {
+            "minimum": 0.0,
+            "title": "Total Incidents",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "period",
+          "deployment_frequency_per_week",
+          "change_lead_time_minutes",
+          "change_failure_rate",
+          "mean_time_to_restore_minutes",
+          "deployment_rework_rate",
+          "total_deployments",
+          "total_incidents"
+        ],
+        "title": "DoraMetricsResponse",
+        "type": "object"
+      },
+      "Evidence": {
+        "additionalProperties": false,
+        "properties": {
+          "contradicts": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Contradicts",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "quality": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Quality",
+            "type": "number"
+          },
+          "service_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Id"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "supports": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Supports",
+            "type": "array"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "source",
+          "timestamp",
+          "summary",
+          "value",
+          "quality",
+          "service_id",
+          "supports",
+          "contradicts"
+        ],
+        "title": "Evidence",
+        "type": "object"
+      },
+      "Feedback": {
+        "additionalProperties": false,
+        "properties": {
+          "hypothesis_id": {
+            "title": "Hypothesis Id",
+            "type": "string"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "submitted_at": {
+            "format": "date-time",
+            "title": "Submitted At",
+            "type": "string"
+          },
+          "verdict": {
+            "enum": [
+              "confirmed",
+              "rejected",
+              "partial"
+            ],
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "verdict",
+          "hypothesis_id",
+          "note",
+          "submitted_at"
+        ],
+        "title": "Feedback",
+        "type": "object"
+      },
+      "FeedbackRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "hypothesis_id": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Hypothesis Id",
+            "type": "string"
+          },
+          "note": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Note",
+            "type": "string"
+          },
+          "verdict": {
+            "enum": [
+              "confirmed",
+              "rejected",
+              "partial"
+            ],
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "hypothesis_id",
+          "verdict",
+          "note"
+        ],
+        "title": "FeedbackRequest",
+        "type": "object"
+      },
+      "GitHubCheckRunResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "change_id": {
+            "title": "Change Id",
+            "type": "string"
+          },
+          "conclusion": {
+            "enum": [
+              "neutral",
+              "success"
+            ],
+            "title": "Conclusion",
+            "type": "string"
+          },
+          "details_url": {
+            "title": "Details Url",
+            "type": "string"
+          },
+          "provider_check_id": {
+            "title": "Provider Check Id",
+            "type": "string"
+          },
+          "published_at": {
+            "format": "date-time",
+            "title": "Published At",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider_check_id",
+          "change_id",
+          "status",
+          "conclusion",
+          "details_url",
+          "published_at"
+        ],
+        "title": "GitHubCheckRunResponse",
+        "type": "object"
+      },
+      "GitHubConnectionSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "account_login": {
+            "title": "Account Login",
+            "type": "string"
+          },
+          "account_type": {
+            "title": "Account Type",
+            "type": "string"
+          },
+          "connection_state": {
+            "title": "Connection State",
+            "type": "string"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "installation_id": {
+            "title": "Installation Id",
+            "type": "string"
+          },
+          "last_synced_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Synced At"
+          },
+          "permissions": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Permissions",
+            "type": "object"
+          },
+          "repository_selection": {
+            "title": "Repository Selection",
+            "type": "string"
+          },
+          "workspace_id": {
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workspace_id",
+          "installation_id",
+          "account_login",
+          "account_type",
+          "connection_state",
+          "permissions",
+          "repository_selection",
+          "last_synced_at",
+          "error_code"
+        ],
+        "title": "GitHubConnectionSummary",
+        "type": "object"
+      },
+      "GitHubInstallStart": {
+        "additionalProperties": false,
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "install_url": {
+            "title": "Install Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "install_url",
+          "expires_at"
+        ],
+        "title": "GitHubInstallStart",
+        "type": "object"
+      },
+      "GitHubRepositoryCandidate": {
+        "additionalProperties": false,
+        "properties": {
+          "archived": {
+            "title": "Archived",
+            "type": "boolean"
+          },
+          "default_branch": {
+            "title": "Default Branch",
+            "type": "string"
+          },
+          "full_name": {
+            "title": "Full Name",
+            "type": "string"
+          },
+          "html_url": {
+            "title": "Html Url",
+            "type": "string"
+          },
+          "provider_repository_id": {
+            "title": "Provider Repository Id",
+            "type": "string"
+          },
+          "pushed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pushed At"
+          },
+          "selected": {
+            "title": "Selected",
+            "type": "boolean"
+          },
+          "visibility": {
+            "enum": [
+              "private",
+              "public",
+              "internal"
+            ],
+            "title": "Visibility",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider_repository_id",
+          "full_name",
+          "default_branch",
+          "visibility",
+          "html_url",
+          "archived",
+          "selected",
+          "pushed_at"
+        ],
+        "title": "GitHubRepositoryCandidate",
+        "type": "object"
+      },
+      "GitHubRepositorySyncRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "repository_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Repository Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "repository_ids"
+        ],
+        "title": "GitHubRepositorySyncRequest",
+        "type": "object"
+      },
+      "GitHubRepositorySyncResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "deselected": {
+            "minimum": 0.0,
+            "title": "Deselected",
+            "type": "integer"
+          },
+          "imported": {
+            "minimum": 0.0,
+            "title": "Imported",
+            "type": "integer"
+          },
+          "synced_at": {
+            "format": "date-time",
+            "title": "Synced At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "imported",
+          "deselected",
+          "synced_at"
+        ],
+        "title": "GitHubRepositorySyncResponse",
+        "type": "object"
+      },
+      "GitHubWebhookResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "change_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Id"
+          },
+          "delivery_id": {
+            "title": "Delivery Id",
+            "type": "string"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "event": {
+            "title": "Event",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "accepted",
+              "ignored"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "event",
+          "delivery_id",
+          "detail"
+        ],
+        "title": "GitHubWebhookResponse",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HealthResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "data_mode": {
+            "enum": [
+              "synthetic",
+              "connected"
+            ],
+            "title": "Data Mode",
+            "type": "string"
+          },
+          "database": {
+            "const": "ready",
+            "title": "Database",
+            "type": "string"
+          },
+          "service": {
+            "title": "Service",
+            "type": "string"
+          },
+          "status": {
+            "const": "ok",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "database",
+          "service",
+          "data_mode"
+        ],
+        "title": "HealthResponse",
+        "type": "object"
+      },
+      "Hypothesis": {
+        "additionalProperties": false,
+        "properties": {
+          "cause": {
+            "title": "Cause",
+            "type": "string"
+          },
+          "cause_service": {
+            "title": "Cause Service",
+            "type": "string"
+          },
+          "confidence": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "counter_evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Counter Evidence Ids",
+            "type": "array"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "next_step": {
+            "title": "Next Step",
+            "type": "string"
+          },
+          "rank": {
+            "minimum": 1.0,
+            "title": "Rank",
+            "type": "integer"
+          },
+          "reasoning": {
+            "title": "Reasoning",
+            "type": "string"
+          },
+          "score": {
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Score",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "rank",
+          "cause_service",
+          "cause",
+          "confidence",
+          "score",
+          "evidence_ids",
+          "counter_evidence_ids",
+          "reasoning",
+          "next_step",
+          "status"
+        ],
+        "title": "Hypothesis",
+        "type": "object"
+      },
+      "IncidentDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "affected_services": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Affected Services",
+            "type": "array"
+          },
+          "analysis_schema_version": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Analysis Schema Version",
+            "type": "string"
+          },
+          "assignee_user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assignee User Id"
+          },
+          "correlated_change_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlated Change Id"
+          },
+          "data_mode": {
+            "enum": [
+              "synthetic",
+              "connected"
+            ],
+            "title": "Data Mode",
+            "type": "string"
+          },
+          "engine_version": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Engine Version",
+            "type": "string"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "feedback": {
+            "items": {
+              "$ref": "#/components/schemas/Feedback"
+            },
+            "title": "Feedback",
+            "type": "array"
+          },
+          "graph_version": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Graph Version",
+            "type": "string"
+          },
+          "hypotheses": {
+            "items": {
+              "$ref": "#/components/schemas/Hypothesis"
+            },
+            "title": "Hypotheses",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "scenario_id": {
+            "title": "Scenario Id",
+            "type": "string"
+          },
+          "scoring_policy_version": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Scoring Policy Version",
+            "type": "string"
+          },
+          "severity": {
+            "title": "Severity",
+            "type": "string"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "timeline": {
+            "items": {
+              "$ref": "#/components/schemas/TimelineEvent"
+            },
+            "title": "Timeline",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "scenario_id",
+          "data_mode",
+          "analysis_schema_version",
+          "engine_version",
+          "scoring_policy_version",
+          "graph_version",
+          "title",
+          "severity",
+          "status",
+          "started_at",
+          "resolved_at",
+          "affected_services",
+          "correlated_change_id",
+          "summary",
+          "timeline",
+          "evidence",
+          "hypotheses",
+          "feedback"
+        ],
+        "title": "IncidentDetail",
+        "type": "object"
+      },
+      "IncidentLifecycleResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "assignee_user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assignee User Id"
+          },
+          "incident_id": {
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "severity": {
+            "enum": [
+              "sev1",
+              "sev2",
+              "sev3",
+              "sev4"
+            ],
+            "title": "Severity",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "open",
+              "acknowledged",
+              "investigating",
+              "mitigated",
+              "resolved"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "timeline": {
+            "items": {
+              "$ref": "#/components/schemas/TimelineEvent"
+            },
+            "title": "Timeline",
+            "type": "array"
+          },
+          "workspace_id": {
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "incident_id",
+          "workspace_id",
+          "status",
+          "severity",
+          "assignee_user_id",
+          "resolved_at",
+          "timeline"
+        ],
+        "title": "IncidentLifecycleResponse",
+        "type": "object"
+      },
+      "IncidentLifecycleUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "assignee_user_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assignee User Id"
+          },
+          "severity": {
+            "anyOf": [
+              {
+                "enum": [
+                  "sev1",
+                  "sev2",
+                  "sev3",
+                  "sev4"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Severity"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "open",
+                  "acknowledged",
+                  "investigating",
+                  "mitigated",
+                  "resolved"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "title": "IncidentLifecycleUpdate",
+        "type": "object"
+      },
+      "IncidentNoteCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "note"
+        ],
+        "title": "IncidentNoteCreate",
+        "type": "object"
+      },
+      "InvitationAccept": {
+        "additionalProperties": false,
+        "properties": {
+          "token": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "InvitationAccept",
+        "type": "object"
+      },
+      "InvitationCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "maxLength": 320,
+            "minLength": 1,
+            "title": "Email",
+            "type": "string"
+          },
+          "role": {
+            "default": "viewer",
+            "enum": [
+              "viewer",
+              "responder",
+              "admin"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "InvitationCreate",
+        "type": "object"
+      },
+      "InvitationCreated": {
+        "additionalProperties": false,
+        "properties": {
+          "accept_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accept Path"
+          },
+          "claim_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Claim Token"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "delivery_mode": {
+            "enum": [
+              "smtp",
+              "development_outbox",
+              "disabled"
+            ],
+            "title": "Delivery Mode",
+            "type": "string"
+          },
+          "delivery_status": {
+            "enum": [
+              "sent",
+              "failed",
+              "development_outbox",
+              "disabled"
+            ],
+            "title": "Delivery Status",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "viewer",
+              "responder",
+              "admin"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "accepted",
+              "revoked",
+              "expired"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "workspace_id": {
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workspace_id",
+          "email",
+          "role",
+          "status",
+          "created_at",
+          "expires_at",
+          "delivery_mode",
+          "delivery_status"
+        ],
+        "title": "InvitationCreated",
+        "type": "object"
+      },
+      "InvitationSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "viewer",
+              "responder",
+              "admin"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "accepted",
+              "revoked",
+              "expired"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "workspace_id": {
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workspace_id",
+          "email",
+          "role",
+          "status",
+          "created_at",
+          "expires_at"
+        ],
+        "title": "InvitationSummary",
+        "type": "object"
+      },
+      "LLMSynthesisResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "citation_coverage": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Citation Coverage",
+            "type": "number"
+          },
+          "confidence": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "hypotheses": {
+            "items": {
+              "$ref": "#/components/schemas/Hypothesis"
+            },
+            "title": "Hypotheses",
+            "type": "array"
+          },
+          "incident_id": {
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "model_used": {
+            "title": "Model Used",
+            "type": "string"
+          },
+          "unsupported_claims_count": {
+            "minimum": 0.0,
+            "title": "Unsupported Claims Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "incident_id",
+          "model_used",
+          "confidence",
+          "hypotheses",
+          "unsupported_claims_count",
+          "citation_coverage"
+        ],
+        "title": "LLMSynthesisResponse",
+        "type": "object"
+      },
+      "LivenessResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "service": {
+            "title": "Service",
+            "type": "string"
+          },
+          "status": {
+            "const": "ok",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "service"
+        ],
+        "title": "LivenessResponse",
+        "type": "object"
+      },
+      "ManualOperationalEventCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "attributes": {
+            "additionalProperties": true,
+            "title": "Attributes",
+            "type": "object"
+          },
+          "event_type": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Event Type",
+            "type": "string"
+          },
+          "incident_id": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Incident Id"
+          },
+          "occurred_at": {
+            "format": "date-time",
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "provenance": {
+            "additionalProperties": true,
+            "title": "Provenance",
+            "type": "object"
+          },
+          "provider_event_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Provider Event Id",
+            "type": "string"
+          },
+          "repository_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repository Id"
+          },
+          "service_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Id"
+          },
+          "severity": {
+            "default": "info",
+            "enum": [
+              "debug",
+              "info",
+              "warning",
+              "error",
+              "critical"
+            ],
+            "title": "Severity",
+            "type": "string"
+          },
+          "source": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Source",
+            "type": "string"
+          },
+          "summary": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider_event_id",
+          "source",
+          "event_type",
+          "occurred_at",
+          "summary"
+        ],
+        "title": "ManualOperationalEventCreate",
+        "type": "object"
+      },
+      "MembershipSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "joined_at": {
+            "format": "date-time",
+            "title": "Joined At",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "viewer",
+              "responder",
+              "admin",
+              "owner"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserSummary"
+          }
+        },
+        "required": [
+          "user",
+          "role",
+          "joined_at"
+        ],
+        "title": "MembershipSummary",
+        "type": "object"
+      },
+      "NotificationResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "incident_lifecycle",
+              "incident_note"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "read_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Read At"
+          },
+          "resource_id": {
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "resource_type": {
+            "title": "Resource Type",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          },
+          "workspace_id": {
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workspace_id",
+          "user_id",
+          "kind",
+          "title",
+          "message",
+          "resource_type",
+          "resource_id",
+          "read_at",
+          "created_at"
+        ],
+        "title": "NotificationResponse",
+        "type": "object"
+      },
+      "OperationalEventResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "attributes": {
+            "additionalProperties": true,
+            "title": "Attributes",
+            "type": "object"
+          },
+          "event_type": {
+            "title": "Event Type",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "incident_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Incident Id"
+          },
+          "ingested_at": {
+            "format": "date-time",
+            "title": "Ingested At",
+            "type": "string"
+          },
+          "ingestion_status": {
+            "enum": [
+              "accepted",
+              "correlated"
+            ],
+            "title": "Ingestion Status",
+            "type": "string"
+          },
+          "occurred_at": {
+            "format": "date-time",
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "provenance": {
+            "additionalProperties": true,
+            "title": "Provenance",
+            "type": "object"
+          },
+          "provider_event_id": {
+            "title": "Provider Event Id",
+            "type": "string"
+          },
+          "repository_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repository Id"
+          },
+          "service_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Id"
+          },
+          "severity": {
+            "enum": [
+              "debug",
+              "info",
+              "warning",
+              "error",
+              "critical"
+            ],
+            "title": "Severity",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "workspace_id": {
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "provider_event_id",
+          "workspace_id",
+          "repository_id",
+          "service_id",
+          "incident_id",
+          "source",
+          "event_type",
+          "occurred_at",
+          "severity",
+          "summary",
+          "attributes",
+          "provenance",
+          "ingestion_status",
+          "ingested_at"
+        ],
+        "title": "OperationalEventResponse",
+        "type": "object"
+      },
+      "Overview": {
+        "additionalProperties": false,
+        "properties": {
+          "active_change": {
+            "$ref": "#/components/schemas/ChangeDetail"
+          },
+          "active_incident": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IncidentDetail"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "active_scenario_id": {
+            "title": "Active Scenario Id",
+            "type": "string"
+          },
+          "data_mode": {
+            "enum": [
+              "synthetic",
+              "connected"
+            ],
+            "title": "Data Mode",
+            "type": "string"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "stats": {
+            "$ref": "#/components/schemas/OverviewStats"
+          }
+        },
+        "required": [
+          "generated_at",
+          "data_mode",
+          "active_scenario_id",
+          "stats",
+          "active_change",
+          "active_incident"
+        ],
+        "title": "Overview",
+        "type": "object"
+      },
+      "OverviewStats": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence_quality": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Evidence Quality",
+            "type": "number"
+          },
+          "high_risk_changes": {
+            "minimum": 0.0,
+            "title": "High Risk Changes",
+            "type": "integer"
+          },
+          "open_incidents": {
+            "minimum": 0.0,
+            "title": "Open Incidents",
+            "type": "integer"
+          },
+          "services_monitored": {
+            "minimum": 0.0,
+            "title": "Services Monitored",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "open_incidents",
+          "high_risk_changes",
+          "services_monitored",
+          "evidence_quality"
+        ],
+        "title": "OverviewStats",
+        "type": "object"
+      },
+      "ProductCapabilities": {
+        "additionalProperties": false,
+        "properties": {
+          "auth_provider": {
+            "enum": [
+              "development",
+              "oidc",
+              "disabled"
+            ],
+            "title": "Auth Provider",
+            "type": "string"
+          },
+          "connected_telemetry": {
+            "title": "Connected Telemetry",
+            "type": "boolean"
+          },
+          "development_identity": {
+            "title": "Development Identity",
+            "type": "boolean"
+          },
+          "email_delivery": {
+            "enum": [
+              "smtp",
+              "development_outbox",
+              "disabled"
+            ],
+            "title": "Email Delivery",
+            "type": "string"
+          },
+          "environment": {
+            "title": "Environment",
+            "type": "string"
+          },
+          "github_app": {
+            "title": "Github App",
+            "type": "boolean"
+          },
+          "github_checks": {
+            "title": "Github Checks",
+            "type": "boolean"
+          },
+          "oidc_authority": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oidc Authority"
+          },
+          "oidc_client_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oidc Client Id"
+          },
+          "oidc_scope": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oidc Scope"
+          },
+          "synthetic_data": {
+            "title": "Synthetic Data",
+            "type": "boolean"
+          },
+          "telemetry_scope": {
+            "enum": [
+              "workspace_credential",
+              "disabled"
+            ],
+            "title": "Telemetry Scope",
+            "type": "string"
+          }
+        },
+        "required": [
+          "environment",
+          "auth_provider",
+          "development_identity",
+          "synthetic_data",
+          "github_app",
+          "github_checks",
+          "email_delivery",
+          "connected_telemetry",
+          "telemetry_scope"
+        ],
+        "title": "ProductCapabilities",
+        "type": "object"
+      },
+      "RepositoryCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "default_branch": {
+            "default": "main",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Default Branch",
+            "type": "string"
+          },
+          "full_name": {
+            "maxLength": 240,
+            "minLength": 1,
+            "pattern": "^[^/\\s]+/[^/\\s]+$",
+            "title": "Full Name",
+            "type": "string"
+          },
+          "visibility": {
+            "default": "private",
+            "enum": [
+              "private",
+              "public",
+              "internal"
+            ],
+            "title": "Visibility",
+            "type": "string"
+          }
+        },
+        "required": [
+          "full_name"
+        ],
+        "title": "RepositoryCreate",
+        "type": "object"
+      },
+      "RepositorySummary": {
+        "additionalProperties": false,
+        "properties": {
+          "connection_state": {
+            "title": "Connection State",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "data_mode": {
+            "enum": [
+              "synthetic",
+              "connected"
+            ],
+            "title": "Data Mode",
+            "type": "string"
+          },
+          "default_branch": {
+            "title": "Default Branch",
+            "type": "string"
+          },
+          "full_name": {
+            "title": "Full Name",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "last_synced_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Synced At"
+          },
+          "provider": {
+            "enum": [
+              "development",
+              "github"
+            ],
+            "title": "Provider",
+            "type": "string"
+          },
+          "provider_repository_id": {
+            "title": "Provider Repository Id",
+            "type": "string"
+          },
+          "selected": {
+            "title": "Selected",
+            "type": "boolean"
+          },
+          "visibility": {
+            "title": "Visibility",
+            "type": "string"
+          },
+          "workspace_id": {
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workspace_id",
+          "provider",
+          "provider_repository_id",
+          "full_name",
+          "default_branch",
+          "visibility",
+          "connection_state",
+          "data_mode",
+          "selected",
+          "last_synced_at",
+          "created_at"
+        ],
+        "title": "RepositorySummary",
+        "type": "object"
+      },
+      "RiskDimension": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "score": {
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Score",
+            "type": "integer"
+          },
+          "weight": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Weight",
+            "type": "number"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "score",
+          "weight",
+          "reason",
+          "evidence_ids"
+        ],
+        "title": "RiskDimension",
+        "type": "object"
+      },
+      "RiskLedger": {
+        "additionalProperties": false,
+        "properties": {
+          "data_quality": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Data Quality",
+            "type": "number"
+          },
+          "dimensions": {
+            "items": {
+              "$ref": "#/components/schemas/RiskDimension"
+            },
+            "title": "Dimensions",
+            "type": "array"
+          },
+          "level": {
+            "enum": [
+              "low",
+              "moderate",
+              "high",
+              "critical"
+            ],
+            "title": "Level",
+            "type": "string"
+          },
+          "overall_score": {
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Overall Score",
+            "type": "integer"
+          },
+          "recommendations": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Recommendations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "overall_score",
+          "level",
+          "data_quality",
+          "dimensions",
+          "recommendations"
+        ],
+        "title": "RiskLedger",
+        "type": "object"
+      },
+      "RiskPolicyResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "block_threshold": {
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Block Threshold",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "max_blast_radius": {
+            "maximum": 10000.0,
+            "minimum": 1.0,
+            "title": "Max Blast Radius",
+            "type": "integer"
+          },
+          "require_rollback": {
+            "title": "Require Rollback",
+            "type": "boolean"
+          },
+          "require_tests": {
+            "title": "Require Tests",
+            "type": "boolean"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          },
+          "warn_threshold": {
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Warn Threshold",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "enabled",
+          "warn_threshold",
+          "block_threshold",
+          "require_tests",
+          "require_rollback",
+          "max_blast_radius",
+          "version",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "RiskPolicyResponse",
+        "type": "object"
+      },
+      "RiskPolicyUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "block_threshold": {
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Block Threshold",
+            "type": "integer"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "max_blast_radius": {
+            "maximum": 10000.0,
+            "minimum": 1.0,
+            "title": "Max Blast Radius",
+            "type": "integer"
+          },
+          "require_rollback": {
+            "title": "Require Rollback",
+            "type": "boolean"
+          },
+          "require_tests": {
+            "title": "Require Tests",
+            "type": "boolean"
+          },
+          "version": {
+            "minimum": 2.0,
+            "title": "Version",
+            "type": "integer"
+          },
+          "warn_threshold": {
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Warn Threshold",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "enabled",
+          "warn_threshold",
+          "block_threshold",
+          "require_tests",
+          "require_rollback",
+          "max_blast_radius",
+          "version"
+        ],
+        "title": "RiskPolicyUpdate",
+        "type": "object"
+      },
+      "ScenarioSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "active_change_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Change Id"
+          },
+          "active_incident_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Incident Id"
+          },
+          "data_mode": {
+            "enum": [
+              "synthetic",
+              "connected"
+            ],
+            "title": "Data Mode",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "repository": {
+            "title": "Repository",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "repository",
+          "data_mode",
+          "is_active",
+          "active_change_id",
+          "active_incident_id"
+        ],
+        "title": "ScenarioSummary",
+        "type": "object"
+      },
+      "ServiceCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "dependencies": {
+            "items": {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 100,
+            "title": "Dependencies",
+            "type": "array"
+          },
+          "description": {
+            "default": "",
+            "maxLength": 4000,
+            "title": "Description",
+            "type": "string"
+          },
+          "lifecycle": {
+            "default": "active",
+            "enum": [
+              "active",
+              "deprecated",
+              "experimental"
+            ],
+            "title": "Lifecycle",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "owner_team": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Owner Team",
+            "type": "string"
+          },
+          "repository_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repository Id"
+          },
+          "runbook_url": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Runbook Url"
+          },
+          "slug": {
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "title": "Slug",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 50,
+            "title": "Tags",
+            "type": "array"
+          },
+          "tier": {
+            "default": "tier_2",
+            "enum": [
+              "tier_1",
+              "tier_2",
+              "tier_3",
+              "tier_4"
+            ],
+            "title": "Tier",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "slug",
+          "owner_team"
+        ],
+        "title": "ServiceCreate",
+        "type": "object"
+      },
+      "ServiceResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "dependencies": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Dependencies",
+            "type": "array"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "lifecycle": {
+            "enum": [
+              "active",
+              "deprecated",
+              "experimental"
+            ],
+            "title": "Lifecycle",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "owner_team": {
+            "title": "Owner Team",
+            "type": "string"
+          },
+          "repository_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repository Id"
+          },
+          "runbook_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Runbook Url"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "tier": {
+            "enum": [
+              "tier_1",
+              "tier_2",
+              "tier_3",
+              "tier_4"
+            ],
+            "title": "Tier",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "workspace_id": {
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workspace_id",
+          "name",
+          "slug",
+          "description",
+          "tier",
+          "lifecycle",
+          "owner_team",
+          "repository_id",
+          "dependencies",
+          "runbook_url",
+          "tags",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ServiceResponse",
+        "type": "object"
+      },
+      "ServiceUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "dependencies": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxLength": 160,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dependencies"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "lifecycle": {
+            "anyOf": [
+              {
+                "enum": [
+                  "active",
+                  "deprecated",
+                  "experimental"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lifecycle"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "owner_team": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Team"
+          },
+          "repository_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repository Id"
+          },
+          "runbook_url": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Runbook Url"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "maxItems": 50,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags"
+          },
+          "tier": {
+            "anyOf": [
+              {
+                "enum": [
+                  "tier_1",
+                  "tier_2",
+                  "tier_3",
+                  "tier_4"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier"
+          }
+        },
+        "title": "ServiceUpdate",
+        "type": "object"
+      },
+      "SessionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "access_token": {
+            "title": "Access Token",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "provider": {
+            "const": "development",
+            "title": "Provider",
+            "type": "string"
+          },
+          "token_type": {
+            "const": "bearer",
+            "title": "Token Type",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserSummary"
+          },
+          "workspaces": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceSummary"
+            },
+            "title": "Workspaces",
+            "type": "array"
+          }
+        },
+        "required": [
+          "access_token",
+          "token_type",
+          "expires_at",
+          "provider",
+          "user",
+          "workspaces"
+        ],
+        "title": "SessionResponse",
+        "type": "object"
+      },
+      "TelemetryIngestRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "contradicts_hypothesis_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Contradicts Hypothesis Ids",
+            "type": "array"
+          },
+          "service_id": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Service Id",
+            "type": "string"
+          },
+          "source": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Source",
+            "type": "string"
+          },
+          "summary": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Summary",
+            "type": "string"
+          },
+          "supports_hypothesis_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Supports Hypothesis Ids",
+            "type": "array"
+          },
+          "type": {
+            "enum": [
+              "metric",
+              "log",
+              "trace",
+              "alert"
+            ],
+            "title": "Type",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "source",
+          "type",
+          "service_id",
+          "summary"
+        ],
+        "title": "TelemetryIngestRequest",
+        "type": "object"
+      },
+      "TimelineEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "actor_user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor User Id"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "service_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Id"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "timestamp",
+          "type",
+          "title",
+          "detail",
+          "service_id"
+        ],
+        "title": "TimelineEvent",
+        "type": "object"
+      },
+      "UserContextResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "repository_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repository Id"
+          },
+          "scenario_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenario Id"
+          },
+          "workspace_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workspace Id"
+          }
+        },
+        "required": [
+          "workspace_id",
+          "repository_id",
+          "scenario_id"
+        ],
+        "title": "UserContextResponse",
+        "type": "object"
+      },
+      "UserContextUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "repository_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repository Id"
+          },
+          "scenario_id": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenario Id"
+          },
+          "workspace_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspace_id"
+        ],
+        "title": "UserContextUpdate",
+        "type": "object"
+      },
+      "UserSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "auth_provider": {
+            "title": "Auth Provider",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "display_name",
+          "auth_provider"
+        ],
+        "title": "UserSummary",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "WorkspaceCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "maxLength": 80,
+            "minLength": 1,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "slug"
+        ],
+        "title": "WorkspaceCreate",
+        "type": "object"
+      },
+      "WorkspaceSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "member_count": {
+            "minimum": 0.0,
+            "title": "Member Count",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "repository_count": {
+            "minimum": 0.0,
+            "title": "Repository Count",
+            "type": "integer"
+          },
+          "role": {
+            "enum": [
+              "viewer",
+              "responder",
+              "admin",
+              "owner"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "role",
+          "repository_count",
+          "member_count",
+          "created_at"
+        ],
+        "title": "WorkspaceSummary",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "title": "DeployGuard AI",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/auth/development-session": {
+      "post": {
+        "operationId": "development_session_api_v1_auth_development_session_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DevelopmentSessionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Development Session"
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "operationId": "me_api_v1_auth_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Me"
+      }
+    },
+    "/api/v1/capabilities": {
+      "get": {
+        "operationId": "product_capabilities_api_v1_capabilities_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductCapabilities"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Product Capabilities"
+      }
+    },
+    "/api/v1/changes": {
+      "get": {
+        "operationId": "changes_api_v1_changes_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ChangeDetail"
+                  },
+                  "title": "Response Changes Api V1 Changes Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Changes"
+      }
+    },
+    "/api/v1/changes/analyze": {
+      "post": {
+        "operationId": "change_analyze_api_v1_changes_analyze_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalyzeChangeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Change Analyze"
+      }
+    },
+    "/api/v1/changes/{change_id}": {
+      "get": {
+        "operationId": "change_api_v1_changes__change_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "change_id",
+            "required": true,
+            "schema": {
+              "title": "Change Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Change"
+      }
+    },
+    "/api/v1/deployments/{deployment_id}": {
+      "get": {
+        "operationId": "deployment_api_v1_deployments__deployment_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "deployment_id",
+            "required": true,
+            "schema": {
+              "title": "Deployment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeploymentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Deployment"
+      }
+    },
+    "/api/v1/health": {
+      "get": {
+        "operationId": "health_api_v1_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health"
+      }
+    },
+    "/api/v1/health/live": {
+      "get": {
+        "operationId": "health_live_api_v1_health_live_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LivenessResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health Live"
+      }
+    },
+    "/api/v1/health/ready": {
+      "get": {
+        "operationId": "health_ready_api_v1_health_ready_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health Ready"
+      }
+    },
+    "/api/v1/incidents": {
+      "get": {
+        "operationId": "incidents_api_v1_incidents_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/IncidentDetail"
+                  },
+                  "title": "Response Incidents Api V1 Incidents Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Incidents"
+      }
+    },
+    "/api/v1/incidents/{incident_id}": {
+      "get": {
+        "operationId": "incident_api_v1_incidents__incident_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "title": "Incident Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Incident"
+      }
+    },
+    "/api/v1/incidents/{incident_id}/export-markdown": {
+      "get": {
+        "operationId": "incident_export_markdown_api_v1_incidents__incident_id__export_markdown_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "title": "Incident Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Incident Export Markdown"
+      }
+    },
+    "/api/v1/incidents/{incident_id}/feedback": {
+      "post": {
+        "operationId": "incident_feedback_api_v1_incidents__incident_id__feedback_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "title": "Incident Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Incident Feedback"
+      }
+    },
+    "/api/v1/incidents/{incident_id}/lifecycle": {
+      "patch": {
+        "operationId": "incident_lifecycle_update_api_v1_incidents__incident_id__lifecycle_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "title": "Incident Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IncidentLifecycleUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentLifecycleResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Incident Lifecycle Update"
+      }
+    },
+    "/api/v1/incidents/{incident_id}/notes": {
+      "post": {
+        "operationId": "incident_note_create_api_v1_incidents__incident_id__notes_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "title": "Incident Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IncidentNoteCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimelineEvent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Incident Note Create"
+      }
+    },
+    "/api/v1/incidents/{incident_id}/synthesize-llm": {
+      "post": {
+        "operationId": "incident_synthesize_llm_api_v1_incidents__incident_id__synthesize_llm_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "title": "Incident Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LLMSynthesisResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Incident Synthesize Llm"
+      }
+    },
+    "/api/v1/invitations/accept": {
+      "post": {
+        "operationId": "invitation_accept_api_v1_invitations_accept_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvitationAccept"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Invitation Accept"
+      }
+    },
+    "/api/v1/me/context": {
+      "get": {
+        "operationId": "current_context_api_v1_me_context_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserContextResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Current Context"
+      },
+      "put": {
+        "operationId": "context_select_api_v1_me_context_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserContextUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserContextResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Context Select"
+      }
+    },
+    "/api/v1/metrics/dora": {
+      "get": {
+        "operationId": "dora_metrics_api_v1_metrics_dora_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DoraMetricsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Dora Metrics"
+      }
+    },
+    "/api/v1/notifications": {
+      "get": {
+        "operationId": "notifications_api_v1_notifications_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "workspace_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 36,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "unread_only",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Unread Only",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/NotificationResponse"
+                  },
+                  "title": "Response Notifications Api V1 Notifications Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Notifications"
+      }
+    },
+    "/api/v1/notifications/{notification_id}/read": {
+      "patch": {
+        "operationId": "notification_read_api_v1_notifications__notification_id__read_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notification_id",
+            "required": true,
+            "schema": {
+              "title": "Notification Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Notification Read"
+      }
+    },
+    "/api/v1/overview": {
+      "get": {
+        "operationId": "overview_api_v1_overview_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Overview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Overview"
+      }
+    },
+    "/api/v1/reset-database": {
+      "post": {
+        "operationId": "reset_db_api_v1_reset_database_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Reset Db Api V1 Reset Database Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Reset Db"
+      }
+    },
+    "/api/v1/scenarios": {
+      "get": {
+        "operationId": "scenarios_api_v1_scenarios_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ScenarioSummary"
+                  },
+                  "title": "Response Scenarios Api V1 Scenarios Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Scenarios"
+      }
+    },
+    "/api/v1/scenarios/{scenario_id}/activate": {
+      "post": {
+        "operationId": "scenario_activate_api_v1_scenarios__scenario_id__activate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scenario_id",
+            "required": true,
+            "schema": {
+              "title": "Scenario Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Overview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Scenario Activate"
+      }
+    },
+    "/api/v1/services/{service_id}": {
+      "get": {
+        "operationId": "service_api_v1_services__service_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "service_id",
+            "required": true,
+            "schema": {
+              "title": "Service Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Service"
+      },
+      "patch": {
+        "operationId": "service_patch_api_v1_services__service_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "service_id",
+            "required": true,
+            "schema": {
+              "title": "Service Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServiceUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Service Patch"
+      }
+    },
+    "/api/v1/telemetry/events": {
+      "post": {
+        "operationId": "telemetry_ingest_api_v1_telemetry_events_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TelemetryIngestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Telemetry Ingest Api V1 Telemetry Events Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Telemetry Ingest"
+      }
+    },
+    "/api/v1/webhooks/github": {
+      "post": {
+        "operationId": "github_webhook_api_v1_webhooks_github_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitHubWebhookResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Github Webhook"
+      }
+    },
+    "/api/v1/workspaces": {
+      "get": {
+        "operationId": "workspaces_api_v1_workspaces_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WorkspaceSummary"
+                  },
+                  "title": "Response Workspaces Api V1 Workspaces Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Workspaces"
+      },
+      "post": {
+        "operationId": "workspace_create_api_v1_workspaces_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Workspace Create"
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/audit-events": {
+      "get": {
+        "operationId": "audit_events_api_v1_workspaces__workspace_id__audit_events_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AuditEventSummary"
+                  },
+                  "title": "Response Audit Events Api V1 Workspaces  Workspace Id  Audit Events Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Audit Events"
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/connectors": {
+      "get": {
+        "operationId": "workspace_connectors_api_v1_workspaces__workspace_id__connectors_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ConnectorHealthSummary"
+                  },
+                  "title": "Response Workspace Connectors Api V1 Workspaces  Workspace Id  Connectors Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Workspace Connectors"
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/deployments": {
+      "get": {
+        "operationId": "deployments_api_v1_workspaces__workspace_id__deployments_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "repository_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 36,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Repository Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "environment",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 80,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Environment"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "queued",
+                    "in_progress",
+                    "succeeded",
+                    "failed",
+                    "cancelled",
+                    "inactive",
+                    "unknown"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DeploymentResponse"
+                  },
+                  "title": "Response Deployments Api V1 Workspaces  Workspace Id  Deployments Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Deployments"
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/events": {
+      "get": {
+        "operationId": "operational_events_api_v1_workspaces__workspace_id__events_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source"
+            }
+          },
+          {
+            "in": "query",
+            "name": "event_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Event Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "severity",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "debug",
+                    "info",
+                    "warning",
+                    "error",
+                    "critical"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Severity"
+            }
+          },
+          {
+            "in": "query",
+            "name": "repository_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 36,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Repository Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "service_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 36,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Service Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "ingestion_status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "accepted",
+                    "correlated"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ingestion Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "occurred_after",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Occurred After"
+            }
+          },
+          {
+            "in": "query",
+            "name": "occurred_before",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Occurred Before"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OperationalEventResponse"
+                  },
+                  "title": "Response Operational Events Api V1 Workspaces  Workspace Id  Events Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Operational Events"
+      },
+      "post": {
+        "operationId": "operational_event_ingest_api_v1_workspaces__workspace_id__events_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManualOperationalEventCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationalEventResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Operational Event Ingest"
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/invitations": {
+      "get": {
+        "operationId": "invitations_api_v1_workspaces__workspace_id__invitations_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InvitationSummary"
+                  },
+                  "title": "Response Invitations Api V1 Workspaces  Workspace Id  Invitations Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Invitations"
+      },
+      "post": {
+        "operationId": "invitation_create_api_v1_workspaces__workspace_id__invitations_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvitationCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationCreated"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Invitation Create"
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/invitations/{invitation_id}": {
+      "delete": {
+        "operationId": "invitation_revoke_api_v1_workspaces__workspace_id__invitations__invitation_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "invitation_id",
+            "required": true,
+            "schema": {
+              "title": "Invitation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Invitation Revoke"
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/jobs/attention": {
+      "get": {
+        "operationId": "jobs_requiring_attention_api_v1_workspaces__workspace_id__jobs_attention_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BackgroundJobSummary"
+                  },
+                  "title": "Response Jobs Requiring Attention Api V1 Workspaces  Workspace Id  Jobs Attention Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Jobs Requiring Attention"
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/jobs/{job_id}/replay": {
+      "post": {
+        "operationId": "job_replay_api_v1_workspaces__workspace_id__jobs__job_id__replay_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackgroundJobSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Job Replay"
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/members": {
+      "get": {
+        "operationId": "members_api_v1_workspaces__workspace_id__members_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MembershipSummary"
+                  },
+                  "title": "Response Members Api V1 Workspaces  Workspace Id  Members Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Members"
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/providers/github": {
+      "delete": {
+        "operationId": "github_disconnect_api_v1_workspaces__workspace_id__providers_github_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitHubConnectionSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Github Disconnect"
+      },
+      "get": {
+        "operationId": "github_status_api_v1_workspaces__workspace_id__providers_github_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitHubConnectionSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Github Status"
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/providers/github/install": {
+      "post": {
+        "operationId": "github_install_api_v1_workspaces__workspace_id__providers_github_install_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitHubInstallStart"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Github Install"
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/providers/github/repositories": {
+      "get": {
+        "operationId": "github_repositories_api_v1_workspaces__workspace_id__providers_github_repositories_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/GitHubRepositoryCandidate"
+                  },
+                  "title": "Response Github Repositories Api V1 Workspaces  Workspace Id  Providers Github Repositories Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Github Repositories"
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/providers/github/repositories/sync": {
+      "post": {
+        "operationId": "github_repositories_sync_api_v1_workspaces__workspace_id__providers_github_repositories_sync_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GitHubRepositorySyncRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitHubRepositorySyncResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Github Repositories Sync"
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/repositories": {
+      "get": {
+        "operationId": "repositories_api_v1_workspaces__workspace_id__repositories_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RepositorySummary"
+                  },
+                  "title": "Response Repositories Api V1 Workspaces  Workspace Id  Repositories Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Repositories"
+      },
+      "post": {
+        "operationId": "repository_create_api_v1_workspaces__workspace_id__repositories_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RepositoryCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepositorySummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Repository Create"
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/repositories/{repository_id}/changes": {
+      "get": {
+        "operationId": "connected_repository_changes_api_v1_workspaces__workspace_id__repositories__repository_id__changes_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "repository_id",
+            "required": true,
+            "schema": {
+              "title": "Repository Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ChangeDetail"
+                  },
+                  "title": "Response Connected Repository Changes Api V1 Workspaces  Workspace Id  Repositories  Repository Id  Changes Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Connected Repository Changes"
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/repositories/{repository_id}/changes/{change_id}/github-check": {
+      "post": {
+        "operationId": "publish_change_check_api_v1_workspaces__workspace_id__repositories__repository_id__changes__change_id__github_check_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "repository_id",
+            "required": true,
+            "schema": {
+              "title": "Repository Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "change_id",
+            "required": true,
+            "schema": {
+              "title": "Change Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitHubCheckRunResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Publish Change Check"
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/risk-policy": {
+      "get": {
+        "operationId": "risk_policy_api_v1_workspaces__workspace_id__risk_policy_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RiskPolicyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Risk Policy"
+      },
+      "put": {
+        "operationId": "risk_policy_update_api_v1_workspaces__workspace_id__risk_policy_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RiskPolicyUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RiskPolicyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Risk Policy Update"
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/services": {
+      "get": {
+        "operationId": "services_api_v1_workspaces__workspace_id__services_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ServiceResponse"
+                  },
+                  "title": "Response Services Api V1 Workspaces  Workspace Id  Services Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Services"
+      },
+      "post": {
+        "operationId": "service_create_api_v1_workspaces__workspace_id__services_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServiceCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Service Create"
+      }
+    }
+  }
+}

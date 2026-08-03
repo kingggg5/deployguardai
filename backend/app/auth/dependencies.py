@@ -9,7 +9,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..errors import DomainError
-from ..models import User
+from ..models import User, UserContext
+from ..rls import set_tenant_context
 from ..workspace_services import authenticate_token, normalize_email, now_utc
 from .oidc import OIDCIdentity, OIDCVerifier
 
@@ -133,12 +134,20 @@ def resolve_authenticated_user(
     if settings.auth_provider == "development":
         if not settings.development_auth_available():
             raise _authentication_required()
-        return authenticate_token(session, credentials.credentials)
+        user = authenticate_token(session, credentials.credentials)
+        context = session.get(UserContext, user.id)
+        if context is not None:
+            set_tenant_context(session, context.workspace_id)
+        return user
     if settings.auth_provider == "oidc":
         verifier: OIDCVerifier = request.app.state.oidc_verifier
-        return _synchronize_oidc_user(
+        user = _synchronize_oidc_user(
             session, verifier.verify(credentials.credentials)
         )
+        context = session.get(UserContext, user.id)
+        if context is not None:
+            set_tenant_context(session, context.workspace_id)
+        return user
     raise _authentication_required()
 
 
@@ -163,10 +172,13 @@ def get_legacy_user(
     if credentials is not None:
         return resolve_authenticated_user(request, session, credentials)
     if settings.development_auth_available():
-        return ensure_development_user(
+        user = ensure_development_user(
             session,
             email=settings.development_user_email,
             display_name=settings.development_user_name,
         )
+        context = session.get(UserContext, user.id)
+        if context is not None:
+            set_tenant_context(session, context.workspace_id)
+        return user
     raise _authentication_required()
-

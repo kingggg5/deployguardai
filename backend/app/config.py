@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     app_name: str = "DeployGuard AI"
     environment: str = "development"
     database_url: str = "sqlite:///./deployguard.db"
+    # Production migrations belong to a short-lived release job using the
+    # schema-owner credential. The long-lived API role must not own RLS tables.
+    run_migrations_on_startup: bool = True
     # Synthetic scenarios are an explicit test/evaluation mode.  They are
     # never created implicitly in a fresh runtime so connected deployments do
     # not look like they have live production evidence.
@@ -56,6 +59,9 @@ class Settings(BaseSettings):
     )
     rate_limit_requests: int = Field(default=120, ge=1, le=10_000)
     rate_limit_window_seconds: int = Field(default=60, ge=1, le=3_600)
+    otel_traces_endpoint: str = ""
+    otel_service_name: str = "deployguard-api"
+    otel_export_timeout_seconds: int = Field(default=5, ge=1, le=30)
     smtp_host: str = ""
     smtp_port: int = Field(default=587, ge=1, le=65535)
     smtp_username: str = ""
@@ -111,6 +117,24 @@ class Settings(BaseSettings):
             raise ValueError(
                 "Production cannot enable SEED_SYNTHETIC_DATA"
             )
+        if production and not self.database_url.startswith(
+            "postgresql+psycopg://"
+        ):
+            raise ValueError("Production requires PostgreSQL through psycopg")
+        if production and self.run_migrations_on_startup:
+            raise ValueError(
+                "Production requires RUN_MIGRATIONS_ON_STARTUP=false; "
+                "use the isolated migration release job"
+            )
+        if production and not self.frontend_public_url.startswith("https://"):
+            raise ValueError("Production FRONTEND_PUBLIC_URL must use HTTPS")
+        if production and any(
+            not origin.startswith("https://") or "*" in origin
+            for origin in self.cors_origins
+        ):
+            raise ValueError(
+                "Production CORS_ORIGINS must be explicit HTTPS origins"
+            )
         if (
             production
             and self.telemetry_ingest_token
@@ -139,6 +163,39 @@ class Settings(BaseSettings):
                 )
             if not self.oidc_algorithms:
                 raise ValueError("OIDC_ALGORITHMS cannot be empty")
+            if production and (
+                not self.oidc_issuer.startswith("https://")
+                or not self.oidc_jwks_url.startswith("https://")
+            ):
+                raise ValueError(
+                    "Production OIDC issuer and JWKS URL must use HTTPS"
+                )
+        github_values = (
+            self.github_app_id,
+            self.github_app_slug,
+            self.github_app_private_key,
+        )
+        if any(value.strip() for value in github_values) and not all(
+            value.strip() for value in github_values
+        ):
+            raise ValueError("GitHub App configuration is incomplete")
+        if self.github_checks_enabled and not self.github_app_available():
+            raise ValueError(
+                "GITHUB_CHECKS_ENABLED requires complete GitHub App configuration"
+            )
+        if production and self.github_webhook_secret and len(
+            self.github_webhook_secret
+        ) < 32:
+            raise ValueError(
+                "Production GITHUB_WEBHOOK_SECRET must be at least 32 characters"
+            )
+        smtp_values = (self.smtp_host, self.smtp_from_email)
+        if any(value.strip() for value in smtp_values) and not all(
+            value.strip() for value in smtp_values
+        ):
+            raise ValueError("SMTP configuration is incomplete")
+        if production and self.smtp_host.strip() and not self.smtp_use_tls:
+            raise ValueError("Production SMTP requires SMTP_USE_TLS=true")
         return self
 
     def development_auth_available(self) -> bool:

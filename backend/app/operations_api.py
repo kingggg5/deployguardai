@@ -10,6 +10,7 @@ from .deployment_services import get_deployment, list_deployments
 from .models import User
 from .operations_schemas import (
     EventSeverity,
+    BackgroundJobSummary,
     IncidentLifecycleResponse,
     IncidentLifecycleUpdate,
     IncidentNoteCreate,
@@ -38,12 +39,48 @@ from .operations_services import (
     update_risk_policy,
     update_service,
 )
+from .job_services import list_jobs_requiring_attention, replay_failed_job
 from .schemas import TimelineEvent
 from .tenant import TenantScope, require_responder_scope
 from .workspace_api import request_id
 
 
 router = APIRouter(prefix="/api/v1")
+
+
+@router.get(
+    "/workspaces/{workspace_id}/jobs/attention",
+    response_model=list[BackgroundJobSummary],
+)
+def jobs_requiring_attention(
+    workspace_id: str,
+    user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_session)],
+    limit: int = Query(default=100, ge=1, le=500),
+) -> list[BackgroundJobSummary]:
+    return list_jobs_requiring_attention(
+        session, user, workspace_id, limit=limit
+    )
+
+
+@router.post(
+    "/workspaces/{workspace_id}/jobs/{job_id}/replay",
+    response_model=BackgroundJobSummary,
+)
+def job_replay(
+    workspace_id: str,
+    job_id: str,
+    request: Request,
+    user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_session)],
+) -> BackgroundJobSummary:
+    return replay_failed_job(
+        session,
+        user,
+        workspace_id,
+        job_id,
+        request_id(request),
+    )
 
 
 @router.get(

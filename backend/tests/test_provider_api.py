@@ -4,7 +4,7 @@ import json
 from urllib.parse import parse_qs, urlparse
 
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app import provider_services
 from app.models import ChangeRecord
@@ -14,10 +14,16 @@ from app.engines import (
     GRAPH_VERSION,
     RISK_SCORING_POLICY_VERSION,
 )
+from app.job_contracts import GITHUB_CHECK_PUBLISH_JOB
+from app.job_models import BackgroundJob
 from app.operations_models import OperationalEvent
+from app.provider_models import WebhookDelivery
 
 
 class FakeGitHubClient:
+    def __init__(self) -> None:
+        self.create_calls = 0
+
     def installation(self, installation_id: str) -> dict:
         assert installation_id == "12345"
         return {
@@ -48,6 +54,7 @@ class FakeGitHubClient:
         ]
 
     def create_check_run(self, **payload) -> dict:
+        self.create_calls += 1
         assert payload["installation_id"] == "12345"
         assert payload["repository_full_name"] == "acme/checkout"
         assert len(payload["head_sha"]) >= 7
@@ -82,8 +89,9 @@ def test_github_install_discovery_and_sync(
     settings.github_app_id = "app-id"
     settings.github_app_slug = "deployguard-test"
     settings.github_app_private_key = "test-key"
+    fake_github = FakeGitHubClient()
     monkeypatch.setattr(
-        provider_services, "github_client", lambda _settings: FakeGitHubClient()
+        provider_services, "github_client", lambda _settings: fake_github
     )
     headers = _session(client)
     workspace = client.post(
@@ -200,12 +208,20 @@ def test_github_install_discovery_and_sync(
     pull_request_signature = "sha256=" + hmac.new(
         b"test-github-secret", pull_request_body, hashlib.sha256
     ).hexdigest()
+    settings.github_checks_enabled = True
+    traceparent = (
+        "00-4bf92f3577b34da6a3ce929d0e0e4736-"
+        "00f067aa0ba902b7-01"
+    )
     analyzed = client.post(
         "/api/v1/webhooks/github",
         headers={
             "X-GitHub-Event": "pull_request",
             "X-GitHub-Delivery": "pull-request-delivery-1",
             "X-Hub-Signature-256": pull_request_signature,
+            "X-Request-ID": "github-pr-request-1",
+            "traceparent": traceparent,
+            "tracestate": "vendor=value",
             "Content-Type": "application/json",
         },
         content=pull_request_body,
@@ -225,6 +241,49 @@ def test_github_install_discovery_and_sync(
         assert change.engine_version == ENGINE_VERSION
         assert change.scoring_policy_version == RISK_SCORING_POLICY_VERSION
         assert change.graph_version == GRAPH_VERSION
+        queued = session.scalar(
+            select(BackgroundJob).where(
+                BackgroundJob.job_type == GITHUB_CHECK_PUBLISH_JOB,
+                BackgroundJob.workspace_id == workspace_id,
+            )
+        )
+        assert queued is not None
+        assert queued.status == "queued"
+        assert queued.request_id == "github-pr-request-1"
+        assert queued.payload["change_id"] == change.id
+        assert queued.payload["trace_context"] == {
+            "traceparent": traceparent,
+            "tracestate": "vendor=value",
+        }
+        delivery = session.scalar(
+            select(WebhookDelivery).where(
+                WebhookDelivery.delivery_id == "pull-request-delivery-1"
+            )
+        )
+        assert delivery is not None
+        assert delivery.status == "processed"
+    # Provider I/O is never performed on the webhook request path.
+    assert fake_github.create_calls == 0
+    replayed_pr = client.post(
+        "/api/v1/webhooks/github",
+        headers={
+            "X-GitHub-Event": "pull_request",
+            "X-GitHub-Delivery": "pull-request-delivery-1",
+            "X-Hub-Signature-256": pull_request_signature,
+            "Content-Type": "application/json",
+        },
+        content=pull_request_body,
+    )
+    assert replayed_pr.status_code == 200
+    assert "already processed" in replayed_pr.json()["detail"]
+    with client.app.state.database.session_factory() as session:
+        queued_count = session.scalar(
+            select(func.count(BackgroundJob.id)).where(
+                BackgroundJob.job_type == GITHUB_CHECK_PUBLISH_JOB,
+                BackgroundJob.workspace_id == workspace_id,
+            )
+        )
+        assert queued_count == 1
     listed_changes = client.get(
         f"/api/v1/workspaces/{workspace_id}/repositories/{connected[0]['id']}/changes",
         headers=headers,
@@ -237,6 +296,7 @@ def test_github_install_discovery_and_sync(
     assert connected_overview.json()["active_change"]["id"] == analyzed.json()["change_id"]
     assert connected_overview.json()["active_incident"] is None
 
+    settings.github_checks_enabled = False
     disabled_check = client.post(
         (
             f"/api/v1/workspaces/{workspace_id}/repositories/"

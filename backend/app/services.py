@@ -17,6 +17,7 @@ from .engines import (
     calculate_change_risk,
 )
 from .errors import DomainError
+from .job_producers import enqueue_github_check_publication
 from .models import (
     ChangeRecord,
     FeedbackRecord,
@@ -34,7 +35,7 @@ from .operations_schemas import (
 )
 from .operations_services import record_trusted_operational_event
 from .provider_models import ProviderConnection, WebhookDelivery
-from .provider_services import publish_github_change_check_from_webhook
+from .rls import set_tenant_context
 from .schemas import (
     AnalyzeChangeRequest,
     ChangeDetail,
@@ -858,6 +859,9 @@ def process_github_webhook(
     secret: str = "",
     allow_synthetic_fallback: bool = False,
     settings=None,
+    request_id_value: str | None = None,
+    traceparent: str | None = None,
+    tracestate: str | None = None,
 ) -> GitHubWebhookResponse:
     if not secret:
         raise DomainError(
@@ -911,6 +915,8 @@ def process_github_webhook(
         if installation_id
         else None
     )
+    if connection is not None:
+        set_tenant_context(session, connection.workspace_id)
     repository = (
         session.scalar(
             select(Repository).where(
@@ -1082,21 +1088,29 @@ def process_github_webhook(
                     connection=connection,
                     repository=repository,
                 )
+                queued_check = None
                 if settings is not None:
                     change_record = session.get(ChangeRecord, detail.id)
                     if change_record is not None:
-                        publish_github_change_check_from_webhook(
+                        queued_check = enqueue_github_check_publication(
                             session,
                             connection=connection,
                             repository=repository,
                             change=change_record,
-                            request_id=f"github:{delivery_id}",
+                            request_id=(
+                                request_id_value or f"github:{delivery_id}"
+                            ),
                             settings=settings,
+                            traceparent=traceparent,
+                            tracestate=tracestate,
+                            commit=False,
                         )
                 persisted_delivery = session.get(WebhookDelivery, delivery.id)
                 if persisted_delivery is not None:
                     persisted_delivery.status = "processed"
-                    session.commit()
+                # Commit the provider intent and webhook status atomically.
+                # GitHub I/O happens only in the separately supervised worker.
+                session.commit()
             except Exception:
                 session.rollback()
                 failed_delivery = session.get(WebhookDelivery, delivery.id)
@@ -1112,6 +1126,11 @@ def process_github_webhook(
                 detail=(
                     "Verified pull request evidence was analyzed in its "
                     "connected repository context."
+                    + (
+                        " GitHub Check publication was durably queued."
+                        if queued_check is not None
+                        else ""
+                    )
                 ),
             )
         if event_type in {"workflow_run", "deployment", "deployment_status"}:
@@ -1176,6 +1195,7 @@ def process_github_webhook(
             detail=f"Event type '{event_type}' is not monitored.",
         )
 
+    set_tenant_context(session, LEGACY_WORKSPACE_ID)
     scenario = active_scenario(session)
     pr_data = payload.get("pull_request", payload)
     title = pr_data.get("title", "GitHub Webhook Event")
@@ -1265,6 +1285,8 @@ def ingest_telemetry_event(
             )
         scoped_workspace_id = workspace_id
         credential_mode = "workspace_derived"
+
+    set_tenant_context(session, scoped_workspace_id)
 
     if session.get(Workspace, scoped_workspace_id) is None:
         raise DomainError("Workspace not found", "workspace_not_found", 404)

@@ -10,6 +10,7 @@ from .config import Settings, get_settings
 from .database import Database
 from .errors import DomainError, domain_error_handler
 from .operations_api import router as operations_router
+from .observability import OpenTelemetryMiddleware, configure_tracing
 from .provider_api import router as provider_router
 from .request_guard import RequestGuardMiddleware
 from .seed import seed_database
@@ -18,14 +19,20 @@ from .workspace_api import router as workspace_router
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     configured_settings = settings or get_settings()
+    configure_tracing(configured_settings)
     database = Database(configured_settings.database_url)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-        database.migrate(
-            allow_legacy_bootstrap=configured_settings.environment.lower()
-            in {"development", "test", "container"}
-        )
+        if configured_settings.run_migrations_on_startup:
+            database.migrate(
+                allow_legacy_bootstrap=configured_settings.environment.lower()
+                in {"development", "test", "container"}
+            )
+        else:
+            database.require_migration_head()
+        if configured_settings.environment.strip().lower() == "production":
+            database.require_postgresql_runtime_security()
         session = database.session_factory()
         try:
             if configured_settings.seed_synthetic_data:
@@ -53,6 +60,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         rate_limit_requests=configured_settings.rate_limit_requests,
         rate_limit_window_seconds=configured_settings.rate_limit_window_seconds,
     )
+    application.add_middleware(OpenTelemetryMiddleware)
     application.add_middleware(
         CORSMiddleware,
         allow_origins=configured_settings.cors_origins,

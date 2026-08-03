@@ -20,7 +20,7 @@ Roadmap นี้เรียงตาม dependency และความเส
 | Incident evidence + RCA + feedback | ✅ | Top hypotheses, counter-evidence และ persistent verdict |
 | Workspace, invitation และ RBAC | ✅ | Viewer/responder/admin/owner และ tenant-scoped context |
 | OIDC production authentication | 🟡 | JWT/JWKS verifier มีแล้ว; ต้อง configure issuer |
-| Alembic migrations | ✅ | Upgrade ถึง head ตอน startup และ guarded legacy bootstrap |
+| Alembic migrations | ✅ | Local/container upgrade ตอน startup; production one-shot schema-owner job และ runtime head check |
 | GitHub App connected repositories | 🟡 | Install/sync/webhook path มีแล้ว; ต้อง configure GitHub App |
 | GitHub Check Run feedback | 🟡 | Durable create-or-PATCH/retry path มีแล้ว; ต้องเปิด flag, Checks write และ verify กับ GitHub จริง |
 | SMTP invitation delivery | 🟡 | SMTP path มีแล้ว; local ใช้ development outbox |
@@ -30,12 +30,13 @@ Roadmap นี้เรียงตาม dependency และความเส
 | Durable operational events | ✅ | Tenant validation, server-owned provenance และ conflict-safe idempotency |
 | Canonical GitHub deployments | ✅ | Signed deployment/deployment-status webhooks upsert one deployment, link exact repository + SHA changes, and keep legacy DORA fields compatible |
 | Connector health read model | ✅ | Provider, webhook delivery, selected repository and Check publication health are visible without exposing credentials |
-| Durable background job/outbox primitive | ✅ | Idempotent enqueue, atomic claim, bounded retry/backoff, stale-lease recovery, dead-letter and explicit replay; producers are not wired yet |
+| Durable GitHub Check worker/outbox | ✅ | Transactional webhook producer, allow-listed worker, provider recovery, W3C trace, bounded retry, stale lease, dead-letter และ replay |
 | Process metrics baseline | ✅ | Private low-cardinality Prometheus endpoint and request-guard counters; dashboards/alerts remain external |
-| Backup and retention helpers | 🟡 | Atomic SQLite/`pg_dump` backup, read-only restore validation, plus allow-listed dry-run/explicit apply scripts; scheduling, legal hold and deletion audit remain external |
+| OpenTelemetry tracing/Collector | ✅ | Optional API/worker OTLP tracing, redacting local config และ authenticated production exporter template |
+| Backup, restore and retention helpers | ✅ | Atomic backup, isolated writable restore rehearsal, batched dry-run/apply retention, legal hold และ append-only deletion audit; schedule/storage remain external |
 | Incident lifecycle + notes | ✅ | Role-gated transitions, assignee และ append-only notes |
 | In-app notifications | ✅ | Recipient-scoped list/read state |
-| PostgreSQL production verification | 🟡 | Driver/config/migrations รองรับ; reference integration gate ยังเปิด |
+| PostgreSQL tenant isolation | ✅ | RLS migration, transaction-local context และ negative CRUD/pool-leakage tests บน PostgreSQL 16 non-owner role |
 | Retention/deletion automation | ⬜ | ไม่มี scheduled policy/job |
 | Native OTLP ingestion pipeline | ⬜ | ต้องมี authenticated Collector/gateway mapping |
 | LLM synthesis | ⏸ | Endpoint เป็น `501`; รอ evidence/security/evaluation gate |
@@ -63,7 +64,8 @@ Roadmap นี้เรียงตาม dependency และความเส
 - application audit events
 - tenant-scoped change/incident/provider operations
 
-ข้อจำกัด: ยังไม่มี PostgreSQL RLS และ audit store ยังไม่ tamper-proof
+ข้อจำกัด: RLS ครอบคลุม data-plane tables; control-plane ยังพึ่ง application
+authorization และ audit store ยังไม่ tamper-proof
 
 ### Connected provider layer
 
@@ -77,11 +79,11 @@ Roadmap นี้เรียงตาม dependency และความเส
 - SMTP invitation delivery
 - normalized telemetry HTTP endpoint
 
-ข้อจำกัด: webhook ยัง synchronous; มี durable queue/DLQ primitive แล้วแต่ยังไม่มี
-worker และ producer wiring สำหรับ webhook/notification/email รวมถึง deployment
-signal grouping/correlation ยังเป็นงานถัดไป
-แม้ Check publication จะมี durable retry state แล้ว และ telemetry endpoint
-ไม่ใช่ OTLP receiver
+Signed PR webhook บันทึก change และ GitHub Check job แบบ transactional แล้ว
+worker ทำ create/find/PATCH recovery พร้อม retry/DLQ ส่วน notification/email และ
+normalized event บางเส้นทางยัง synchronous รวมถึง deployment signal
+grouping/correlation ยังเป็นงานถัดไป Telemetry evidence endpoint ไม่ใช่ native
+OTLP receiver; Collector ใช้สำหรับ observability ของตัว DeployGuard
 
 ### Operations workspace
 
@@ -92,8 +94,8 @@ signal grouping/correlation ยังเป็นงานถัดไป
 - incident state transitions, assignee และ responder notes
 - in-app notifications ที่ scope ตาม recipient
 
-ข้อจำกัด: ยังไม่มี producer queue integration, scheduled retention/deletion,
-Slack/Teams/PagerDuty delivery หรือ SLO engine
+ข้อจำกัด: retention CLI พร้อม legal hold/audit แล้วแต่ schedule ยังเป็น deployment
+workflow และยังไม่มี Slack/Teams/PagerDuty delivery หรือ SLO engine
 
 ## P0 — Production hardening
 

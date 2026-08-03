@@ -5,14 +5,14 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-deployguard}
-      POSTGRES_USER: ${POSTGRES_USER:-deployguard}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-deployguard-dev-only}
+      POSTGRES_USER: ${POSTGRES_USER:-deployguard_owner}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-deployguard-owner-dev-only}
     volumes:
       - deployguard-postgres:/var/lib/postgresql/data
     healthcheck:
       test:
         - CMD-SHELL
-        - pg_isready -U ${POSTGRES_USER:-deployguard} -d ${POSTGRES_DB:-deployguard}
+        - pg_isready -U ${POSTGRES_USER:-deployguard_owner} -d ${POSTGRES_DB:-deployguard}
       interval: 5s
       timeout: 3s
       retries: 12
@@ -23,9 +23,10 @@ services:
       context: ./backend
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-container}
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-deployguard}:${POSTGRES_PASSWORD:-deployguard-dev-only}@postgres:5432/${POSTGRES_DB:-deployguard}
+      DATABASE_URL: ${COMPOSE_DATABASE_URL:-postgresql+psycopg://${POSTGRES_APP_USER:-deployguard}:${POSTGRES_APP_PASSWORD:-deployguard-app-dev-only}@postgres:5432/${POSTGRES_DB:-deployguard}}
+      RUN_MIGRATIONS_ON_STARTUP: ${RUN_MIGRATIONS_ON_STARTUP:-false}
       SEED_SYNTHETIC_DATA: ${SEED_SYNTHETIC_DATA:-false}
-      CORS_ORIGINS: http://127.0.0.1:4300,http://localhost:4300
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://127.0.0.1:4300,http://localhost:4300}
       GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
       TELEMETRY_INGEST_TOKEN: ${TELEMETRY_INGEST_TOKEN:-}
       ALLOW_DATABASE_RESET: ${ALLOW_DATABASE_RESET:-false}
@@ -52,6 +53,9 @@ services:
       MAX_REQUEST_BODY_BYTES: ${MAX_REQUEST_BODY_BYTES:-2097152}
       RATE_LIMIT_REQUESTS: ${RATE_LIMIT_REQUESTS:-120}
       RATE_LIMIT_WINDOW_SECONDS: ${RATE_LIMIT_WINDOW_SECONDS:-60}
+      OTEL_TRACES_ENDPOINT: ${OTEL_TRACES_ENDPOINT:-}
+      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-deployguard-api}
+      OTEL_EXPORT_TIMEOUT_SECONDS: ${OTEL_EXPORT_TIMEOUT_SECONDS:-5}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USERNAME: ${SMTP_USERNAME:-}
@@ -63,6 +67,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      grant-runtime:
+        condition: service_completed_successfully
     healthcheck:
       test:
         - CMD
@@ -72,6 +78,104 @@ services:
       interval: 10s
       timeout: 4s
       retries: 10
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ./backend
+    command:
+      - python
+      - -m
+      - app.worker
+      - --poll-interval
+      - "1"
+      - --lease-timeout
+      - "300"
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-container}
+      DATABASE_URL: ${COMPOSE_DATABASE_URL:-postgresql+psycopg://${POSTGRES_APP_USER:-deployguard}:${POSTGRES_APP_PASSWORD:-deployguard-app-dev-only}@postgres:5432/${POSTGRES_DB:-deployguard}}
+      RUN_MIGRATIONS_ON_STARTUP: ${RUN_MIGRATIONS_ON_STARTUP:-false}
+      AUTH_PROVIDER: ${AUTH_PROVIDER:-development}
+      OIDC_ISSUER: ${OIDC_ISSUER:-}
+      OIDC_AUDIENCE: ${OIDC_AUDIENCE:-}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_JWKS_URL: ${OIDC_JWKS_URL:-}
+      FRONTEND_PUBLIC_URL: ${FRONTEND_PUBLIC_URL:-http://127.0.0.1:4300}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://127.0.0.1:4300,http://localhost:4300}
+      GITHUB_APP_ID: ${GITHUB_APP_ID:-}
+      GITHUB_APP_SLUG: ${GITHUB_APP_SLUG:-}
+      GITHUB_APP_PRIVATE_KEY: ${GITHUB_APP_PRIVATE_KEY:-}
+      GITHUB_API_URL: ${GITHUB_API_URL:-https://api.github.com}
+      GITHUB_API_VERSION: ${GITHUB_API_VERSION:-2026-03-10}
+      GITHUB_CHECKS_ENABLED: ${GITHUB_CHECKS_ENABLED:-false}
+      OTEL_TRACES_ENDPOINT: ${OTEL_TRACES_ENDPOINT:-}
+      OTEL_SERVICE_NAME: deployguard-worker
+      OTEL_EXPORT_TIMEOUT_SECONDS: ${OTEL_EXPORT_TIMEOUT_SECONDS:-5}
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import os; os.kill(1, 0)"
+      interval: 20s
+      timeout: 4s
+      retries: 3
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: ./backend
+    command: ["python", "-m", "app.migrate"]
+    environment:
+      MIGRATION_DATABASE_URL: ${MIGRATION_DATABASE_URL:-postgresql+psycopg://${POSTGRES_USER:-deployguard_owner}:${POSTGRES_PASSWORD:-deployguard-owner-dev-only}@postgres:5432/${POSTGRES_DB:-deployguard}}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  grant-runtime:
+    image: postgres:16-alpine
+    command:
+      - /bin/sh
+      - -ec
+      - >-
+        psql
+        --host=postgres
+        --username="$${POSTGRES_USER}"
+        --dbname="$${POSTGRES_DB}"
+        --set=schema_owner="$${POSTGRES_USER}"
+        --set=application_role="$${POSTGRES_APP_USER}"
+        --set=application_password="$${POSTGRES_APP_PASSWORD}"
+        --file=/deploy/postgres/local-runtime-role.sql
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-deployguard}
+      POSTGRES_USER: ${POSTGRES_USER:-deployguard_owner}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-deployguard-owner-dev-only}
+      POSTGRES_APP_USER: ${POSTGRES_APP_USER:-deployguard}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:-deployguard-app-dev-only}
+    volumes:
+      - ./deploy/postgres:/deploy/postgres:ro
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
+  otel-collector:
+    profiles: [observability]
+    image: otel/opentelemetry-collector-contrib:0.157.0
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./deploy/otel/collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "127.0.0.1:4317:4317"
+      - "127.0.0.1:4318:4318"
+      - "127.0.0.1:13133:13133"
+    depends_on:
+      api:
+        condition: service_healthy
     restart: unless-stopped
 
   web:

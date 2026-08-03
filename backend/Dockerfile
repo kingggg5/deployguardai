@@ -5,12 +5,16 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements-prod.txt .
+RUN pip install --no-cache-dir -r requirements-prod.txt \
+    && addgroup --system deployguard \
+    && adduser --system --ingroup deployguard --home /nonexistent deployguard
 
-COPY app ./app
-COPY alembic.ini .
-COPY migrations ./migrations
+COPY --chown=deployguard:deployguard app ./app
+COPY --chown=deployguard:deployguard alembic.ini .
+COPY --chown=deployguard:deployguard migrations ./migrations
+
+USER deployguard
 
 EXPOSE 8100
 

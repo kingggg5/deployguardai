@@ -70,27 +70,28 @@ def health_live(request: Request) -> LivenessResponse:
 
 @router.get("/health", response_model=HealthResponse)
 def health(
+    request: Request,
     session: Session = Depends(get_session),
 ) -> HealthResponse:
     session.execute(text("SELECT 1"))
-    has_synthetic_records = session.scalar(
-        select(Scenario.id)
-        .where(Scenario.data_mode == "synthetic")
-        .limit(1)
-    ) is not None
     return HealthResponse(
         status="ok",
         database="ready",
         service="deployguard-ai",
-        data_mode="synthetic" if has_synthetic_records else "connected",
+        data_mode=(
+            "synthetic"
+            if request.app.state.settings.seed_synthetic_data
+            else "connected"
+        ),
     )
 
 
 @router.get("/health/ready", response_model=HealthResponse)
 def health_ready(
+    request: Request,
     session: Session = Depends(get_session),
 ) -> HealthResponse:
-    return health(session)
+    return health(request, session)
 
 
 @router.get("/overview", response_model=Overview)
@@ -177,6 +178,9 @@ async def github_webhook(
             settings.environment.lower() != "production"
         ),
         settings=settings,
+        request_id_value=getattr(request.state, "request_id", None),
+        traceparent=request.headers.get("traceparent"),
+        tracestate=request.headers.get("tracestate"),
     )
 
 

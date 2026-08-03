@@ -39,6 +39,56 @@ groundedness score. CI uploads the JSON artifact for review. This is a five-case
 synthetic regression baseline, not a claim about public or production incident
 accuracy.
 
+## Deterministic verification foundations
+
+The versioned `scripts/evaluation/golden-corpus-v1.json` freezes ordinary and
+boundary behavior for all three production engines. It covers risk clamping and
+saturation, graph branching, cycles, duplicate edges, inactive and unknown
+targets, hop limits, RCA counter-evidence, deterministic ties, and a zero-result
+limit. Each case stores readable expected fields plus a SHA-256 of the complete
+canonical engine output. A deliberate engine or policy change must increment
+the corresponding engine contract version and review the golden diff; silently
+regenerating hashes is not an acceptable update process.
+
+Seeded property tests explore hundreds of reproducible inputs without adding a
+fuzzing runtime dependency. They assert determinism, score bounds, monotonic risk
+behavior, bounded cycle-safe graph traversal, stable RCA ordering, valid evidence
+references, and counter-evidence penalties. The seed is fixed so CI failures can
+be replayed. This is broad generated-input coverage, not a substitute for a
+coverage-guided fuzzer or adversarial security testing.
+
+The complete generated OpenAPI document and representative seeded HTTP responses
+are stored under `scripts/contracts/v1/`. Responses include health, a change, an
+incident, overview, and the structured not-found error. Only the intentionally
+dynamic `overview.generated_at` field is normalized. Verify drift with:
+
+```powershell
+python scripts/capture_contracts.py --check
+```
+
+When an intentional backward-compatible contract change is approved, regenerate
+the current fixture with `--write`, inspect the diff, and create a new versioned
+directory for a breaking contract rather than overwriting `v1`.
+
+## Local performance baseline
+
+`scripts/performance_baseline.py` produces a machine-readable result conforming
+to `scripts/performance/result-schema-v1.json`. It records p50/p95/p99 latency,
+throughput, Python traced memory, app startup through the first liveness response,
+expired-job lease recovery, and blast-radius runtime at multiple graph sizes.
+Run the short feedback profile or the longer comparison profile with:
+
+```powershell
+python scripts/performance_baseline.py --profile quick --output performance-results.json
+python scripts/performance_baseline.py --profile standard --output performance-results.json
+```
+
+Results are intentionally generated per environment rather than checked in as a
+universal number. The artifact records hardware/runtime metadata, engine versions,
+methodology, and limitations. It measures local SQLite and in-process Python;
+it does not establish a PostgreSQL capacity limit, multi-instance throughput,
+container startup SLO, provider latency, total process RSS, or production SLO.
+
 ยังไม่มีผล PR-AUC, Top-K บน RCAEval, MRR บน real/public dataset, calibration หรือ production incident outcome ห้ามอนุมานผลเหล่านี้จาก automated engineering tests
 
 ## คำถามวิจัย

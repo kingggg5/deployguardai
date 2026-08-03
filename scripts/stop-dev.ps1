@@ -37,7 +37,7 @@ function Stop-ProjectProcessTree {
     return $true
 }
 
-foreach ($name in @('backend', 'frontend')) {
+foreach ($name in @('backend', 'worker', 'frontend')) {
     $pidPath = Join-Path $runtimeRoot "$name.pid"
     if (-not (Test-Path -LiteralPath $pidPath)) {
         continue

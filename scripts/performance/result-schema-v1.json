@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://deployguard.dev/schemas/performance-result-v1.json",
+  "title": "DeployGuard local performance result v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "generated_at", "commit", "profile", "engine_contract", "environment", "methodology", "measurements", "limitations"],
+  "properties": {
+    "schema": {"const": "deployguard-performance-result/v1"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "commit": {"type": "string", "minLength": 1},
+    "profile": {"enum": ["test", "quick", "standard"]},
+    "engine_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["analysis_schema_version", "engine_version", "risk_scoring_policy_version", "graph_version"],
+      "properties": {
+        "analysis_schema_version": {"type": "string", "minLength": 1},
+        "engine_version": {"type": "string", "minLength": 1},
+        "risk_scoring_policy_version": {"type": "string", "minLength": 1},
+        "graph_version": {"type": "string", "minLength": 1}
+      }
+    },
+    "environment": {
+      "type": "object",
+      "required": ["python_implementation", "python_version", "platform", "processor", "logical_cpu_count"],
+      "properties": {
+        "python_implementation": {"type": "string"},
+        "python_version": {"type": "string"},
+        "platform": {"type": "string"},
+        "processor": {"type": "string"},
+        "logical_cpu_count": {"type": ["integer", "null"], "minimum": 1}
+      }
+    },
+    "methodology": {"type": "object"},
+    "measurements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["risk_engine", "graph_engine_by_size", "api_startup_to_liveness", "expired_job_recovery", "python_traced_memory"],
+      "properties": {
+        "risk_engine": {"$ref": "#/$defs/operationMeasurement"},
+        "graph_engine_by_size": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/graphMeasurement"}
+        },
+        "api_startup_to_liveness": {"$ref": "#/$defs/startupMeasurement"},
+        "expired_job_recovery": {"$ref": "#/$defs/recoveryMeasurement"},
+        "python_traced_memory": {
+          "type": "object",
+          "required": ["scope", "current_bytes", "peak_bytes", "collector"],
+          "properties": {
+            "scope": {"type": "string"},
+            "current_bytes": {"type": "integer", "minimum": 0},
+            "peak_bytes": {"type": "integer", "minimum": 0},
+            "collector": {"type": "string"}
+          }
+        }
+      }
+    },
+    "limitations": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+  },
+  "$defs": {
+    "latency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["samples", "min_ms", "p50_ms", "p95_ms", "p99_ms", "max_ms"],
+      "properties": {
+        "samples": {"type": "integer", "minimum": 1},
+        "min_ms": {"type": "number", "minimum": 0},
+        "p50_ms": {"type": "number", "minimum": 0},
+        "p95_ms": {"type": "number", "minimum": 0},
+        "p99_ms": {"type": "number", "minimum": 0},
+        "max_ms": {"type": "number", "minimum": 0}
+      }
+    },
+    "operationMeasurement": {
+      "type": "object",
+      "required": ["contract", "iterations", "latency", "throughput_ops_per_second", "output_sha256"],
+      "properties": {
+        "contract": {"type": "string"},
+        "iterations": {"type": "integer", "minimum": 1},
+        "latency": {"$ref": "#/$defs/latency"},
+        "throughput_ops_per_second": {"type": "number", "minimum": 0},
+        "output_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "graphMeasurement": {
+      "allOf": [
+        {"$ref": "#/$defs/operationMeasurement"},
+        {
+          "type": "object",
+          "required": ["input_nodes", "input_edges", "reached_nodes", "repetitions"],
+          "properties": {
+            "input_nodes": {"type": "integer", "minimum": 1},
+            "input_edges": {"type": "integer", "minimum": 0},
+            "reached_nodes": {"type": "integer", "minimum": 0},
+            "repetitions": {"type": "integer", "minimum": 1}
+          }
+        }
+      ]
+    },
+    "startupMeasurement": {
+      "type": "object",
+      "required": ["contract", "database", "successful_samples", "latency"],
+      "properties": {
+        "contract": {"type": "string"},
+        "database": {"type": "string"},
+        "successful_samples": {"type": "integer", "minimum": 0},
+        "latency": {"$ref": "#/$defs/latency"}
+      }
+    },
+    "recoveryMeasurement": {
+      "type": "object",
+      "required": ["contract", "database", "stale_jobs", "recovered_jobs", "queued_after_recovery", "latency", "throughput_jobs_per_second"],
+      "properties": {
+        "contract": {"type": "string"},
+        "database": {"type": "string"},
+        "stale_jobs": {"type": "integer", "minimum": 1},
+        "recovered_jobs": {"type": "integer", "minimum": 0},
+        "queued_after_recovery": {"type": "integer", "minimum": 0},
+        "latency": {"$ref": "#/$defs/latency"},
+        "throughput_jobs_per_second": {"type": "number", "minimum": 0}
+      }
+    }
+  }
+}
+
