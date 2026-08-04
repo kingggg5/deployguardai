@@ -58,6 +58,28 @@ At minimum, a pull request should include:
 - screenshots or a short screen recording for meaningful UI changes;
 - no secrets, generated runtime databases, or fixture-only behavior presented as connected data.
 
+## Dataset contributions
+
+Read the [DeployGuard Bench dataset card](bench/README.md) before changing the
+schema, exporter, source scenarios, labels, or generated bundle.
+
+- Submit synthetic data only. Do not contribute production incidents, private
+  repository content, customer payloads, identifiers, prompts, or credentials.
+- State the label source, license, provenance, intended task, supporting
+  evidence, counter-evidence, and verification step for every example.
+- Do not mark a synthetic scenario-author label as a human verdict.
+- Keep public development examples out of training data when they are used for
+  evaluation.
+- Regenerate the bundle and commit the reviewed diff, then run:
+
+~~~powershell
+python scripts/export_operational_dataset.py `
+  --check --output-dir bench/datasets/synthetic-v0.1
+~~~
+
+A large generated corpus without independent label review, split policy, and
+leakage checks will not be accepted merely to increase the example count.
+
 ## Reporting bugs and requesting features
 
 Use the repository issue forms for reproducible bugs and scoped proposals. Include the smallest safe reproduction, expected behavior, actual behavior, and the relevant commit or environment. Redact personal data and credentials. Feature requests should explain the operational problem and how success could be measured.
@@ -75,5 +97,7 @@ The release process, compatibility expectations, and project decisions are docum
 - อ่าน README, architecture, security policy และ roadmap ก่อนเริ่มงาน
 - ช่องโหว่ด้านความปลอดภัยต้องรายงานแบบ private ตาม SECURITY.md ห้ามเปิด public issue
 - ทุก scoring และการเปลี่ยน API ต้องมี test และเอกสารกำกับ
+- การเพิ่ม dataset ต้องเป็นข้อมูล synthetic พร้อม provenance, license,
+  ground-truth source และห้ามอ้าง scenario label ว่าเป็น human verdict
 - ห้ามเพิ่ม autonomous deploy, rollback, shell execution หรือ remediation โดยอัตโนมัติ
 - PR ควรระบุ user impact, risk, migration/rollback และผลการทดสอบ

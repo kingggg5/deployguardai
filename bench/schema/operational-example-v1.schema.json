@@ -1,0 +1,336 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kingggg5/deployguardai/blob/main/bench/schema/operational-example-v1.schema.json",
+  "title": "DeployGuard operational evidence example",
+  "description": "A provenance-preserving deployment-to-incident example for Production Engineering evaluation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "example_id",
+    "split",
+    "data_mode",
+    "tasks",
+    "provenance",
+    "deployment",
+    "topology",
+    "incident",
+    "evidence",
+    "hypotheses",
+    "ground_truth",
+    "verification",
+    "postmortem",
+    "quality",
+    "engine"
+  ],
+  "properties": {
+    "schema": {"const": "deployguard-operational-example/v1"},
+    "example_id": {"type": "string", "minLength": 1, "maxLength": 200},
+    "split": {"enum": ["development", "train", "validation", "test", "unverified"]},
+    "data_mode": {"enum": ["synthetic", "public", "connected"]},
+    "tasks": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "root_cause_ranking",
+          "evidence_grounded_explanation",
+          "counter_evidence_reasoning",
+          "verification_planning",
+          "deployment_risk_analysis"
+        ]
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_kind",
+        "source_uri",
+        "source_sha256",
+        "license",
+        "contains_customer_data",
+        "contains_personal_data",
+        "label_source"
+      ],
+      "properties": {
+        "source_kind": {"enum": ["hand_authored_synthetic", "public_dataset", "consented_operational_export"]},
+        "source_uri": {"type": "string", "minLength": 1},
+        "source_sha256": {"$ref": "#/$defs/sha256"},
+        "license": {"type": "string", "minLength": 1},
+        "contains_customer_data": {"type": "boolean"},
+        "contains_personal_data": {"type": "boolean"},
+        "label_source": {
+          "oneOf": [
+            {"enum": ["scenario_author", "human_verdict", "public_dataset_label"]},
+            {"type": "null"}
+          ]
+        }
+      }
+    },
+    "deployment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "change_id",
+        "title",
+        "repository",
+        "commit_sha",
+        "branch",
+        "environment",
+        "status",
+        "created_at",
+        "changed_services",
+        "change_stats",
+        "flags",
+        "rollback_ready"
+      ],
+      "properties": {
+        "change_id": {"$ref": "#/$defs/nonEmptyString"},
+        "title": {"$ref": "#/$defs/nonEmptyString"},
+        "repository": {"$ref": "#/$defs/nonEmptyString"},
+        "commit_sha": {"$ref": "#/$defs/nonEmptyString"},
+        "branch": {"$ref": "#/$defs/nonEmptyString"},
+        "environment": {"$ref": "#/$defs/nonEmptyString"},
+        "status": {"$ref": "#/$defs/nonEmptyString"},
+        "created_at": {"$ref": "#/$defs/timestamp"},
+        "changed_services": {"$ref": "#/$defs/stringList"},
+        "change_stats": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["files_changed", "lines_added", "lines_deleted"],
+          "properties": {
+            "files_changed": {"type": "integer", "minimum": 0},
+            "lines_added": {"type": "integer", "minimum": 0},
+            "lines_deleted": {"type": "integer", "minimum": 0}
+          }
+        },
+        "flags": {"$ref": "#/$defs/stringList"},
+        "rollback_ready": {"type": "boolean"}
+      }
+    },
+    "topology": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodes", "edges"],
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": {"type": "object", "required": ["id"], "properties": {"id": {"$ref": "#/$defs/nonEmptyString"}}}
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["source", "target", "relation", "confidence", "active"],
+            "properties": {
+              "source": {"$ref": "#/$defs/nonEmptyString"},
+              "target": {"$ref": "#/$defs/nonEmptyString"},
+              "relation": {"$ref": "#/$defs/nonEmptyString"},
+              "confidence": {"$ref": "#/$defs/ratio"},
+              "active": {"type": "boolean"}
+            }
+          }
+        }
+      }
+    },
+    "incident": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "incident_id",
+        "correlated_change_id",
+        "title",
+        "severity",
+        "status",
+        "started_at",
+        "resolved_at",
+        "affected_services",
+        "summary",
+        "timeline"
+      ],
+      "properties": {
+        "incident_id": {"$ref": "#/$defs/nonEmptyString"},
+        "correlated_change_id": {"$ref": "#/$defs/nonEmptyString"},
+        "title": {"$ref": "#/$defs/nonEmptyString"},
+        "severity": {"$ref": "#/$defs/nonEmptyString"},
+        "status": {"$ref": "#/$defs/nonEmptyString"},
+        "started_at": {"$ref": "#/$defs/timestamp"},
+        "resolved_at": {"oneOf": [{"$ref": "#/$defs/timestamp"}, {"type": "null"}]},
+        "affected_services": {"$ref": "#/$defs/stringList"},
+        "summary": {"$ref": "#/$defs/nonEmptyString"},
+        "timeline": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "timestamp", "type", "title", "detail", "service_id"],
+            "properties": {
+              "id": {"$ref": "#/$defs/nonEmptyString"},
+              "timestamp": {"$ref": "#/$defs/timestamp"},
+              "type": {"$ref": "#/$defs/nonEmptyString"},
+              "title": {"$ref": "#/$defs/nonEmptyString"},
+              "detail": {"$ref": "#/$defs/nonEmptyString"},
+              "service_id": {"oneOf": [{"type": "string"}, {"type": "null"}]}
+            }
+          }
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/evidence"}
+    },
+    "hypotheses": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/hypothesis"}
+    },
+    "ground_truth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "hypothesis_id", "label_source", "human_verdict"],
+      "properties": {
+        "status": {"enum": ["verified", "unverified"]},
+        "hypothesis_id": {"oneOf": [{"type": "string"}, {"type": "null"}]},
+        "label_source": {
+          "oneOf": [
+            {"enum": ["scenario_author", "human_verdict", "public_dataset_label"]},
+            {"type": "null"}
+          ]
+        },
+        "human_verdict": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": ["verdict", "hypothesis_id", "note"],
+              "properties": {
+                "verdict": {"enum": ["confirmed", "rejected", "partial"]},
+                "hypothesis_id": {"$ref": "#/$defs/nonEmptyString"},
+                "note": {"$ref": "#/$defs/nonEmptyString"}
+              }
+            },
+            {"type": "null"}
+          ]
+        }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "steps", "observed_outcome"],
+      "properties": {
+        "status": {"enum": ["not_recorded", "verified", "disproved", "inconclusive"]},
+        "steps": {"$ref": "#/$defs/stringList"},
+        "observed_outcome": {"oneOf": [{"type": "string"}, {"type": "null"}]}
+      }
+    },
+    "postmortem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "summary"],
+      "properties": {
+        "status": {"enum": ["not_available", "summary_only", "complete"]},
+        "summary": {"oneOf": [{"type": "string"}, {"type": "null"}]}
+      }
+    },
+    "quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_reference_integrity",
+        "evaluation_eligible",
+        "evaluation_exclusion_reasons",
+        "training_eligible",
+        "training_exclusion_reasons"
+      ],
+      "properties": {
+        "evidence_reference_integrity": {"$ref": "#/$defs/ratio"},
+        "evaluation_eligible": {"type": "boolean"},
+        "evaluation_exclusion_reasons": {"$ref": "#/$defs/stringList"},
+        "training_eligible": {"type": "boolean"},
+        "training_exclusion_reasons": {"$ref": "#/$defs/stringList"}
+      }
+    },
+    "engine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["analysis_schema_version", "engine_version", "scoring_policy_version"],
+      "properties": {
+        "analysis_schema_version": {"$ref": "#/$defs/nonEmptyString"},
+        "engine_version": {"$ref": "#/$defs/nonEmptyString"},
+        "scoring_policy_version": {"$ref": "#/$defs/nonEmptyString"}
+      }
+    }
+  },
+  "$defs": {
+    "nonEmptyString": {"type": "string", "minLength": 1, "maxLength": 4000},
+    "timestamp": {"type": "string", "format": "date-time"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "ratio": {"type": "number", "minimum": 0, "maximum": 1},
+    "stringList": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string"}
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "source",
+        "timestamp",
+        "summary",
+        "value",
+        "quality",
+        "service_id",
+        "supports",
+        "contradicts"
+      ],
+      "properties": {
+        "id": {"$ref": "#/$defs/nonEmptyString"},
+        "type": {"$ref": "#/$defs/nonEmptyString"},
+        "source": {"$ref": "#/$defs/nonEmptyString"},
+        "timestamp": {"$ref": "#/$defs/timestamp"},
+        "summary": {"$ref": "#/$defs/nonEmptyString"},
+        "value": {"type": ["string", "number", "boolean", "null"]},
+        "quality": {"$ref": "#/$defs/ratio"},
+        "service_id": {"oneOf": [{"type": "string"}, {"type": "null"}]},
+        "supports": {"$ref": "#/$defs/stringList"},
+        "contradicts": {"$ref": "#/$defs/stringList"}
+      }
+    },
+    "hypothesis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "rank",
+        "cause_service",
+        "cause",
+        "confidence",
+        "score",
+        "evidence_ids",
+        "counter_evidence_ids",
+        "reasoning",
+        "next_step",
+        "status"
+      ],
+      "properties": {
+        "id": {"$ref": "#/$defs/nonEmptyString"},
+        "rank": {"type": "integer", "minimum": 1},
+        "cause_service": {"$ref": "#/$defs/nonEmptyString"},
+        "cause": {"$ref": "#/$defs/nonEmptyString"},
+        "confidence": {"$ref": "#/$defs/ratio"},
+        "score": {"type": "integer", "minimum": 0, "maximum": 100},
+        "evidence_ids": {"$ref": "#/$defs/stringList"},
+        "counter_evidence_ids": {"$ref": "#/$defs/stringList"},
+        "reasoning": {"$ref": "#/$defs/nonEmptyString"},
+        "next_step": {"$ref": "#/$defs/nonEmptyString"},
+        "status": {"enum": ["unreviewed", "confirmed", "rejected", "partial"]}
+      }
+    }
+  }
+}

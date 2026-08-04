@@ -23,6 +23,20 @@ This baseline is useful by itself: it gives an engineer a concise reading of
 the current evidence, preserves traceability, and establishes the acceptance
 contract that any future language model must satisfy.
 
+## Relationship to DeployGuard Bench
+
+The product follows a three-layer contract: operational inputs become a
+provenance-preserving evidence graph, and privacy-reviewed graph snapshots may
+then become versioned [DeployGuard Bench](../bench/README.md) examples. An LLM
+is a consumer of those examples; it is never the source of evidence, ground
+truth, or a human verdict.
+
+The current public exporter accepts synthetic repository fixtures only. A real
+incident must not be exported automatically. Connected data requires explicit
+workspace consent, redaction, source licensing, retention policy, a verified
+human label, leakage review, and an immutable dataset release before it can be
+used for training or public evaluation.
+
 ## What does not ship
 
 There is no configured OpenAI or other external-model provider, no outbound
@@ -48,6 +62,8 @@ implemented and reviewed:
    event.
 6. A blinded evaluation showing a material usability or groundedness benefit
    over the deterministic baseline within a fixed cost and latency budget.
+7. A frozen DeployGuard Bench split that was not used for prompt development or
+   training, with per-task failure slices and contamination review.
 
 Until those gates are passed, the deterministic baseline is the supported
 explanation path and should not be marketed as an external LLM integration.

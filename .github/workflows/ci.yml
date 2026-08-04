@@ -207,15 +207,27 @@ jobs:
       - name: Run engine-backed versioned benchmark
         run: python scripts/evaluate_benchmarks.py --output evaluation-results.json
 
-      - name: Test benchmark contract
+      - name: Verify DeployGuard Bench dataset bundle
+        run: >-
+          python scripts/export_operational_dataset.py
+          --check --output-dir bench/datasets/synthetic-v0.1
+
+      - name: Test benchmark and dataset contracts
         working-directory: backend
-        run: python -m pytest tests/test_benchmark_evaluator.py
+        run: >-
+          python -m pytest
+          tests/test_benchmark_evaluator.py
+          tests/test_operational_dataset_export.py
 
       - name: Upload evaluation results
         uses: actions/upload-artifact@v6
         with:
           name: deployguard-evaluation
-          path: evaluation-results.json
+          path: |
+            evaluation-results.json
+            bench/schema/operational-example-v1.schema.json
+            bench/datasets/synthetic-v0.1/examples.jsonl
+            bench/datasets/synthetic-v0.1/manifest.json
           if-no-files-found: error
 
   dotnet-spike:

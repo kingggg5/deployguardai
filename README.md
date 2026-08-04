@@ -20,6 +20,25 @@ signals, and human decisions in one workspace. It helps teams understand
 **why a change may be unsafe** and **which incident hypothesis is best supported
 by evidence**—without deploying, rolling back, or changing infrastructure.
 
+## Data strategy: AI consumes the evidence graph
+
+DeployGuard AI is building an operational-data foundation for evaluating future
+AI and LLM systems in Production Engineering:
+
+| Layer | Role |
+| --- | --- |
+| 1. Operational data | Normalize GitHub, OpenTelemetry, Prometheus, deployment, and human investigation events with provenance |
+| 2. Evidence graph | Connect changes, topology, supporting evidence, counter-evidence, hypotheses, verification, verdicts, and postmortems |
+| 3. DeployGuard Bench | Publish privacy-reviewed, versioned examples for evaluation and, where consent/license/split policy allow, model training |
+
+AI is a downstream **consumer** of the dataset—not the source of evidence or
+ground truth. The repository now includes the [DeployGuard Bench](bench/README.md)
+v0.1 schema, deterministic exporter, and three synthetic seed examples. The
+target of 1,000 deployment scenarios and 500 incident investigations is a
+roadmap goal, not a current dataset-size claim. A real incident is only a
+candidate example until consent, redaction, licensing, and human review pass;
+the current seed is evaluation-only and is not approved for model training.
+
 ## Why DeployGuard
 
 - **Explain risk, not just a score.** Review contributing signals, missing
@@ -42,7 +61,7 @@ by evidence**—without deploying, rolling back, or changing infrastructure.
 | GitHub integration | App installation, repository sync, signed PR/deployment webhooks, and optional Check Runs |
 | Team workspaces | OIDC/development auth, `viewer`/`responder`/`admin`/`owner` roles, invitations, audit events, and tenant isolation |
 | Operations | Service catalog, deployment lifecycle, normalized telemetry, durable jobs, retries, dead letters, traces, metrics, backup, and restore tooling |
-| Evaluation | Versioned synthetic datasets, SHA-256-pinned manifests, golden/property tests, contract fixtures, and CI artifacts |
+| Dataset and evaluation | DeployGuard Bench schema/exporter, versioned synthetic examples, SHA-256 manifests, golden/property tests, contract fixtures, and CI artifacts |
 
 ## Project status
 
@@ -50,7 +69,7 @@ by evidence**—without deploying, rolling back, or changing infrastructure.
 | --- | --- |
 | Connected runtime | Implemented; a fresh environment contains no demo data and requires operator-owned GitHub/OIDC/SMTP/telemetry configuration |
 | AI/LLM | **No external model is called.** The supported path is a deterministic, citation-gated evidence explanation |
-| Dataset | Versioned, hand-authored synthetic regression data only; no customer incidents or public benchmark are bundled |
+| Dataset | DeployGuard Bench v0.1 contains 3 synthetic seed examples: 2 development-evaluation eligible, 1 unverified, and 0 approved for training |
 | Evaluation | Engine-backed synthetic evaluation runs in CI; public/real-world accuracy, calibration, and production impact are not yet measured |
 | Production | Production-integratable; TLS, managed secrets, durable telemetry, alerting, backups, and on-call ownership remain deployment responsibilities |
 
@@ -97,6 +116,9 @@ flowchart LR
     API --> DB[("PostgreSQL or SQLite")]
     Engines --> DB
     Jobs --> DB
+    DB --> Export["Privacy-gated dataset exporter"]
+    Export --> Bench["DeployGuard Bench"]
+    Bench --> AI["LLM and evaluation consumers"]
 ```
 
 The backend owns authorization and workspace boundaries. Provider adapters
@@ -128,6 +150,8 @@ npm run build
 cd ..
 docker compose config --quiet
 python scripts/evaluate_benchmarks.py --output .runtime/evaluation-results.json
+python scripts/export_operational_dataset.py --check \
+  --output-dir bench/datasets/synthetic-v0.1
 python scripts/capture_contracts.py --check
 ```
 
@@ -142,6 +166,7 @@ source of truth for required checks and generated evaluation artifacts.
 - [Security model](docs/SECURITY.md) — authentication, tenant isolation, and provider handling
 - [Operations](docs/OPERATIONS.md) — deployment, probes, backups, retention, and recovery
 - [Evaluation](docs/EVALUATION.md) — datasets, methodology, results, and limitations
+- [DeployGuard Bench](bench/README.md) — operational-example schema, dataset card, privacy boundary, and reproduction
 - [AI boundary](docs/AI_BOUNDARY.md) — evidence contract and external-model activation gates
 - [Release guide](docs/RELEASE.md) — versioning, images, SBOM, provenance, and rollback
 
@@ -158,6 +183,8 @@ not a public issue. DeployGuard is licensed under [Apache-2.0](LICENSE).
 ## Current limitations
 
 - No external LLM provider or public/real-world RCA benchmark is integrated.
+- Connected incidents are never exported automatically; consent, redaction,
+  licensing, review, and versioned publication are not implemented yet.
 - Telemetry ingestion uses DeployGuard's normalized contract; it is not a native
   OTLP evidence receiver.
 - Slack, Teams, PagerDuty, organization-specific SLO dashboards, autonomous

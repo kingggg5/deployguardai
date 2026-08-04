@@ -2,6 +2,34 @@
 
 > สถานะผลลัพธ์: **automated verification ของ synthetic MVP ผ่าน แต่ยังไม่มี real/public dataset benchmark** ตัวเลข test/build ด้านล่างเป็น engineering verification ไม่ใช่ accuracy claim
 
+## DeployGuard Bench direction
+
+DeployGuard separates three layers:
+
+1. operational data from GitHub, OpenTelemetry, Prometheus, deployments, and
+   human investigation;
+2. an evidence graph with provenance, supporting evidence, counter-evidence,
+   hypotheses, verification, verdicts, and postmortems;
+3. privacy-reviewed, versioned examples consumed by benchmarks or future LLMs.
+
+The [DeployGuard Bench dataset card](../bench/README.md) defines the v1 example
+schema, publication boundary, and target corpus. The checked-in v0.1 bundle has
+three synthetic examples: two with scenario-author labels for development
+evaluation, one unverified example, and no examples approved for training.
+This rich operational-example bundle complements the smaller five-case RCA
+ranking regression manifest below; neither is a real/public benchmark.
+
+Reproduce and verify the checked-in bundle with:
+
+```powershell
+python scripts/export_operational_dataset.py `
+  --check --output-dir bench/datasets/synthetic-v0.1
+```
+
+A resolved connected incident is only a candidate example. It cannot enter a
+dataset until consent, redaction, licensing, human-label review, deduplication,
+split assignment, and immutable versioning are complete.
+
 ## Verified engineering results
 
 | Check | ผลที่ยืนยันแล้ว |

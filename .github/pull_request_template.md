@@ -25,6 +25,8 @@
 
 - [ ] No secrets, customer data, or runtime databases are included.
 - [ ] Synthetic data is visibly labeled and is not presented as connected data.
+- [ ] Dataset changes include provenance, license, label source, split/eligibility,
+      regenerated hashes, and no private operational data.
 - [ ] Evidence, counter-evidence, uncertainty, and feedback behavior remains explainable.
 - [ ] API and database compatibility is preserved, or a migration and rollback plan is included.
 - [ ] This change does not add autonomous deployment, rollback, shell execution, cluster credentials, or remediation.

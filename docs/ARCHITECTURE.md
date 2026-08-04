@@ -35,6 +35,7 @@ rollback, รัน shell หรือเข้าถึง cluster
 | Process metrics | มี private, low-cardinality Prometheus endpoint; dashboard/alerts ยังเป็น deployment concern |
 | Backup/retention tooling | มี isolated writable restore rehearsal และ allow-listed retention dry-run/apply พร้อม legal hold, batching และ deletion audit; schedule/storage เป็น deployment concern |
 | PostgreSQL | รองรับผ่าน SQLAlchemy/psycopg และ RLS revision `0009`; production ต้องแยก owner/runtime roles |
+| DeployGuard Bench v0.1 | มี synthetic-only exporter, versioned example schema, SHA-256 manifest, 3 seed examples และ CI drift check; connected export ยังไม่มี |
 | External LLM synthesis | Deferred; `/synthesize` และ deprecated `/synthesize-llm` ใช้ deterministic, citation-gated baseline และไม่เรียก external model |
 
 ## System context
@@ -52,6 +53,8 @@ flowchart LR
     SMTP["SMTP provider"]
     Collector["OpenTelemetry Collector"]
     Gateway["Trusted normalization / redaction gateway"]
+    Exporter["Privacy-gated dataset exporter"]
+    Bench["DeployGuard Bench"]
     LLM["Bounded LLM summarizer<br/>deferred"]
 
     User --> UI --> API --> Core
@@ -64,7 +67,12 @@ flowchart LR
     API --> SMTP
     Collector -->|"OTLP"| Gateway
     Gateway -->|"normalized event + workspace bearer"| API
-    Core -.->|"evidence-only contract; not implemented"| LLM
+    Seed -->|"synthetic only"| Exporter
+    Core --> Exporter
+    Exporter --> Bench
+    DB -.->|"connected export deferred"| Exporter
+    Bench -.->|"evaluation dataset"| LLM
+    Core -.->|"evidence-only runtime contract"| LLM
 ```
 
 Synthetic fixtures และ connected data ใช้ domain contract ชุดเดียวกัน แต่ไม่
@@ -123,6 +131,8 @@ flowchart TB
 | Operations services | Service catalog, policy versioning, event dedupe, incident lifecycle, notes และ notification fan-out | ส่ง deployment command หรือ arbitrary outgoing webhook |
 | Deterministic engines | Risk, graph traversal, evidence weighting และ hypothesis ranking | สร้าง evidence ที่ไม่มี provenance |
 | Provider adapters | แปลง external data เป็น normalized domain input | เปลี่ยน deterministic score โดยตรง |
+| Dataset exporter | สร้าง versioned synthetic operational examples, ตรวจ reference, eligibility และ hashes | อ่าน connected workspace หรืออ้าง human verdict โดยไม่มี consent/review |
+| DeployGuard Bench | เป็น contract และ artifact สำหรับ evaluation/training consumer | เป็น production source of truth หรือแก้ evidence/ground truth |
 | Database/Alembic | System of record และ schema evolution | แทนที่ backup, restore หรือ retention operation |
 
 ## Identity, tenant และ RBAC flow

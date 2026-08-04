@@ -3,6 +3,9 @@
 Roadmap นี้เรียงตาม dependency และความเสี่ยง ไม่ใช้เลขสัปดาห์ เพราะเลขสัปดาห์
 ไม่ได้เป็นหลักฐานว่า capability พร้อมใช้งาน
 
+เอกสารนี้เป็น canonical public roadmap งาน implementation รายละเอียดควรอยู่ใน
+GitHub Issues/Projects และไม่สร้าง planning document ซ้ำใน repository
+
 ## สถานะ
 
 - ✅ **Implemented** — มี runtime path และ automated test coverage ใน repository
@@ -36,6 +39,8 @@ Roadmap นี้เรียงตาม dependency และความเส
 | Backup, restore and retention helpers | ✅ | Atomic backup, isolated writable restore rehearsal, batched dry-run/apply retention, legal hold และ append-only deletion audit; schedule/storage remain external |
 | Open-source onboarding | ✅ | Connected-mode and isolated synthetic demo quickstarts, English/Thai overview, screenshots, issue forms, and release checklist |
 | Citation-gated evidence explanation | ✅ | Deterministic baseline with versioned contract, evidence-bundle SHA-256, uncertainty, citation validation, audit metadata, and no external provider call |
+| DeployGuard Bench v0.1 foundation | ✅ | Operational-example JSON Schema, deterministic synthetic exporter, SHA-256 manifest, eligibility rules, 3 seed examples และ CI drift check |
+| Public/real operational benchmark | ⬜ | ยังไม่มี consented connected export, public dataset adapter, hidden test split หรือ independently reviewed corpus |
 | Signed container distribution | ✅ | Tag-driven GHCR API/web images for amd64/arm64 with SBOM and provenance attestations |
 | Incident lifecycle + notes | ✅ | Role-gated transitions, assignee และ append-only notes |
 | In-app notifications | ✅ | Recipient-scoped list/read state |
@@ -234,7 +239,57 @@ URL
 - keyboard command palette
 - pagination/cursor contract สำหรับ large workspace
 
-## P2 — Evidence quality และ evaluation
+## P2 — DeployGuard Bench, evidence quality และ evaluation
+
+### Operational dataset program
+
+Architecture:
+
+```text
+Operational Data -> Evidence Graph -> DeployGuard Bench -> AI/LLM consumers
+```
+
+Foundation ที่ implement แล้ว:
+
+- schema `deployguard-operational-example/v1`
+- deployment, topology, incident timeline, evidence/counter-evidence,
+  hypotheses, ground truth, verification, postmortem และ provenance contract
+- deterministic exporter จาก synthetic scenarios เท่านั้น
+- per-example/dataset SHA-256, split, license และ train/evaluation eligibility
+- checked-in v0.1 seed 3 examples และ CI drift check
+
+Target corpus หลัง schema และ review process เสถียร:
+
+- 1,000 deployment scenarios
+- 500 incident investigations
+- ทุก evaluation-ready case มี ground truth, supporting evidence,
+  counter-evidence, verification steps และ label source ที่ตรวจสอบได้
+- train/validation/hidden-test split แยกชัดเจน พร้อม contamination และ duplicate
+  detection
+
+Data-capture gap ที่ต้องปิดก่อน connected export:
+
+- human verdict ต้องเก็บ actor provenance แบบ tenant-scoped แล้วลบ identity
+  ออกจาก public artifact
+- verification step ต้องมี structured status และ observed outcome ไม่ใช่มีเพียง
+  next-step suggestion
+- postmortem ต้องมี immutable reviewed snapshot และ link กับ incident/change
+- dataset consent, redaction decision และ publication approval ต้อง audit ได้
+
+Connected incident ไม่ถูก export อัตโนมัติ ต้องมี workspace opt-in, revocable
+data-use agreement, secret/PII/customer/repository redaction, source license,
+retention policy, resolved outcome, human verdict, reviewer approval และ immutable
+dataset version ก่อน ข้อมูลที่ไม่ผ่าน gate ใช้ใน product ได้แต่ห้ามนับเป็น
+training/evaluation example
+
+เกณฑ์แยก DeployGuard Bench เป็น repository ใหม่:
+
+1. v1 schema stable
+2. license review ผ่าน
+3. อย่างน้อย 100 examples ผ่าน independent quality review
+4. ต้องมี release cadence หรือ maintainer ownership แยกจาก application จริง
+
+ก่อนผ่านเกณฑ์นี้ให้ incubate ใน monorepo เพื่อป้องกัน schema/engine/CI drift
 
 ### Versioned evaluation harness
 
@@ -274,9 +329,11 @@ latency/maintainability target
 5. tenant/redaction/retention boundary ผ่าน review
 6. provider region/retention/cost policy ถูกกำหนด
 7. blind evaluation แสดงประโยชน์เหนือ deterministic template
+8. มี frozen DeployGuard Bench split ที่ไม่ถูกใช้ train หรือพัฒนา prompt และ
+   ผ่าน contamination review
 
-LLM จะไม่มีสิทธิ์ให้คะแนน, สร้าง evidence, execute tool, deploy, rollback หรือ
-remediate
+LLM เป็น consumer ของ dataset เท่านั้นและจะไม่มีสิทธิ์ให้คะแนน, สร้าง evidence,
+แก้ ground truth, execute tool, deploy, rollback หรือ remediate
 
 ## Definition of done
 
