@@ -1,4 +1,6 @@
+import base64
 import hashlib
+import hmac
 import re
 import secrets
 from datetime import UTC, datetime, timedelta
@@ -47,6 +49,19 @@ def new_id() -> str:
 
 def token_digest(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def derive_invitation_claim_token(token_secret: str, invitation_id: str) -> str:
+    """Derive a claim token without persisting it in a job or database row."""
+
+    if len(token_secret) < 32:
+        raise ValueError("invitation token secret must contain at least 32 characters")
+    digest = hmac.new(
+        token_secret.encode("utf-8"),
+        f"deployguard-invitation:{invitation_id}".encode("utf-8"),
+        hashlib.sha256,
+    ).digest()
+    return base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
 
 
 def normalize_email(value: str) -> str:
@@ -357,6 +372,8 @@ def create_invitation(
     payload: InvitationCreate,
     request_id: str,
     ttl_hours: int,
+    token_secret: str | None = None,
+    commit: bool = True,
 ) -> InvitationCreated:
     caller = membership_for(session, user, workspace_id, "admin")
     if payload.role == "admin" and caller.role != "owner":
@@ -383,10 +400,15 @@ def create_invitation(
             "invitation_already_pending",
             409,
         )
-    raw_token = secrets.token_urlsafe(32)
+    invitation_id = new_id()
+    raw_token = (
+        derive_invitation_claim_token(token_secret, invitation_id)
+        if token_secret
+        else secrets.token_urlsafe(32)
+    )
     timestamp = now_utc()
     invitation = Invitation(
-        id=new_id(),
+        id=invitation_id,
         workspace_id=workspace_id,
         email=payload.email,
         role=payload.role,
@@ -409,7 +431,10 @@ def create_invitation(
         request_id=request_id,
         metadata={"email": payload.email, "role": payload.role},
     )
-    session.commit()
+    if commit:
+        session.commit()
+    else:
+        session.flush()
     return InvitationCreated(
         **InvitationSummary.model_validate(invitation).model_dump(),
         delivery_mode="development_outbox",

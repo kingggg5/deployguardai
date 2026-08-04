@@ -389,7 +389,7 @@ class InvitationSummary(APIModel):
 class InvitationCreated(InvitationSummary):
     delivery_mode: Literal["smtp", "development_outbox", "disabled"]
     delivery_status: Literal[
-        "sent", "failed", "development_outbox", "disabled"
+        "queued", "sent", "failed", "development_outbox", "disabled"
     ]
     claim_token: str | None = None
     accept_path: str | None = None

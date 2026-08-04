@@ -15,6 +15,7 @@ def _configured_settings():
         github_checks_enabled=True,
         smtp_host="smtp.example",
         smtp_from_email="deployguard@example.com",
+        invitation_token_secret="i" * 32,
         telemetry_ingest_token="t" * 32,
         otel_traces_endpoint="http://collector:4318/v1/traces",
     )

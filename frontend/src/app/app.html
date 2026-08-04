@@ -241,6 +241,19 @@ FORM: GitHub/Primer-inspired repository workspace; interaction grammar is famili
         </div>
       }
 
+      @if (awaitingConnectedEvidence()) {
+        <section class="connected-readiness" role="status" aria-live="polite">
+          <div>
+            <p class="system-kicker">{{ t('connected_evidence_kicker') }}</p>
+            <h2>{{ t('connected_evidence_title') }}</h2>
+            <p>{{ t('connected_evidence_body') }}</p>
+          </div>
+          <button type="button" class="button button--primary" (click)="setActiveTab('workspace')">
+            {{ t('open_workspace_setup') }}
+          </button>
+        </section>
+      }
+
       @if (shareSuccess()) {
         <div class="notice notice--success" role="status">
           <span aria-hidden="true">✓</span>

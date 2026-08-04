@@ -70,7 +70,7 @@
 
 .rail-brand strong {
   color: #f0f6fc;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
@@ -354,6 +354,37 @@
   margin: 12px auto 0;
 }
 
+.connected-readiness {
+  display: flex;
+  max-width: 1280px;
+  margin: 16px auto 0;
+  padding: 20px 24px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.connected-readiness h2 {
+  margin: 4px 0 6px;
+  color: var(--ink-strong);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.connected-readiness p:last-child {
+  max-width: 78ch;
+  margin: 0;
+  color: var(--ink-muted);
+}
+
+.connected-readiness .button {
+  flex: 0 0 auto;
+}
+
 .boot-state {
   padding: 0;
   background: var(--canvas);
@@ -399,7 +430,7 @@
   height: 44px;
   margin-bottom: 16px;
   border-radius: 50%;
-  font-size: 22px;
+  font-size: 20px;
 }
 
 .fatal-state .button + .button {
@@ -423,6 +454,13 @@
 }
 
 @media (max-width: 760px) {
+  .connected-readiness {
+    padding: 16px;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 16px;
+  }
+
   .command-rail {
     grid-template-columns: auto 1fr auto;
     gap: 10px;

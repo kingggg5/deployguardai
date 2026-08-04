@@ -148,10 +148,18 @@ SMTP_USERNAME=...
 SMTP_PASSWORD=...
 SMTP_FROM_EMAIL=deployguard@example.com
 SMTP_USE_TLS=true
+INVITATION_TOKEN_SECRET=<managed-secret-at-least-32-characters>
 ```
 
 Production ที่ไม่มี SMTP configuration จะปิด invitation delivery แทนการคืน
 development claim token
+
+SMTP invitation requests return `201` only after the invitation and its
+secret-free outbox intent are committed together. The supervised worker derives
+the one-time claim token from `INVITATION_TOKEN_SECRET`; it never stores the
+token in the database or job payload. SMTP cannot provide a portable
+idempotency key, so an interrupted provider attempt is marked for operator
+review rather than automatically sending a possible duplicate invitation.
 
 ### Telemetry
 

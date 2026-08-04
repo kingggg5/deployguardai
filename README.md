@@ -274,7 +274,11 @@ Set `TELEMETRY_INGEST_TOKEN` on the server and derive a workspace-bound collecto
 
 ### Invitations
 
-Configure SMTP and `FRONTEND_PUBLIC_URL`. In production without SMTP, invitation controls are disabled instead of returning a false success.
+Configure SMTP, `FRONTEND_PUBLIC_URL`, and a managed `INVITATION_TOKEN_SECRET`
+(32+ characters). SMTP invitations are accepted as a durable, secret-free
+outbox job and return `queued`; the supervised worker derives the one-time
+claim token only when it sends the message. In production without SMTP,
+invitation controls are disabled instead of returning a false success.
 
 See [`.env.example`](.env.example), [API contract](docs/API_CONTRACT.md), [operations runbook](docs/OPERATIONS.md), and [telemetry contract](docs/TELEMETRY_GATEWAY.md).
 
@@ -286,7 +290,7 @@ For a read-only live-contract check (no DeployGuard or GitHub records are create
 
 ## Operational foundations included
 
-- Durable `background_jobs` outbox with transactional GitHub Check enqueue, an allow-listed supervised worker, idempotent provider recovery, bounded retry/backoff, stale-lease recovery, dead-letter state, explicit replay, W3C trace propagation, and credential-like payload rejection.
+- Durable `background_jobs` outbox with transactional GitHub Check and SMTP invitation enqueue, an allow-listed supervised worker, idempotent provider recovery, bounded retry/backoff, stale-lease recovery, dead-letter state, explicit replay, W3C trace propagation, and credential-like payload rejection. SMTP attempts stop for review after an uncertain provider outcome rather than risking a duplicate email.
 - Responder-visible failed/dead-letter queue summaries and admin-only audited replay without exposing job payloads or stored error text.
 - PostgreSQL RLS policies on data-plane tables, transaction-local tenant context, fail-closed behavior without context, and negative cross-tenant CRUD/pool-leakage tests against a non-owner role.
 - Private low-cardinality Prometheus metrics at `/api/v1/metrics`; no path, tenant, request ID, or payload labels.

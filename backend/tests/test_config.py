@@ -88,9 +88,15 @@ def test_provider_configuration_fails_closed_when_partial_or_weak() -> None:
         _production_settings(github_webhook_secret="too-short")
     with pytest.raises(ValidationError, match="SMTP configuration"):
         _production_settings(smtp_host="smtp.example")
+    with pytest.raises(ValidationError, match="INVITATION_TOKEN_SECRET"):
+        _production_settings(
+            smtp_host="smtp.example",
+            smtp_from_email="deployguard@example.com",
+        )
     with pytest.raises(ValidationError, match="SMTP_USE_TLS"):
         _production_settings(
             smtp_host="smtp.example",
             smtp_from_email="deployguard@example.com",
             smtp_use_tls=False,
+            invitation_token_secret="x" * 32,
         )

@@ -16,10 +16,15 @@ from app.engines import (
 )
 from app.job_contracts import (
     GITHUB_CHECK_PUBLISH_JOB,
+    INVITATION_EMAIL_DELIVER_JOB,
     GitHubCheckPublishPayload,
+    InvitationEmailDeliverPayload,
     validated_trace_context,
 )
-from app.job_producers import enqueue_github_check_publication
+from app.job_producers import (
+    enqueue_github_check_publication,
+    enqueue_invitation_email_delivery,
+)
 from app.job_queue import (
     JobContext,
     claim_next_job,
@@ -30,13 +35,19 @@ from app.job_queue import (
 from app.models import (
     AuditEvent,
     ChangeRecord,
+    Invitation,
     Repository,
     Scenario,
     User,
     Workspace,
 )
-from app.provider_models import GitHubCheckPublication, ProviderConnection
+from app.provider_models import (
+    GitHubCheckPublication,
+    InvitationDelivery,
+    ProviderConnection,
+)
 from app.worker import registered_handlers, run_worker
+from app.workspace_services import derive_invitation_claim_token, token_digest
 
 
 class SimulatedWorkerCrash(BaseException):
@@ -86,6 +97,9 @@ def _worker_fixture(tmp_path: Path):
         github_app_slug="deployguard",
         github_app_private_key="test-key",
         github_checks_enabled=True,
+        smtp_host="smtp.test",
+        smtp_from_email="no-reply@deployguard.test",
+        invitation_token_secret="s" * 32,
         _env_file=None,
     )
     database = Database(database_url)
@@ -191,6 +205,28 @@ def _worker_fixture(tmp_path: Path):
         session.add_all([user, workspace, repository, scenario, change, connection])
         session.commit()
     return database, settings
+
+
+class RecordingSmtp:
+    sent_messages: list[object] = []
+
+    def __init__(self, *_args, **_kwargs) -> None:
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args) -> None:
+        return None
+
+    def starttls(self, **_kwargs) -> None:
+        return None
+
+    def login(self, *_args) -> None:
+        return None
+
+    def send_message(self, message) -> None:
+        self.sent_messages.append(message)
 
 
 def test_trace_context_is_validated_before_persistence() -> None:
@@ -302,6 +338,124 @@ def test_worker_retry_after_crash_updates_existing_check_without_duplicate_creat
         assert fake.create_calls == 1
         assert fake.find_calls == 1
         assert fake.update_calls == 1
+    finally:
+        database.dispose()
+
+
+def test_worker_delivers_smtp_invitation_from_secret_free_outbox_payload(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    database, settings = _worker_fixture(tmp_path)
+    RecordingSmtp.sent_messages = []
+    monkeypatch.setattr("app.email_delivery.smtplib.SMTP", RecordingSmtp)
+    claim_token = derive_invitation_claim_token(
+        settings.invitation_token_secret,
+        "invitation-worker",
+    )
+    try:
+        with database.session_factory() as session:
+            invitation = Invitation(
+                id="invitation-worker",
+                workspace_id="workspace-worker",
+                email="friend@example.com",
+                role="viewer",
+                token_hash="a" * 64,
+                status="pending",
+                invited_by_user_id="user-worker",
+                created_at=datetime.now(UTC),
+                expires_at=datetime.now(UTC) + timedelta(hours=1),
+                accepted_at=None,
+                revoked_at=None,
+            )
+            session.add(invitation)
+            session.commit()
+            queued = enqueue_invitation_email_delivery(
+                session,
+                invitation=invitation,
+                request_id="request-invitation-1",
+                commit=True,
+            )
+            payload = InvitationEmailDeliverPayload.model_validate(queued.payload)
+            assert payload.invitation_id == invitation.id
+            assert claim_token not in str(queued.payload)
+            assert queued.job_type == INVITATION_EMAIL_DELIVER_JOB
+
+            completed = run_one_job(
+                session,
+                worker_id="worker-invitation",
+                handlers=registered_handlers(session, settings),
+            )
+            assert completed is not None
+            assert completed.status == "succeeded"
+            delivery = session.scalar(select(InvitationDelivery))
+            assert delivery is not None
+            assert delivery.status == "sent"
+            assert invitation.token_hash == token_digest(
+                derive_invitation_claim_token(
+                    settings.invitation_token_secret,
+                    invitation.id,
+                )
+            )
+
+        assert len(RecordingSmtp.sent_messages) == 1
+        assert RecordingSmtp.sent_messages[0]["To"] == "friend@example.com"
+        plain_text = next(
+            part.get_content()
+            for part in RecordingSmtp.sent_messages[0].walk()
+            if part.get_content_type() == "text/plain"
+        )
+        assert claim_token in plain_text
+    finally:
+        database.dispose()
+
+
+def test_worker_never_retries_an_uncertain_smtp_invitation_delivery(
+    tmp_path: Path,
+) -> None:
+    database, settings = _worker_fixture(tmp_path)
+    try:
+        with database.session_factory() as session:
+            invitation = Invitation(
+                id="invitation-uncertain",
+                workspace_id="workspace-worker",
+                email="friend@example.com",
+                role="viewer",
+                token_hash="a" * 64,
+                status="pending",
+                invited_by_user_id="user-worker",
+                created_at=datetime.now(UTC),
+                expires_at=datetime.now(UTC) + timedelta(hours=1),
+                accepted_at=None,
+                revoked_at=None,
+            )
+            session.add(invitation)
+            session.add(
+                InvitationDelivery(
+                    id="delivery-uncertain",
+                    invitation_id=invitation.id,
+                    provider="smtp",
+                    status="publishing",
+                    provider_message_id=None,
+                    error_code=None,
+                    attempted_at=datetime.now(UTC),
+                )
+            )
+            session.commit()
+            enqueue_invitation_email_delivery(
+                session,
+                invitation=invitation,
+                request_id="request-invitation-uncertain",
+                commit=True,
+            )
+            finished = run_one_job(
+                session,
+                worker_id="worker-invitation",
+                handlers=registered_handlers(session, settings),
+            )
+            assert finished is not None
+            assert finished.status == "failed"
+            assert "publishing" in (finished.last_error or "")
     finally:
         database.dispose()
 

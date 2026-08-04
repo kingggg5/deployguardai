@@ -174,6 +174,29 @@ describe('DeployGuard investigation ledger', () => {
     expect(fixture.nativeElement.querySelector('.fatal-state')).toBeNull();
   });
 
+  it('treats an empty connected workspace as onboarding instead of a dashboard error', () => {
+    api.getOverview.mockReturnValue(
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 409,
+            error: {
+              code: 'active_scenario_not_found',
+              detail: 'No active scenario is configured'
+            }
+          })
+      )
+    );
+
+    component.refreshDashboard();
+    fixture.detectChanges();
+
+    expect(component.awaitingConnectedEvidence()).toBe(true);
+    expect(component.loadError()).toBe('');
+    expect(component.overview()).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Awaiting verified evidence');
+  });
+
   it('opens Operations Center without requiring a scenario overview', () => {
     api.getOverview.mockClear();
     api.getScenarios.mockClear();

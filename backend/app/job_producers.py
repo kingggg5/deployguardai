@@ -6,11 +6,13 @@ from .config import Settings
 from .job_contracts import (
     GITHUB_CHECK_PUBLISH_JOB,
     GitHubCheckPublishPayload,
+    INVITATION_EMAIL_DELIVER_JOB,
+    InvitationEmailDeliverPayload,
     validated_trace_context,
 )
 from .job_models import BackgroundJob
 from .job_queue import enqueue_job
-from .models import ChangeRecord, Repository
+from .models import ChangeRecord, Invitation, Repository
 from .provider_models import ProviderConnection
 
 
@@ -64,5 +66,29 @@ def enqueue_github_check_publication(
         workspace_id=connection.workspace_id,
         request_id=request_id,
         max_attempts=5,
+        commit=commit,
+    )
+
+
+def enqueue_invitation_email_delivery(
+    session: Session,
+    *,
+    invitation: Invitation,
+    request_id: str,
+    commit: bool = False,
+) -> BackgroundJob:
+    """Queue one SMTP invitation delivery without serializing the claim token."""
+
+    contract = InvitationEmailDeliverPayload(invitation_id=invitation.id)
+    return enqueue_job(
+        session,
+        job_type=INVITATION_EMAIL_DELIVER_JOB,
+        payload=contract.model_dump(mode="json"),
+        idempotency_key=f"invitation-email:{invitation.id}",
+        workspace_id=invitation.workspace_id,
+        request_id=request_id,
+        # SMTP has no idempotency key.  Once an attempt reaches the provider,
+        # the handler records an uncertain result instead of retrying blindly.
+        max_attempts=1,
         commit=commit,
     )

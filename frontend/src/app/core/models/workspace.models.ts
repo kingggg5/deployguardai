@@ -65,7 +65,7 @@ export interface InvitationSummary {
 
 export interface InvitationCreated extends InvitationSummary {
   delivery_mode: 'smtp' | 'development_outbox' | 'disabled';
-  delivery_status: 'sent' | 'failed' | 'development_outbox' | 'disabled';
+  delivery_status: 'queued' | 'sent' | 'failed' | 'development_outbox' | 'disabled';
   claim_token?: string;
   accept_path?: string;
 }

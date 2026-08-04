@@ -94,8 +94,9 @@ def assess_production_readiness(
         ),
         _check(
             "email.smtp",
-            settings.email_delivery_mode() == "smtp",
-            "SMTP host/from address must be configured for invitations",
+            settings.email_delivery_mode() == "smtp"
+            and len(settings.invitation_token_secret) >= 32,
+            "SMTP host/from address and a 32+ character invitation token secret are required",
         ),
         _check(
             "telemetry.collector_credential",

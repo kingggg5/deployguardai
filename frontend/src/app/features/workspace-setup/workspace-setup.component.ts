@@ -387,6 +387,8 @@ export class WorkspaceSetupComponent implements OnInit {
           this.notice.set(
             invitation.delivery_status === 'sent'
               ? 'Invitation email sent.'
+              : invitation.delivery_status === 'queued'
+                ? 'Invitation email queued for delivery.'
               : invitation.delivery_status === 'development_outbox'
                 ? 'Invite created in the development outbox — no email was sent.'
                 : 'Invitation was saved, but delivery is not available.'

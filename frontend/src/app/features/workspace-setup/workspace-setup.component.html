@@ -301,7 +301,7 @@
               } @else {
                 <div class="delivery-ticket" [attr.data-state]="invite.delivery_status">
                   <strong>{{ invite.email }}</strong>
-                  <span>{{ invite.delivery_status === 'sent' ? 'Invitation email sent' : 'Invitation saved; email delivery failed' }}</span>
+                  <span>{{ invite.delivery_status === 'queued' ? 'Invitation email queued for delivery' : invite.delivery_status === 'sent' ? 'Invitation email sent' : 'Invitation saved; email delivery failed' }}</span>
                 </div>
               }
             }

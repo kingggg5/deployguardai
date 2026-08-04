@@ -68,6 +68,10 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_from_email: str = ""
     smtp_use_tls: bool = True
+    # A dedicated managed secret lets the worker derive a one-time invitation
+    # claim token from an invitation ID without placing that token in the
+    # durable outbox payload.
+    invitation_token_secret: str = ""
     cors_origins: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: [
             "http://127.0.0.1:4200",
@@ -196,6 +200,10 @@ class Settings(BaseSettings):
             raise ValueError("SMTP configuration is incomplete")
         if production and self.smtp_host.strip() and not self.smtp_use_tls:
             raise ValueError("Production SMTP requires SMTP_USE_TLS=true")
+        if self.smtp_host.strip() and len(self.invitation_token_secret) < 32:
+            raise ValueError(
+                "SMTP delivery requires an INVITATION_TOKEN_SECRET of at least 32 characters"
+            )
         return self
 
     def development_auth_available(self) -> bool:
