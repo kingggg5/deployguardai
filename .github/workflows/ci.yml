@@ -6,6 +6,7 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -35,12 +36,12 @@ jobs:
           --health-retries 5
     steps:
       - name: Check out source
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.12'
           cache: pip
@@ -68,7 +69,17 @@ jobs:
           # command-line behavior.
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'
           POSTGRES_TEST_DATABASE_URL: postgresql+psycopg://deployguard:deployguard-ci-only@localhost:5432/deployguard_ci
-        run: python -m pytest
+        run: >-
+          python -m pytest -p pytest_cov --cov=app --cov-report=term-missing
+          --cov-report=xml:coverage.xml --cov-fail-under=80
+
+      - name: Upload backend coverage
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: deployguard-backend-coverage
+          path: backend/coverage.xml
+          if-no-files-found: warn
 
       - name: Audit Python dependencies
         working-directory: backend
@@ -106,7 +117,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Check out source
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
@@ -123,7 +134,15 @@ jobs:
 
       - name: Run frontend tests
         working-directory: frontend
-        run: npm test -- --watch=false
+        run: npm run test:coverage
+
+      - name: Upload frontend coverage
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: deployguard-frontend-coverage
+          path: frontend/coverage
+          if-no-files-found: warn
 
       - name: Build frontend
         working-directory: frontend
@@ -139,7 +158,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Check out source
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
@@ -173,12 +192,12 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Check out source
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -199,13 +218,53 @@ jobs:
           path: evaluation-results.json
           if-no-files-found: error
 
+  dotnet-spike:
+    name: .NET 10 read-only parity spike
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build read-only spike
+        run: >-
+          dotnet build spikes/dotnet-readonly/DeployGuard.ReadOnlySpike.csproj
+          --configuration Release --nologo
+
+      - name: Verify golden and read-contract parity
+        run: >-
+          dotnet run --project spikes/dotnet-readonly/DeployGuard.ReadOnlySpike.csproj
+          --configuration Release --no-build -- --verify --output dotnet-spike-report.json
+
+      - name: Compare same-workload engine benchmark
+        run: >-
+          python scripts/compare_runtime_benchmarks.py
+          --iterations 1000 --repetitions 3
+          --output runtime-benchmark-comparison.json
+
+      - name: Upload .NET spike evidence
+        uses: actions/upload-artifact@v6
+        with:
+          name: deployguard-dotnet-spike
+          path: |
+            dotnet-spike-report.json
+            runtime-benchmark-comparison.json
+          if-no-files-found: error
+
   containers:
     name: Build application containers
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
       - name: Check out source
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
@@ -216,7 +275,9 @@ jobs:
         run: docker build --tag deployguard-ai-web:ci ./frontend
 
       - name: Start the production-shaped Compose runtime
-        run: docker compose up --detach --build postgres migrate grant-runtime api worker web
+        run: >-
+          docker compose up --build --wait --wait-timeout 180
+          postgres migrate grant-runtime api worker web
 
       - name: Smoke test API, web, worker, and runtime RLS role
         run: |

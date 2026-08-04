@@ -172,6 +172,33 @@ export interface IncidentDetail {
   feedback: IncidentFeedback[];
 }
 
+export interface EvidenceSynthesisStatement {
+  text: string;
+  evidence_ids: string[];
+}
+
+export interface ExplainedHypothesis {
+  hypothesis_id: string;
+  rank: number;
+  explanation: EvidenceSynthesisStatement;
+}
+
+export interface EvidenceSynthesisResponse {
+  incident_id: string;
+  synthesis_mode: 'deterministic_evidence_template';
+  model_used: string;
+  contract_version: string;
+  validator_version: string;
+  evidence_bundle_sha256: string;
+  confidence: number;
+  summary: EvidenceSynthesisStatement[];
+  hypotheses: IncidentHypothesis[];
+  explained_hypotheses: ExplainedHypothesis[];
+  uncertainty: EvidenceSynthesisStatement[];
+  unsupported_claims_count: number;
+  citation_coverage: number;
+}
+
 export interface Overview {
   generated_at: string;
   data_mode: DataMode;

@@ -2,19 +2,26 @@
 backend/.venv/
 __pycache__/
 *.py[cod]
+/.coverage
 backend/*.egg-info/
 backend/.pytest_cache/
 backend/.coverage
 backend/htmlcov/
+backend/coverage.xml
 backend/*.db
 backend/*.db-shm
 backend/*.db-wal
+
+# .NET spike/build artifacts
+**/bin/
+**/obj/
 
 # Angular / Node
 frontend/node_modules/
 frontend/dist/
 frontend/.angular/
 frontend/coverage/
+.angular/
 
 # Runtime
 .runtime/

@@ -34,12 +34,35 @@ Roadmap นี้เรียงตาม dependency และความเส
 | Process metrics baseline | ✅ | Private low-cardinality Prometheus endpoint and request-guard counters; dashboards/alerts remain external |
 | OpenTelemetry tracing/Collector | ✅ | Optional API/worker OTLP tracing, redacting local config และ authenticated production exporter template |
 | Backup, restore and retention helpers | ✅ | Atomic backup, isolated writable restore rehearsal, batched dry-run/apply retention, legal hold และ append-only deletion audit; schedule/storage remain external |
+| Open-source onboarding | ✅ | Connected-mode and isolated synthetic demo quickstarts, English/Thai overview, screenshots, issue forms, and release checklist |
+| Citation-gated evidence explanation | ✅ | Deterministic baseline with versioned contract, evidence-bundle SHA-256, uncertainty, citation validation, audit metadata, and no external provider call |
+| Signed container distribution | ✅ | Tag-driven GHCR API/web images for amd64/arm64 with SBOM and provenance attestations |
 | Incident lifecycle + notes | ✅ | Role-gated transitions, assignee และ append-only notes |
 | In-app notifications | ✅ | Recipient-scoped list/read state |
 | PostgreSQL tenant isolation | ✅ | RLS migration, transaction-local context และ negative CRUD/pool-leakage tests บน PostgreSQL 16 non-owner role |
 | Retention/deletion automation | ⬜ | ไม่มี scheduled policy/job |
 | Native OTLP ingestion pipeline | ⬜ | ต้องมี authenticated Collector/gateway mapping |
-| LLM synthesis | ⏸ | Endpoint เป็น `501`; รอ evidence/security/evaluation gate |
+| External LLM provider | ⏸ | Evidence-only deterministic baseline and citation validator are implemented; external provider activation remains gated on redaction, security, and blind evaluation |
+| Hosted public demo | ⬜ | ต้องมี isolated tenancy, cost limits, abuse protection และข้อมูล synthetic ที่ล้างได้ |
+| GitHub App marketplace distribution | ⬜ | ต้องมี production OAuth/App review, installation UX และ support ownership |
+| .NET 10 read-only parity spike | 🟡 | Golden 9/9, read-contract 5/5 และ read-only RLS probe ผ่าน; full CRUD/worker and operational comparison remain gated |
+| ASP.NET Core backend rewrite | ⏸ | .NET 10 LTS ทำได้ แต่ยังไม่มี evidence ว่า rewrite จะเพิ่มความน่าเชื่อถือหรือความสามารถมากกว่าการพัฒนา FastAPI ต่อ |
+
+## Runtime decision: FastAPI หรือ ASP.NET Core
+
+ASP.NET Core 10 ([.NET support policy](https://dotnet.microsoft.com/platform/support/policy)) เป็นตัวเลือกที่ดีสำหรับองค์กรที่มีมาตรฐาน .NET, ต้องใช้
+integrations ใน ecosystem ของ Microsoft หรือมีทีม C# เป็นหลัก แต่การเปลี่ยน
+runtime ไม่ได้แก้ข้อจำกัดสำคัญของระบบนี้โดยตรง เช่น GitHub App production
+verification, telemetry ingestion, retention automation และ public demo isolation
+
+คำแนะนำปัจจุบันคือรักษา FastAPI เป็น backend หลัก แล้วลงทุนกับ contract,
+security และ operational capabilities ต่อไปก่อน จะไม่ทำ rewrite ข้ามภาษาเพียงเพื่อ
+เปลี่ยน framework. ควรเปิดโครงการ .NET แยกเมื่อมีอย่างน้อยหนึ่งเงื่อนไขต่อไปนี้:
+
+- ผู้ใช้หรือผู้ดูแลระบบต้องการ deploy บนมาตรฐาน .NET อย่างชัดเจน
+- load test บน reference environment แสดง bottleneck ที่แก้ด้วย profiling/cache/DB ไม่ได้
+- มี core contributor ที่จะดูแล C# service และ migration ระยะยาว
+- ต้องการแยก ingestion หรือ enterprise connector เป็น ASP.NET Core service โดยมี API contract เดิมเป็นข้อผูกมัด
 
 ## Foundation ที่ส่งมอบแล้ว
 
@@ -244,9 +267,9 @@ latency/maintainability target
 
 เปิดพิจารณาเมื่อ:
 
-1. evidence-only typed contract มี version
-2. deterministic explanation เป็น baseline
-3. unsupported-claim และ citation validator มี tests
+1. evidence-only typed contract มี version ✅
+2. deterministic explanation เป็น baseline ✅
+3. unsupported-claim และ citation validator มี tests ✅
 4. prompt-injection corpus มี tests
 5. tenant/redaction/retention boundary ผ่าน review
 6. provider region/retention/cost policy ถูกกำหนด

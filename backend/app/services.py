@@ -16,6 +16,10 @@ from .engines import (
     calculate_blast_radius,
     calculate_change_risk,
 )
+from .evidence_synthesis import (
+    CitationValidationError,
+    build_evidence_synthesis,
+)
 from .errors import DomainError
 from .job_producers import enqueue_github_check_publication
 from .models import (
@@ -43,12 +47,13 @@ from .schemas import (
     FeedbackRequest,
     GitHubWebhookResponse,
     IncidentDetail,
-    LLMSynthesisResponse,
+    EvidenceSynthesisResponse,
     Overview,
     OverviewStats,
     ScenarioSummary,
     TelemetryIngestRequest,
 )
+from .workspace_services import audit
 
 
 def _utc(value: datetime | None) -> datetime | None:
@@ -1441,20 +1446,68 @@ def export_incident_postmortem(
     return "\n".join(lines)
 
 
-def synthesize_llm_hypotheses(
-    session: Session, incident_id: str
-) -> LLMSynthesisResponse:
-    incident = session.get(IncidentRecord, incident_id)
-    if incident is None:
-        raise DomainError("Incident not found", "incident_not_found", 404)
+def synthesize_evidence_hypotheses(
+    session: Session,
+    incident_id: str,
+    *,
+    workspace_id: str,
+    actor_user_id: str | None,
+    request_id: str,
+) -> EvidenceSynthesisResponse:
+    """Return a citation-gated explanation without invoking an LLM provider."""
 
-    raise DomainError(
-        (
-            "LLM synthesis is disabled until an evidence-only contract "
-            "and evaluation gate are configured"
-        ),
-        "llm_synthesis_disabled",
-        501,
+    incident = get_incident(session, incident_id, workspace_id)
+    try:
+        synthesis = build_evidence_synthesis(incident)
+    except CitationValidationError as error:
+        raise DomainError(
+            "Incident synthesis requires valid cited evidence and hypotheses",
+            "incident_synthesis_requires_citations",
+            409,
+        ) from error
+
+    audit(
+        session,
+        workspace_id=workspace_id,
+        actor_user_id=actor_user_id,
+        action="incident.synthesis.generated",
+        resource_type="incident",
+        resource_id=incident_id,
+        request_id=request_id,
+        metadata={
+            "synthesis_mode": synthesis.synthesis_mode,
+            "model_used": synthesis.model_used,
+            "contract_version": synthesis.contract_version,
+            "validator_version": synthesis.validator_version,
+            "evidence_bundle_sha256": synthesis.evidence_bundle_sha256,
+            "citation_coverage": synthesis.citation_coverage,
+            "unsupported_claims_count": synthesis.unsupported_claims_count,
+        },
+    )
+    session.commit()
+    return synthesis
+
+
+def synthesize_llm_hypotheses(
+    session: Session,
+    incident_id: str,
+    *,
+    workspace_id: str,
+    actor_user_id: str | None,
+    request_id: str,
+) -> EvidenceSynthesisResponse:
+    """Compatibility alias for the former ``synthesize-llm`` route.
+
+    The response is intentionally deterministic and performs no external model
+    call.  Consumers should migrate to ``synthesize_evidence_hypotheses``.
+    """
+
+    return synthesize_evidence_hypotheses(
+        session,
+        incident_id,
+        workspace_id=workspace_id,
+        actor_user_id=actor_user_id,
+        request_id=request_id,
     )
 
 

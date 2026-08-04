@@ -70,7 +70,13 @@
         "test": {
           "builder": "@angular/build:unit-test",
           "options": {
-            "tsConfig": "tsconfig.spec.json"
+            "tsConfig": "tsconfig.spec.json",
+            "coverageThresholds": {
+              "statements": 55,
+              "branches": 50,
+              "functions": 40,
+              "lines": 60
+            }
           }
         }
       }

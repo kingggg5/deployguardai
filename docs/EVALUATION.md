@@ -39,6 +39,32 @@ groundedness score. CI uploads the JSON artifact for review. This is a five-case
 synthetic regression baseline, not a claim about public or production incident
 accuracy.
 
+## .NET 10 read-only migration spike
+
+The isolated [`spikes/dotnet-readonly`](../spikes/dotnet-readonly/README.md)
+project ports the three deterministic engines and a small read-only contract
+slice. It consumes the same golden corpus and representative response fixtures;
+it cannot write to DeployGuard or become a production authority.
+
+The current local comparison produced the following median over three
+independent runs (3,000 batches per run, nine cases per batch):
+
+| Gate | Result | Interpretation |
+| --- | ---: | --- |
+| Golden corpus parity | 9/9 | Canonical output hashes match Python 100% |
+| Representative OpenAPI/read responses | 5/5 | The selected read-only slice matches the captured v1 fixtures |
+| PostgreSQL RLS probe | Pass | Non-owner role, active RLS, and fail-closed unscoped reads matched the Python baseline (A=1, B=1) |
+| Engine p95 | Python 204.2µs / .NET 305.1µs | .NET was 1.49× slower in this local engine-only sample |
+
+The performance row is a reproducible local sample, not a capacity claim. It
+measures only in-process engine work and excludes HTTP, PostgreSQL, worker
+leases, provider calls, and container startup. Since no operational benefit has
+been measured yet, the spike does not justify a production rewrite. The RLS
+result is a read-only posture probe against an ephemeral local PostgreSQL
+cluster; it does not prove full CRUD, auth, worker, or failure-injection parity.
+The next gate is a reference PostgreSQL/worker workload with fault injection and
+an operational cost/SLO comparison.
+
 ## Deterministic verification foundations
 
 The versioned `scripts/evaluation/golden-corpus-v1.json` freezes ordinary and
@@ -194,6 +220,13 @@ MVP deterministic weighted score ต้องแข่งกับ baseline ท�
 
 ถ้า LLM ไม่ดีกว่า template ใน groundedness/usability อย่างมีนัยสำคัญ ให้คง template เป็น default
 
+The implemented baseline is tested as a contract, not as a semantic quality
+claim: it must cite only evidence in the incident bundle, preserve the exact
+bundle SHA-256, keep hypothesis ranks and references consistent, report zero
+unsupported claims, and reject invalid/missing citations with HTTP `409`.
+External-model quality remains unmeasured until the AI-boundary evaluation gate
+is completed.
+
 ## Metrics
 
 ### Determinism and contract
@@ -256,6 +289,7 @@ Accuracy ไม่เหมาะกับ class imbalance และห้าม
 | BFS decay และ cycle handling | Automated engine test | ✅ ผ่าน |
 | RCA จำกัด Top 3 และลงโทษ counter-evidence | Automated engine test | ✅ ผ่าน |
 | Feedback persist และอัปเดต hypothesis status | API + frontend tests | ✅ ผ่าน |
+| Evidence explanation contract and citation validator | Every returned statement cited; invalid citation rejected | ✅ automated contract/API tests |
 | Expected synthetic graph nodes/edges ทั้งชุด | 100% | ยังไม่มี aggregate benchmark artifact |
 | Root cause อยู่ Top 3 ใน synthetic v2 suite | ≥ 90% | 100% across 5 synthetic cases; Top-1 80%, MRR 0.9 |
 | Critical unsupported claims | 0 | Not measured |

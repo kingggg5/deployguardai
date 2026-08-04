@@ -304,6 +304,23 @@ Goal: determine whether a migration improves the verified system.
 The spike is read-only against copied/synthetic data and cannot become a second
 production authority.
 
+Progress on 2026-08-03:
+
+- Added `spikes/dotnet-readonly`, an ASP.NET Core 10 read-only vertical slice.
+- Ported the deterministic risk, blast-radius, and RCA engines with canonical
+  output hashing against the shared golden corpus.
+- Local result: golden parity 9/9 and representative read-contract parity 5/5.
+- Added same-workload Python/.NET engine benchmarking with three independent
+  samples. The current median is Python p95 204.2µs versus .NET p95 305.1µs
+  (1.49x slower), so there is no performance benefit to claim yet.
+- Ran the optional Npgsql read-only RLS posture probe against an ephemeral
+  UTF-8 PostgreSQL 16 cluster: non-owner posture, active RLS, and fail-closed
+  unscoped reads passed for two workspaces.
+
+The full migration gate is intentionally still closed: the spike has no
+authentication, provider ingress, writes, worker side effects, full CRUD/RLS
+failure-injection parity, or measured operational benefit.
+
 Deliver:
 
 - ASP.NET Core 10 modular API shell using Minimal APIs unless a required MVC

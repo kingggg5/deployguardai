@@ -15,7 +15,7 @@ from .schemas import (
     HealthResponse,
     LivenessResponse,
     IncidentDetail,
-    LLMSynthesisResponse,
+    EvidenceSynthesisResponse,
     Overview,
     ScenarioSummary,
     TelemetryIngestRequest,
@@ -36,6 +36,7 @@ from .services import (
     process_github_webhook,
     reset_database,
     submit_feedback,
+    synthesize_evidence_hypotheses,
     synthesize_llm_hypotheses,
 )
 from .tenant import (
@@ -44,6 +45,7 @@ from .tenant import (
     get_legacy_scope,
     require_responder_scope,
 )
+from .workspace_api import request_id
 
 
 router = APIRouter(prefix="/api/v1")
@@ -318,14 +320,43 @@ def incident(
     return get_incident(session, incident_id, scope.workspace_id)
 
 
-@router.post("/incidents/{incident_id}/synthesize-llm", response_model=LLMSynthesisResponse)
-def incident_synthesize_llm(
+@router.post(
+    "/incidents/{incident_id}/synthesize",
+    response_model=EvidenceSynthesisResponse,
+)
+def incident_synthesize(
     incident_id: str,
+    request: Request,
     session: Session = Depends(get_session),
     scope: TenantScope = Depends(get_legacy_scope),
-) -> LLMSynthesisResponse:
-    get_incident(session, incident_id, scope.workspace_id)
-    return synthesize_llm_hypotheses(session, incident_id)
+) -> EvidenceSynthesisResponse:
+    return synthesize_evidence_hypotheses(
+        session,
+        incident_id,
+        workspace_id=scope.workspace_id,
+        actor_user_id=scope.user.id,
+        request_id=request_id(request),
+    )
+
+
+@router.post(
+    "/incidents/{incident_id}/synthesize-llm",
+    response_model=EvidenceSynthesisResponse,
+    deprecated=True,
+)
+def incident_synthesize_llm(
+    incident_id: str,
+    request: Request,
+    session: Session = Depends(get_session),
+    scope: TenantScope = Depends(get_legacy_scope),
+) -> EvidenceSynthesisResponse:
+    return synthesize_llm_hypotheses(
+        session,
+        incident_id,
+        workspace_id=scope.workspace_id,
+        actor_user_id=scope.user.id,
+        request_id=request_id(request),
+    )
 
 
 @router.get("/incidents/{incident_id}/export-markdown")

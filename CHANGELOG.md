@@ -7,6 +7,31 @@ release notes from `main` and will use semantic versioning for tagged releases.
 
 ### Added
 
+- Citation-gated deterministic incident explanations with a versioned evidence
+  contract, evidence-bundle hash, uncertainty, validation, and audit metadata.
+- Cross-platform local development commands, a `make demo` entry point, and CI
+  coverage reports/floors for backend and frontend suites.
+- An explicit AI-boundary document, public-preview release-note draft, and a
+  maintainer launch checklist with a real contributor backlog.
+- Three-minute connected and isolated demo quickstarts, a polished English/Thai
+  project overview, and a real dashboard screenshot for repository discovery.
+- A tag-driven GHCR release workflow that reuses CI, publishes signed
+  `linux/amd64` and `linux/arm64` API/web images, and records SBOM/provenance
+  attestations.
+- A release checklist covering version tags, image digests, evaluation evidence,
+  restore rehearsal, and rollback.
+- An issue form for configuration and operations questions, with explicit
+  secret-redaction guidance.
+- An explicit Angular Router peer dependency and a Dependabot guard that keeps
+  TypeScript major upgrades out of the Angular 22 toolchain queue.
+- Current GitHub Actions and CodeQL/Scorecard runners, plus the latest Nginx
+  Alpine base image for the web container, with exact Node/Python/Nginx patch
+  tags for reproducible container builds.
+- An isolated .NET 10 read-only spike with 100% golden-engine parity,
+  representative GET contract checks, and a read-only PostgreSQL RLS posture
+  probe. Three same-workload samples measured a 1.49x .NET p95 latency versus
+  Python, so there is no performance-led migration claim. It is not a
+  production authority and does not change the FastAPI runtime.
 - Apache-2.0 open-source foundation with contribution, governance, support, and security policies.
 - GitHub issue forms, pull request checklist, CODEOWNERS, Dependabot, CI, CodeQL, dependency review, and OpenSSF Scorecard workflows.
 - Request IDs, structured access logs, request body limits, bounded ingress rate limits, and separate liveness/readiness probes.

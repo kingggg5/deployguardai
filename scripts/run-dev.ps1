@@ -14,6 +14,33 @@ $angularCli = Join-Path $frontendRoot 'node_modules\@angular\cli\bin\ng.js'
 
 New-Item -ItemType Directory -Path $runtimeRoot -Force | Out-Null
 
+foreach ($name in @('backend', 'worker', 'frontend')) {
+    $pidPath = Join-Path $runtimeRoot "$name.pid"
+    if (-not (Test-Path -LiteralPath $pidPath)) {
+        continue
+    }
+
+    $pidText = (Get-Content -LiteralPath $pidPath -Raw).Trim()
+    if ($pidText -match '^[1-9]\d*$') {
+        $existingProcess = Get-CimInstance Win32_Process -Filter "ProcessId = $pidText" -ErrorAction SilentlyContinue
+        if ($null -ne $existingProcess -and $existingProcess.CommandLine -like "*$projectRoot*") {
+            throw "DeployGuard $name is already running (PID $pidText). Run scripts/stop-dev.ps1 first."
+        }
+    }
+
+    Remove-Item -LiteralPath $pidPath -Force
+}
+
+# Keep the source helper in connected mode even when an older backend-local
+# SQLite database contains synthetic records. Operators may supply DATABASE_URL
+# for an intentionally chosen local PostgreSQL/SQLite database; the helper
+# never enables synthetic seeding.
+if ([string]::IsNullOrWhiteSpace($env:DATABASE_URL)) {
+    $localDatabasePath = (Join-Path $runtimeRoot 'connected-local.db').Replace('\', '/')
+    $env:DATABASE_URL = "sqlite:///$localDatabasePath"
+}
+$env:SEED_SYNTHETIC_DATA = 'false'
+
 if (-not (Test-Path -LiteralPath $pythonExe)) {
     python -m venv $venvRoot
 }
@@ -89,5 +116,6 @@ Set-Content -LiteralPath (Join-Path $runtimeRoot 'frontend.pid') -Value $fronten
 
 Write-Output "DeployGuard API: http://127.0.0.1:8100/docs"
 Write-Output "DeployGuard UI:  http://127.0.0.1:4300"
+Write-Output "Mode:            connected (synthetic seeding disabled)"
 Write-Output "Worker:          PID $($workerProcess.Id)"
 Write-Output "Logs:            $runtimeRoot"
