@@ -5,6 +5,7 @@ import {
   AnalyzeChangeRequest,
   ChangeDetail,
   DoraMetrics,
+  EvidenceSynthesisResponse,
   FeedbackRequest,
   HealthResponse,
   IncidentDetail,
@@ -58,6 +59,13 @@ export class DeployGuardApiService {
   getIncident(incidentId: string): Observable<IncidentDetail> {
     return this.http.get<IncidentDetail>(
       `${this.apiBase}/incidents/${encodeURIComponent(incidentId)}`
+    );
+  }
+
+  synthesizeIncident(incidentId: string): Observable<EvidenceSynthesisResponse> {
+    return this.http.post<EvidenceSynthesisResponse>(
+      `${this.apiBase}/incidents/${encodeURIComponent(incidentId)}/synthesize`,
+      {}
     );
   }
 

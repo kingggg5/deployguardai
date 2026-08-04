@@ -38,7 +38,9 @@ telemetry source จึงต้องถือ external content ทุกชน
 - OpenTelemetry API/worker traces ผ่าน Collector config ที่ redact sensitive fields
 - atomic backup, read-only validation, isolated writable restore rehearsal และ
   retention legal-hold/deletion-audit helpers
-- LLM runtime ไม่มี และ reserved endpoint คืน `501`
+- Citation-gated deterministic evidence synthesis is available. It has no model
+  provider, SDK, outbound request, prompt, or tool access; every emitted
+  statement is validated against the incident's evidence IDs before response.
 
 ### Controls ที่ยังขาดหรือขึ้นกับ deployment
 
@@ -272,6 +274,16 @@ deletion audit และ tests จริง Workspace deletion, uninstall cleanu
 และ backup expiry ยังต้องออกแบบ
 
 ## LLM boundary
+
+The repository ships an evidence-only deterministic baseline, not an external
+LLM integration. `POST /incidents/{incident_id}/synthesize` is tenant-scoped,
+returns a SHA-256 evidence-bundle digest and versioned contract metadata, and
+records only those safe metadata fields in the audit log. A response with an
+empty, unknown, or hypothesis-unrelated citation is rejected. The deprecated
+`/synthesize-llm` route is a compatibility alias for the same baseline; it does
+not invoke a model.
+
+See [AI_BOUNDARY.md](AI_BOUNDARY.md) for the external-provider activation gate.
 
 LLM ไม่ได้ implement หากเพิ่มในอนาคตต้องผ่านเงื่อนไข:
 

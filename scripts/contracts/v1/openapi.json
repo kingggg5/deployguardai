@@ -1022,6 +1022,164 @@
         "title": "Evidence",
         "type": "object"
       },
+      "EvidenceCitedStatement": {
+        "additionalProperties": false,
+        "description": "A statement that can be traced to one or more incident evidence IDs.",
+        "properties": {
+          "evidence_ids": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "text": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "evidence_ids"
+        ],
+        "title": "EvidenceCitedStatement",
+        "type": "object"
+      },
+      "EvidenceSynthesisHypothesis": {
+        "additionalProperties": false,
+        "properties": {
+          "explanation": {
+            "$ref": "#/components/schemas/EvidenceCitedStatement"
+          },
+          "hypothesis_id": {
+            "title": "Hypothesis Id",
+            "type": "string"
+          },
+          "rank": {
+            "minimum": 1.0,
+            "title": "Rank",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "hypothesis_id",
+          "rank",
+          "explanation"
+        ],
+        "title": "EvidenceSynthesisHypothesis",
+        "type": "object"
+      },
+      "EvidenceSynthesisResponse": {
+        "additionalProperties": false,
+        "description": "Citation-gated explanation generated without an external model call.",
+        "properties": {
+          "citation_coverage": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Citation Coverage",
+            "type": "number"
+          },
+          "confidence": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "contract_version": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "evidence_bundle_sha256": {
+            "maxLength": 64,
+            "minLength": 64,
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Evidence Bundle Sha256",
+            "type": "string"
+          },
+          "explained_hypotheses": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceSynthesisHypothesis"
+            },
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Explained Hypotheses",
+            "type": "array"
+          },
+          "hypotheses": {
+            "items": {
+              "$ref": "#/components/schemas/Hypothesis"
+            },
+            "title": "Hypotheses",
+            "type": "array"
+          },
+          "incident_id": {
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "model_used": {
+            "title": "Model Used",
+            "type": "string"
+          },
+          "summary": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceCitedStatement"
+            },
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Summary",
+            "type": "array"
+          },
+          "synthesis_mode": {
+            "const": "deterministic_evidence_template",
+            "title": "Synthesis Mode",
+            "type": "string"
+          },
+          "uncertainty": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceCitedStatement"
+            },
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Uncertainty",
+            "type": "array"
+          },
+          "unsupported_claims_count": {
+            "minimum": 0.0,
+            "title": "Unsupported Claims Count",
+            "type": "integer"
+          },
+          "validator_version": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Validator Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "incident_id",
+          "synthesis_mode",
+          "model_used",
+          "contract_version",
+          "validator_version",
+          "evidence_bundle_sha256",
+          "confidence",
+          "summary",
+          "hypotheses",
+          "explained_hypotheses",
+          "uncertainty",
+          "unsupported_claims_count",
+          "citation_coverage"
+        ],
+        "title": "EvidenceSynthesisResponse",
+        "type": "object"
+      },
       "Feedback": {
         "additionalProperties": false,
         "properties": {
@@ -2006,53 +2164,6 @@
           "expires_at"
         ],
         "title": "InvitationSummary",
-        "type": "object"
-      },
-      "LLMSynthesisResponse": {
-        "additionalProperties": false,
-        "properties": {
-          "citation_coverage": {
-            "maximum": 1.0,
-            "minimum": 0.0,
-            "title": "Citation Coverage",
-            "type": "number"
-          },
-          "confidence": {
-            "maximum": 1.0,
-            "minimum": 0.0,
-            "title": "Confidence",
-            "type": "number"
-          },
-          "hypotheses": {
-            "items": {
-              "$ref": "#/components/schemas/Hypothesis"
-            },
-            "title": "Hypotheses",
-            "type": "array"
-          },
-          "incident_id": {
-            "title": "Incident Id",
-            "type": "string"
-          },
-          "model_used": {
-            "title": "Model Used",
-            "type": "string"
-          },
-          "unsupported_claims_count": {
-            "minimum": 0.0,
-            "title": "Unsupported Claims Count",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "incident_id",
-          "model_used",
-          "confidence",
-          "hypotheses",
-          "unsupported_claims_count",
-          "citation_coverage"
-        ],
-        "title": "LLMSynthesisResponse",
         "type": "object"
       },
       "LivenessResponse": {
@@ -4330,8 +4441,53 @@
         "summary": "Incident Note Create"
       }
     },
+    "/api/v1/incidents/{incident_id}/synthesize": {
+      "post": {
+        "operationId": "incident_synthesize_api_v1_incidents__incident_id__synthesize_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "title": "Incident Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidenceSynthesisResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Incident Synthesize"
+      }
+    },
     "/api/v1/incidents/{incident_id}/synthesize-llm": {
       "post": {
+        "deprecated": true,
         "operationId": "incident_synthesize_llm_api_v1_incidents__incident_id__synthesize_llm_post",
         "parameters": [
           {
@@ -4349,7 +4505,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/LLMSynthesisResponse"
+                  "$ref": "#/components/schemas/EvidenceSynthesisResponse"
                 }
               }
             },

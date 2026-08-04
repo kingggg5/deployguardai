@@ -11,7 +11,9 @@ This guide has two paths:
 
 - Docker Engine and Compose v2 (recommended), or Docker Desktop
 - Git
-- For the source workflow: Python 3.12+, Node.js 24+, npm, and PowerShell 7
+- For the source workflow: Python 3.12+, Node.js 24+, and npm
+- PowerShell 7 on Windows, or Bash on macOS/Linux. GNU Make is optional on
+  macOS/Linux for the short commands below.
 
 ## Connected mode with Compose
 
@@ -55,7 +57,15 @@ docker compose -p deployguard-demo `
 The UI labels synthetic scenarios. Do not use demo output as operational
 evidence, a benchmark claim, or a production migration rehearsal.
 
+On macOS/Linux with GNU Make installed, the same isolated demo is available as:
+
+```bash
+make demo
+```
+
 ## Source development workflow
+
+### Windows PowerShell
 
 ```powershell
 git clone https://github.com/kingggg5/deployguardai.git
@@ -64,7 +74,40 @@ cd deployguardai
 ```
 
 Use `-SkipInstall` on later starts. Stop the local API and web processes with
-`.\scripts\stop-dev.ps1`. Run the test suites independently when iterating:
+`.\scripts\stop-dev.ps1`.
+
+### macOS and Linux
+
+```bash
+git clone https://github.com/kingggg5/deployguardai.git
+cd deployguardai
+chmod +x scripts/run-dev.sh scripts/stop-dev.sh
+./scripts/run-dev.sh
+```
+
+Use `./scripts/run-dev.sh --skip-install` on later starts. Stop only the
+processes started by that helper with `./scripts/stop-dev.sh`. Set
+`PYTHON_BIN=python` before the command if your Python 3.12 executable is named
+`python` instead of `python3`.
+
+Both source helpers explicitly disable synthetic seeding. Unless you provide a
+`DATABASE_URL`, they use `.runtime/connected-local.db` so an older
+`backend/deployguard.db` fixture cannot appear in a connected workspace.
+
+### Make shortcuts (macOS/Linux)
+
+```bash
+make install
+make dev
+make test
+make coverage
+make stop
+```
+
+`make demo` starts the same isolated synthetic Compose project; `make demo-down`
+stops it without removing its database volume.
+
+Run the test suites independently when iterating:
 
 ```powershell
 Push-Location backend
@@ -74,9 +117,15 @@ Pop-Location
 Push-Location frontend
 npm ci
 npm test -- --watch=false
+npm run test:coverage
 npm run build
 Pop-Location
 ```
+
+The backend coverage command is `python -m pytest -p pytest_cov --cov=app
+--cov-report=term-missing --cov-fail-under=80`. Angular coverage is reported
+under `frontend/coverage/`. The CI workflow keeps those reports as artifacts
+and fails only when the documented baseline thresholds regress.
 
 ## Cleanup
 

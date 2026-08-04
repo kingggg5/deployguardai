@@ -220,6 +220,13 @@ MVP deterministic weighted score ต้องแข่งกับ baseline ท�
 
 ถ้า LLM ไม่ดีกว่า template ใน groundedness/usability อย่างมีนัยสำคัญ ให้คง template เป็น default
 
+The implemented baseline is tested as a contract, not as a semantic quality
+claim: it must cite only evidence in the incident bundle, preserve the exact
+bundle SHA-256, keep hypothesis ranks and references consistent, report zero
+unsupported claims, and reject invalid/missing citations with HTTP `409`.
+External-model quality remains unmeasured until the AI-boundary evaluation gate
+is completed.
+
 ## Metrics
 
 ### Determinism and contract
@@ -282,6 +289,7 @@ Accuracy ไม่เหมาะกับ class imbalance และห้าม
 | BFS decay และ cycle handling | Automated engine test | ✅ ผ่าน |
 | RCA จำกัด Top 3 และลงโทษ counter-evidence | Automated engine test | ✅ ผ่าน |
 | Feedback persist และอัปเดต hypothesis status | API + frontend tests | ✅ ผ่าน |
+| Evidence explanation contract and citation validator | Every returned statement cited; invalid citation rejected | ✅ automated contract/API tests |
 | Expected synthetic graph nodes/edges ทั้งชุด | 100% | ยังไม่มี aggregate benchmark artifact |
 | Root cause อยู่ Top 3 ใน synthetic v2 suite | ≥ 90% | 100% across 5 synthetic cases; Top-1 80%, MRR 0.9 |
 | Critical unsupported claims | 0 | Not measured |

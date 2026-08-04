@@ -499,6 +499,76 @@ FORM: GitHub/Primer-inspired repository workspace; interaction grammar is famili
               </footer>
             </section>
 
+            <section class="instrument-panel synthesis-panel" aria-labelledby="evidence-explanation-title">
+              <header class="panel-heading synthesis-heading">
+                <div>
+                  <p class="system-kicker">{{ t('citation_gated') }}</p>
+                  <h2 id="evidence-explanation-title">{{ t('evidence_explanation_title') }}</h2>
+                </div>
+                <button
+                  type="button"
+                  class="button button--primary"
+                  [disabled]="isSynthesizing()"
+                  (click)="generateEvidenceSynthesis()"
+                >{{ isSynthesizing() ? t('generating_evidence_explanation') : t('generate_evidence_explanation') }}</button>
+              </header>
+
+              <p class="synthesis-disclosure">{{ t('evidence_explanation_disclosure') }}</p>
+
+              @if (evidenceSynthesisError()) {
+                <div class="notice notice--error" role="alert">{{ evidenceSynthesisError() }}</div>
+              }
+
+              @if (evidenceSynthesis(); as synthesis) {
+                <div class="synthesis-ledger">
+                  <div class="synthesis-meta">
+                    <span>{{ synthesis.contract_version }} · {{ synthesis.validator_version }}</span>
+                    <span>{{ synthesis.citation_coverage | percent:'1.0-0' }} {{ t('citation_coverage') }}</span>
+                    <code title="Evidence bundle SHA-256">{{ synthesis.evidence_bundle_sha256 }}</code>
+                  </div>
+
+                  <section class="synthesis-section" aria-labelledby="synthesis-summary-title">
+                    <h3 id="synthesis-summary-title">{{ t('evidence_summary') }}</h3>
+                    @for (statement of synthesis.summary; track statement.text) {
+                      <p>{{ statement.text }}</p>
+                      <div class="citation-list" [attr.aria-label]="t('evidence_refs')">
+                        @for (evidenceId of statement.evidence_ids; track evidenceId) {
+                          <code>{{ evidenceId }}</code>
+                        }
+                      </div>
+                    }
+                  </section>
+
+                  <section class="synthesis-section" aria-labelledby="synthesis-hypotheses-title">
+                    <h3 id="synthesis-hypotheses-title">{{ t('explained_hypotheses') }}</h3>
+                    @for (item of synthesis.explained_hypotheses; track item.hypothesis_id) {
+                      <article class="synthesis-statement">
+                        <strong>#{{ item.rank }} · {{ item.hypothesis_id }}</strong>
+                        <p>{{ item.explanation.text }}</p>
+                        <div class="citation-list" [attr.aria-label]="t('evidence_refs')">
+                          @for (evidenceId of item.explanation.evidence_ids; track evidenceId) {
+                            <code>{{ evidenceId }}</code>
+                          }
+                        </div>
+                      </article>
+                    }
+                  </section>
+
+                  <section class="synthesis-section" aria-labelledby="synthesis-uncertainty-title">
+                    <h3 id="synthesis-uncertainty-title">{{ t('remaining_uncertainty') }}</h3>
+                    @for (statement of synthesis.uncertainty; track statement.text) {
+                      <p>{{ statement.text }}</p>
+                      <div class="citation-list" [attr.aria-label]="t('evidence_refs')">
+                        @for (evidenceId of statement.evidence_ids; track evidenceId) {
+                          <code>{{ evidenceId }}</code>
+                        }
+                      </div>
+                    }
+                  </section>
+                </div>
+              }
+            </section>
+
             <div class="closing-loop">
               <section class="instrument-panel hypotheses-panel">
                 <header class="panel-heading">

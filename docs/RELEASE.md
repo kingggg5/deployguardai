@@ -9,7 +9,9 @@ backup storage, and on-call ownership remain environment responsibilities.
 
 1. Update `CHANGELOG.md` with user-visible changes and known limitations.
 2. Confirm the version in `frontend/package.json`, `backend/pyproject.toml`,
-   and the release notes agree.
+   and the release notes agree. Start from the
+   [`v0.1.0` public-preview draft](release-notes/v0.1.0.md) for the first
+   release and replace all placeholders with verified CI evidence.
 3. Run the fail-closed readiness check for the target environment:
 
    ```powershell

@@ -15,7 +15,11 @@ from app.engines import (
     RISK_SCORING_POLICY_VERSION,
 )
 from app.main import create_app
-from app.models import LEGACY_REPOSITORY_ID, LEGACY_WORKSPACE_ID
+from app.models import (
+    AuditEvent,
+    LEGACY_REPOSITORY_ID,
+    LEGACY_WORKSPACE_ID,
+)
 
 
 ANALYZE_PAYLOAD = {
@@ -302,9 +306,48 @@ def test_dora_metrics_webhook_telemetry_llm(client: TestClient) -> None:
     assert telemetry.status_code == 201
     assert telemetry.json()["status"] == "ok"
 
-    llm = client.post("/api/v1/incidents/inc-checkout-latency/synthesize-llm")
-    assert llm.status_code == 501
-    assert llm.json()["code"] == "llm_synthesis_disabled"
+    incident = client.get("/api/v1/incidents/inc-checkout-latency")
+    assert incident.status_code == 200
+    synthesis = client.post("/api/v1/incidents/inc-checkout-latency/synthesize")
+    assert synthesis.status_code == 200
+    synthesis_payload = synthesis.json()
+    assert synthesis_payload["synthesis_mode"] == "deterministic_evidence_template"
+    assert synthesis_payload["model_used"] == "deterministic-evidence-template-v1"
+    assert synthesis_payload["citation_coverage"] == 1.0
+    assert synthesis_payload["unsupported_claims_count"] == 0
+    evidence_ids = {item["id"] for item in incident.json()["evidence"]}
+    for statement in [
+        *synthesis_payload["summary"],
+        *synthesis_payload["uncertainty"],
+    ]:
+        assert set(statement["evidence_ids"]) <= evidence_ids
+    for hypothesis in synthesis_payload["explained_hypotheses"]:
+        assert set(hypothesis["explanation"]["evidence_ids"]) <= evidence_ids
+
+    legacy_synthesis = client.post(
+        "/api/v1/incidents/inc-checkout-latency/synthesize-llm"
+    )
+    assert legacy_synthesis.status_code == 200
+    assert legacy_synthesis.json()["evidence_bundle_sha256"] == (
+        synthesis_payload["evidence_bundle_sha256"]
+    )
+    session = client.app.state.database.session_factory()
+    try:
+        synthesis_audits = [
+            event
+            for event in session.query(AuditEvent)
+            .filter(AuditEvent.action == "incident.synthesis.generated")
+            .all()
+            if event.resource_id == "inc-checkout-latency"
+        ]
+    finally:
+        session.close()
+    assert len(synthesis_audits) == 2
+    assert all(
+        event.event_metadata["evidence_bundle_sha256"]
+        == synthesis_payload["evidence_bundle_sha256"]
+        for event in synthesis_audits
+    )
 
     export_md = client.get("/api/v1/incidents/inc-checkout-latency/export-markdown")
     assert export_md.status_code == 200

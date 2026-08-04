@@ -69,7 +69,17 @@ jobs:
           # command-line behavior.
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'
           POSTGRES_TEST_DATABASE_URL: postgresql+psycopg://deployguard:deployguard-ci-only@localhost:5432/deployguard_ci
-        run: python -m pytest
+        run: >-
+          python -m pytest -p pytest_cov --cov=app --cov-report=term-missing
+          --cov-report=xml:coverage.xml --cov-fail-under=80
+
+      - name: Upload backend coverage
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: deployguard-backend-coverage
+          path: backend/coverage.xml
+          if-no-files-found: warn
 
       - name: Audit Python dependencies
         working-directory: backend
@@ -124,7 +134,15 @@ jobs:
 
       - name: Run frontend tests
         working-directory: frontend
-        run: npm test -- --watch=false
+        run: npm run test:coverage
+
+      - name: Upload frontend coverage
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: deployguard-frontend-coverage
+          path: frontend/coverage
+          if-no-files-found: warn
 
       - name: Build frontend
         working-directory: frontend

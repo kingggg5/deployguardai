@@ -7,6 +7,12 @@ release notes from `main` and will use semantic versioning for tagged releases.
 
 ### Added
 
+- Citation-gated deterministic incident explanations with a versioned evidence
+  contract, evidence-bundle hash, uncertainty, validation, and audit metadata.
+- Cross-platform local development commands, a `make demo` entry point, and CI
+  coverage reports/floors for backend and frontend suites.
+- An explicit AI-boundary document, public-preview release-note draft, and a
+  maintainer launch checklist with a real contributor backlog.
 - Three-minute connected and isolated demo quickstarts, a polished English/Thai
   project overview, and a real dashboard screenshot for repository discovery.
 - A tag-driven GHCR release workflow that reuses CI, publishes signed

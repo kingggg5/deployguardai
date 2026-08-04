@@ -259,13 +259,55 @@ class TelemetryIngestRequest(APIModel):
     contradicts_hypothesis_ids: list[str] = Field(default_factory=list)
 
 
-class LLMSynthesisResponse(APIModel):
+class EvidenceCitedStatement(APIModel):
+    """A statement that can be traced to one or more incident evidence IDs."""
+
+    text: NonEmptyString = Field(max_length=2_000)
+    evidence_ids: list[NonEmptyString] = Field(min_length=1, max_length=20)
+
+    @field_validator("evidence_ids")
+    @classmethod
+    def unique_evidence_ids(cls, value: list[str]) -> list[str]:
+        return list(dict.fromkeys(value))
+
+
+class EvidenceSynthesisHypothesis(APIModel):
+    hypothesis_id: str
+    rank: int = Field(ge=1)
+    explanation: EvidenceCitedStatement
+
+
+class EvidenceSynthesisResponse(APIModel):
+    """Citation-gated explanation generated without an external model call."""
+
     incident_id: str
+    synthesis_mode: Literal["deterministic_evidence_template"]
     model_used: str
+    contract_version: VersionIdentifier
+    validator_version: VersionIdentifier
+    evidence_bundle_sha256: str = Field(
+        min_length=64,
+        max_length=64,
+        pattern=r"^[0-9a-f]{64}$",
+    )
     confidence: float = Field(ge=0, le=1)
+    summary: list[EvidenceCitedStatement] = Field(min_length=1, max_length=10)
     hypotheses: list[Hypothesis]
+    explained_hypotheses: list[EvidenceSynthesisHypothesis] = Field(
+        min_length=1,
+        max_length=10,
+    )
+    uncertainty: list[EvidenceCitedStatement] = Field(
+        min_length=1,
+        max_length=10,
+    )
     unsupported_claims_count: int = Field(ge=0)
     citation_coverage: float = Field(ge=0, le=1)
+
+
+# Compatibility import for clients that adopted the former reserved endpoint
+# response type before the evidence-only synthesis baseline was available.
+LLMSynthesisResponse = EvidenceSynthesisResponse
 
 
 WorkspaceRole = Literal["viewer", "responder", "admin", "owner"]

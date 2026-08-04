@@ -31,6 +31,7 @@ import {
   BlastRadiusNode,
   ChangeDetail,
   DoraMetrics,
+  EvidenceSynthesisResponse,
   FeedbackVerdict,
   IncidentEvidence,
   IncidentHypothesis,
@@ -143,6 +144,10 @@ export class App implements OnInit, OnDestroy {
   readonly feedbackError = signal('');
   readonly feedbackSuccess = signal('');
   readonly isSubmittingFeedback = signal(false);
+
+  readonly evidenceSynthesis = signal<EvidenceSynthesisResponse | null>(null);
+  readonly evidenceSynthesisError = signal('');
+  readonly isSynthesizing = signal(false);
 
   readonly replayIndex = signal(-1);
   readonly isReplaying = signal(false);
@@ -518,6 +523,28 @@ export class App implements OnInit, OnDestroy {
         error: (error: unknown) => {
           this.feedbackError.set(
             this.errorMessage(error, this.t('error_feedback_submit'))
+          );
+        }
+      });
+  }
+
+  generateEvidenceSynthesis(): void {
+    const incident = this.activeIncident();
+    if (!incident || this.isSynthesizing()) return;
+
+    this.isSynthesizing.set(true);
+    this.evidenceSynthesisError.set('');
+    this.api
+      .synthesizeIncident(incident.id)
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.isSynthesizing.set(false))
+      )
+      .subscribe({
+        next: (synthesis) => this.evidenceSynthesis.set(synthesis),
+        error: (error: unknown) => {
+          this.evidenceSynthesisError.set(
+            this.errorMessage(error, this.t('error_evidence_explanation'))
           );
         }
       });
@@ -904,6 +931,8 @@ export class App implements OnInit, OnDestroy {
     this.feedbackNote.set('');
     this.feedbackError.set('');
     this.exportSuccess.set('');
+    this.evidenceSynthesis.set(null);
+    this.evidenceSynthesisError.set('');
   }
 
   private buildTopologyPoints(): Map<string, TopologyPoint> {

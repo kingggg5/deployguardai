@@ -64,6 +64,17 @@ describe('DeployGuardApiService', () => {
     request.flush(makeOverview().active_incident!);
   });
 
+  it('requests an evidence synthesis with an encoded incident id', () => {
+    service.synthesizeIncident('inc/checkout').subscribe();
+
+    const request = http.expectOne(
+      '/test-api/v1/incidents/inc%2Fcheckout/synthesize'
+    );
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({});
+    request.flush({});
+  });
+
   it('fetches an immutable change by encoded id', () => {
     service.getChange('change/checkout').subscribe();
 

@@ -1,6 +1,7 @@
 # DeployGuard AI
 
-Evidence-first change-risk analysis and incident investigation for platform and reliability teams.
+Understand deployment risk before production. Investigate incidents with
+traceable evidence instead of guesses.
 
 [![CI](https://github.com/kingggg5/deployguardai/actions/workflows/ci.yml/badge.svg)](https://github.com/kingggg5/deployguardai/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/kingggg5/deployguardai/actions/workflows/codeql.yml/badge.svg)](https://github.com/kingggg5/deployguardai/actions/workflows/codeql.yml)
@@ -22,6 +23,11 @@ DeployGuard connects pull requests, deployments, service dependencies, telemetry
 
 The core is deterministic and reproducible. Risk scores, blast radius, ranked hypotheses, and explanations are derived from explicit weights, stored evidence, and versioned workspace policy. DeployGuard is decision support: it does not deploy, roll back, execute shell commands, or remediate infrastructure autonomously.
 
+**In one workflow:** inspect a pull request's change risk, see the dependency
+blast radius, connect deployment and runtime evidence, compare ranked root-cause
+hypotheses, and record the engineer's verdict. The UI always identifies
+synthetic records so a demo is never mistaken for production evidence.
+
 ## Try it in three minutes
 
 The default runtime is connected mode: it starts empty and never pretends that demo records came from GitHub. For a safe product tour, use the separate synthetic profile; every synthetic record is labelled in the API and UI.
@@ -36,6 +42,9 @@ docker compose up --build
 # Optional demo mode — isolated database, deterministic synthetic scenarios.
 docker compose -p deployguard-demo \
   -f docker-compose.yml -f docker-compose.demo.yml up --build
+
+# macOS/Linux shortcut when GNU Make is available.
+make demo
 ```
 
 Open <http://127.0.0.1:4300>. The API and OpenAPI explorer are available at
@@ -85,7 +94,13 @@ Data origin is part of the domain model and is visible in both API responses and
 - A fresh runtime starts with an empty connected-mode database; it does not silently seed a demo repository.
 - `SEED_SYNTHETIC_DATA=true` is explicit and rejected by production configuration.
 
-The browser never receives a GitHub installation token, GitHub App private key, SMTP password, or telemetry root credential. LLM synthesis is disabled until an evidence-only contract, citation validator, and evaluation gate exist.
+The browser never receives a GitHub installation token, GitHub App private key,
+SMTP password, or telemetry root credential. The repository includes a
+citation-gated, deterministic evidence explanation baseline: every displayed
+statement is checked against incident evidence IDs before it is returned. No
+external AI provider is configured, contacted, or required by default. An
+opt-in provider remains gated on redaction, tenant isolation, evaluation, and
+operational review; see [the AI boundary](docs/AI_BOUNDARY.md).
 
 ## Product flow
 
@@ -155,7 +170,7 @@ Python; full CRUD/worker and operational parity remain intentionally gated.
 - Python 3.12+
 - Node.js 24+
 - npm
-- PowerShell 7 for helper scripts
+- PowerShell 7 on Windows, or Bash on Linux/macOS for helper scripts
 - Docker Desktop or Docker Engine + Compose v2 for the recommended path
 
 Clone and start the local application:
@@ -166,7 +181,16 @@ cd deployguardai
 .\scripts\run-dev.ps1
 ```
 
-Use `-SkipInstall` after dependencies are installed. Stop local services with `.\scripts\stop-dev.ps1`.
+```bash
+git clone https://github.com/kingggg5/deployguardai.git
+cd deployguardai
+./scripts/run-dev.sh
+```
+
+Use `-SkipInstall` (PowerShell) or `--skip-install` (Bash) after dependencies
+are installed. Stop local services with `.\scripts\stop-dev.ps1` or
+`./scripts/stop-dev.sh`. `make dev`, `make test`, `make coverage`, and
+`make demo` provide the same common paths where GNU Make is available.
 
 Open:
 
@@ -256,7 +280,7 @@ Compose includes the API, web app, PostgreSQL, supervised worker, one-shot migra
 | Implemented in repository | Tested runtime path exists | Deterministic engines, tenant/RBAC + PostgreSQL RLS, signed webhook verification, worker/outbox, OTLP tracing, migrations, retention and restore tooling |
 | Provider/configuration gated | Requires operator-owned credentials or external service | OIDC, GitHub App, SMTP, normalized telemetry, PostgreSQL deployment |
 | Deployment required | Cannot be safely provided by application code alone | HTTPS/WAF, distributed rate limiting, managed secrets, alerting, on-call, encrypted backup storage |
-| Deliberately not implemented | Safety boundary or missing evaluation gate | Autonomous remediation, shell/cluster access, arbitrary outbound webhooks, LLM synthesis |
+| Deliberately not implemented | Safety boundary or missing evaluation gate | Autonomous remediation, shell/cluster access, arbitrary outbound webhooks, external AI-provider calls |
 
 DeployGuard should be described as **production-integratable**, not production-hardened, until deployment-specific controls and drills are complete.
 
@@ -291,7 +315,11 @@ docker compose config --quiet
 python scripts/evaluate_benchmarks.py --output .runtime/evaluation-results.json
 ```
 
-Backend and frontend regression suites are required in CI; exact test counts are intentionally not used as a quality or coverage claim. CI also exercises the Alembic chain on SQLite and PostgreSQL, runs an engine-backed synthetic evaluation, and builds containers alongside CodeQL, dependency review, and OpenSSF Scorecard.
+Backend and frontend regression suites and coverage floors are required in CI;
+exact test counts are intentionally not used as a quality or coverage claim. CI
+also exercises the Alembic chain on SQLite and PostgreSQL, runs an engine-backed
+synthetic evaluation, and builds containers alongside CodeQL, dependency review,
+and OpenSSF Scorecard.
 
 ## Documentation and community
 
@@ -302,6 +330,8 @@ Backend and frontend regression suites are required in CI; exact test counts are
 - [Security model](docs/SECURITY.md) — authentication, authorization, and provider handling
 - [Operations runbook](docs/OPERATIONS.md) — deployment, probes, backups, retention, and recovery
 - [Evaluation](docs/EVALUATION.md) — benchmark provenance and scoring
+- [AI boundary](docs/AI_BOUNDARY.md) — evidence contract, citation gate, and provider activation requirements
+- [Maintainer launch checklist](docs/MAINTAINER_LAUNCH.md) — repository metadata, preview release, and contributor backlog
 - [.NET 10 read-only spike](spikes/dotnet-readonly/README.md) — parity gates and runtime comparison
 - [Thai user guide](docs/USER_GUIDE_TH.md) — คู่มือการใช้งานภาษาไทย
 - [Contributing](CONTRIBUTING.md) · [Governance](GOVERNANCE.md) · [Support](SUPPORT.md) · [Changelog](CHANGELOG.md) · [Release guide](docs/RELEASE.md)
