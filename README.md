@@ -1,7 +1,7 @@
 # DeployGuard AI
 
-Understand deployment risk before production. Investigate incidents with
-traceable evidence instead of guesses.
+**Evidence-first change risk and incident investigation for teams that ship to
+production.**
 
 [![CI](https://github.com/kingggg5/deployguardai/actions/workflows/ci.yml/badge.svg)](https://github.com/kingggg5/deployguardai/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/kingggg5/deployguardai/actions/workflows/codeql.yml/badge.svg)](https://github.com/kingggg5/deployguardai/actions/workflows/codeql.yml)
@@ -11,6 +11,8 @@ traceable evidence instead of guesses.
 <p align="center">
   <img src="docs/assets/dashboard-runtime-desktop.png" alt="DeployGuard AI change-risk and incident investigation workspace" width="100%" />
 </p>
+
+<p align="center"><em>Synthetic product tour. Every demo record is visibly labelled and isolated from connected data.</em></p>
 
 <p align="center">
   <img src="docs/assets/workspace-connected-desktop.png" alt="DeployGuard AI connected-mode workspace setup on a desktop viewport, with no synthetic repository data" width="100%" />
@@ -22,17 +24,34 @@ traceable evidence instead of guesses.
   <a href="README.md">English</a> · <a href="README_TH.md">ภาษาไทย</a> · <a href="docs/QUICKSTART.md">Quickstart</a> · <a href="docs/RELEASE.md">Release guide</a>
 </p>
 
-DeployGuard connects pull requests, deployments, service dependencies, telemetry, and human observations in one tenant-scoped workspace. It is built for platform, SRE, and engineering teams that need an explainable answer before changing production:
+## Make deployment decisions with evidence
 
-1. What makes this change risky before it reaches production?
-2. Which incident hypothesis is best supported, what contradicts it, and what should we verify next?
+DeployGuard gives platform, SRE, and engineering teams one place to connect a
+pull request or deployment to service dependencies, runtime signals, and the
+human decision that follows. It is built to answer two questions that are
+usually spread across code review, dashboards, and incident channels:
 
-The core is deterministic and reproducible. Risk scores, blast radius, ranked hypotheses, and explanations are derived from explicit weights, stored evidence, and versioned workspace policy. DeployGuard is decision support: it does not deploy, roll back, execute shell commands, or remediate infrastructure autonomously.
+1. **What could make this change unsafe before production?**
+2. **Which incident explanation is best supported, what contradicts it, and what should we verify next?**
 
-**In one workflow:** inspect a pull request's change risk, see the dependency
-blast radius, connect deployment and runtime evidence, compare ranked root-cause
-hypotheses, and record the engineer's verdict. The UI always identifies
-synthetic records so a demo is never mistaken for production evidence.
+| Before production | During an incident | After the decision |
+| --- | --- | --- |
+| Explain risk, missing evidence, rollback readiness, and likely blast radius. | Compare evidence, counter-evidence, uncertainty, and ranked hypotheses. | Preserve the verdict, next verification, provenance, and audit trail. |
+
+### Why teams adopt it
+
+- **Review faster without hiding uncertainty.** Risk is decomposed into explicit
+  signals instead of a black-box score; unknown evidence remains visible.
+- **Investigate from a shared source of truth.** Change, deployment, topology,
+  telemetry, and observations stay connected to the same workspace and timeline.
+- **Keep every conclusion explainable.** Scores, graph traversal, hypothesis
+  ranking, and evidence explanations are deterministic, versioned, and
+  reproducible.
+- **Connect real data without pretending a demo is production.** Connected mode
+  starts empty; synthetic scenarios are isolated and labelled in the API and UI.
+
+DeployGuard is decision support, not an autonomous operator. It does not deploy,
+roll back, execute shell commands, or remediate infrastructure on a team's behalf.
 
 ## Try it in three minutes
 
