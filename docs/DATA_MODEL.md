@@ -289,9 +289,10 @@ shell เอง:
 
 Queue primitive ปฏิเสธ credential-like keys ใน payload, unknown handler จะ fail
 closed และ dead-letter replay ต้องเรียก explicit service operation Signed PR
-webhook ใช้ producer สำหรับ GitHub Check แล้ว และ worker มี handler allowlist
-ชัดเจน ส่วน notification, invitation และ normalized event บางเส้นทางยัง
-synchronous และต้อง review แยกก่อนย้ายเข้า queue
+webhook ใช้ producer สำหรับ GitHub Check แล้ว และ SMTP invitation ใช้
+secret-free outbox payload ที่มีเพียง invitation reference. SMTP ไม่มี portable
+idempotency key จึงไม่ retry เมื่อผลส่งไม่แน่นอน ส่วน notification และ normalized
+event บางเส้นทางยัง synchronous และต้อง review แยกก่อนย้ายเข้า queue
 
 ## Audit events
 

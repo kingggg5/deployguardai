@@ -277,7 +277,7 @@ compare-and-swap ด้วย version และ event dedupe พึ่ง unique
 
 - OIDC ต้องมี issuer, audience และ JWKS URL
 - GitHub ต้องมี App ID, slug, private key และ webhook secret
-- SMTP ต้องมี host และ sender configuration
+- SMTP ต้องมี host, sender และ `INVITATION_TOKEN_SECRET` จาก managed secret provider
 - telemetry ingest ต้องมี bearer token
 - capability endpoint บอก UI ตาม runtime configuration ว่า provider ใดพร้อมใช้
 

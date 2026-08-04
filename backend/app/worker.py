@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 from collections.abc import Mapping, Sequence
-from datetime import timedelta
+from datetime import UTC, timedelta
 import json
 import logging
 import os
@@ -21,8 +21,14 @@ from sqlalchemy.orm import Session
 from . import provider_services
 from .config import Settings
 from .database import Database
+from .email_delivery import InvitationDeliveryUncertain, deliver_invitation_smtp
 from .errors import DomainError
-from .job_contracts import GITHUB_CHECK_PUBLISH_JOB, GitHubCheckPublishPayload
+from .job_contracts import (
+    GITHUB_CHECK_PUBLISH_JOB,
+    INVITATION_EMAIL_DELIVER_JOB,
+    GitHubCheckPublishPayload,
+    InvitationEmailDeliverPayload,
+)
 from .job_queue import (
     JobContext,
     JobHandler,
@@ -30,7 +36,7 @@ from .job_queue import (
     requeue_expired_jobs,
     run_one_job,
 )
-from .models import ChangeRecord, Repository
+from .models import ChangeRecord, Invitation, Repository
 from .observability import (
     attach_trace_context,
     configure_tracing,
@@ -38,6 +44,7 @@ from .observability import (
 )
 from .provider_models import ProviderConnection
 from .rls import set_tenant_context
+from .workspace_services import derive_invitation_claim_token, now_utc
 
 
 logger = logging.getLogger("deployguard.worker")
@@ -116,6 +123,58 @@ def github_check_publish_handler(
     return handle
 
 
+def invitation_email_delivery_handler(
+    session: Session,
+    settings: Settings,
+) -> JobHandler:
+    """Deliver a queued SMTP invitation without storing its claim token."""
+
+    def handle(
+        raw_payload: Mapping[str, Any],
+        context: JobContext,
+    ) -> Mapping[str, Any]:
+        try:
+            payload = InvitationEmailDeliverPayload.model_validate(raw_payload)
+        except ValidationError as error:
+            raise PermanentJobError(
+                "invitation.email.deliver payload failed contract validation"
+            ) from error
+        if settings.email_delivery_mode() != "smtp":
+            raise PermanentJobError("SMTP invitation delivery is disabled")
+        if context.workspace_id is None:
+            raise PermanentJobError("invitation delivery job is missing workspace scope")
+        invitation = session.get(Invitation, payload.invitation_id)
+        if invitation is None or invitation.workspace_id != context.workspace_id:
+            raise PermanentJobError(
+                "invitation delivery references are missing or cross-tenant"
+            )
+        if (
+            invitation.status != "pending"
+            or invitation.expires_at.replace(tzinfo=UTC) <= now_utc()
+        ):
+            raise PermanentJobError("invitation is no longer pending")
+        try:
+            claim_token = derive_invitation_claim_token(
+                settings.invitation_token_secret,
+                invitation.id,
+            )
+        except ValueError as error:
+            raise PermanentJobError(
+                "SMTP invitation delivery secret is not configured"
+            ) from error
+        try:
+            return deliver_invitation_smtp(
+                session,
+                invitation,
+                claim_token,
+                settings,
+            )
+        except InvitationDeliveryUncertain as error:
+            raise PermanentJobError(str(error)) from error
+
+    return handle
+
+
 def registered_handlers(
     session: Session,
     settings: Settings,
@@ -123,6 +182,7 @@ def registered_handlers(
     """Return the fixed allowlist; job payloads can never select callables."""
 
     github_handler = github_check_publish_handler(session, settings)
+    invitation_handler = invitation_email_delivery_handler(session, settings)
 
     def traced_github_handler(
         raw_payload: Mapping[str, Any],
@@ -145,7 +205,25 @@ def registered_handlers(
         finally:
             detach_trace_context(token)
 
-    return {GITHUB_CHECK_PUBLISH_JOB: traced_github_handler}
+    def traced_invitation_handler(
+        raw_payload: Mapping[str, Any],
+        context: JobContext,
+    ) -> Mapping[str, Any] | None:
+        with trace.get_tracer("deployguard.worker").start_as_current_span(
+            "process background job",
+            kind=SpanKind.CONSUMER,
+            attributes={
+                "messaging.operation.type": "process",
+                "messaging.message.type": INVITATION_EMAIL_DELIVER_JOB,
+                "messaging.message.receive.count": context.attempt,
+            },
+        ):
+            return invitation_handler(raw_payload, context)
+
+    return {
+        GITHUB_CHECK_PUBLISH_JOB: traced_github_handler,
+        INVITATION_EMAIL_DELIVER_JOB: traced_invitation_handler,
+    }
 
 
 def _log_job(job) -> None:

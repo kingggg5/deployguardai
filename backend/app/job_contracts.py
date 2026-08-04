@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, field_validator
 
 
 GITHUB_CHECK_PUBLISH_JOB = "github.check.publish.v1"
+INVITATION_EMAIL_DELIVER_JOB = "invitation.email.deliver.v1"
 _TRACEPARENT_RE = re.compile(
     r"^(?P<version>[0-9a-f]{2})-"
     r"(?P<trace_id>[0-9a-f]{32})-"
@@ -94,6 +95,23 @@ class GitHubCheckPublishPayload(BaseModel):
         normalized = value.strip()
         if not normalized or len(normalized) > 160:
             raise ValueError("job references must contain 1 to 160 characters")
+        return normalized
+
+
+class InvitationEmailDeliverPayload(BaseModel):
+    """A secret-free invitation delivery intent for the supervised worker."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    schema_version: Literal[1] = 1
+    invitation_id: str
+
+    @field_validator("invitation_id")
+    @classmethod
+    def validate_invitation_reference(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized or len(normalized) > 160:
+            raise ValueError("invitation_id must contain 1 to 160 characters")
         return normalized
 
 

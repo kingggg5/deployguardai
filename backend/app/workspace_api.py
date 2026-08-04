@@ -7,8 +7,9 @@ from sqlalchemy.orm import Session
 
 from .auth.dependencies import get_current_user, get_session
 from .errors import DomainError
-from .email_delivery import deliver_invitation
-from .models import User
+from .email_delivery import record_local_invitation_delivery
+from .job_producers import enqueue_invitation_email_delivery
+from .models import Invitation, User
 from .schemas import (
     AuditEventSummary,
     DevelopmentSessionRequest,
@@ -211,15 +212,44 @@ def invitation_create(
             503,
         )
     response.headers["Cache-Control"] = "no-store"
+    settings = request.app.state.settings
+    delivery_mode = settings.email_delivery_mode()
     invitation = create_invitation(
         session,
         user,
         workspace_id,
         payload,
         request_id(request),
-        request.app.state.settings.invitation_ttl_hours,
+        settings.invitation_ttl_hours,
+        commit=False,
     )
-    return deliver_invitation(session, invitation, request.app.state.settings)
+    if delivery_mode == "smtp":
+        persisted_invitation = session.get(Invitation, invitation.id)
+        if persisted_invitation is None:  # pragma: no cover - session.flush above
+            raise RuntimeError("invitation was not persisted")
+        enqueue_invitation_email_delivery(
+            session,
+            invitation=persisted_invitation,
+            request_id=request_id(request),
+            commit=False,
+        )
+        session.commit()
+        return invitation.model_copy(
+            update={
+                "delivery_mode": "smtp",
+                "delivery_status": "queued",
+                "claim_token": None,
+                "accept_path": None,
+            }
+        )
+
+    record_local_invitation_delivery(
+        session,
+        invitation.id,
+        status="development_outbox",
+    )
+    session.commit()
+    return invitation
 
 
 @router.delete(

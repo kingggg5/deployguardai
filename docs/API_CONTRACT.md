@@ -116,6 +116,11 @@ webhook delivery เป็น `failed` เพื่อให้ signed retry ท
 Development outbox คืน `claim_token` ครั้งเดียวพร้อม `Cache-Control: no-store`
 SMTP mode คืนเฉพาะ delivery status และไม่ expose token
 
+SMTP creation returns `delivery_status: queued`. The worker derives the token
+from a managed server secret after durable acceptance; `sent` means the SMTP
+provider call completed. An uncertain SMTP attempt is not automatically retried
+because a second email could duplicate a valid invitation.
+
 ### Service catalog และ risk policy
 
 | Method | Path | Role | Purpose |

@@ -1,6 +1,9 @@
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
+from app.config import Settings
+from app.job_models import BackgroundJob
+from app.main import create_app
 from app.models import Invitation
 
 
@@ -117,6 +120,48 @@ def test_workspace_repository_invitation_and_audit_flow(
         "invitation.created",
         "invitation.accepted",
     }.issubset(actions)
+
+
+def test_smtp_invitation_is_durably_queued_without_exposing_a_claim_token(
+    tmp_path,
+) -> None:
+    settings = Settings(
+        database_url=f"sqlite:///{(tmp_path / 'smtp-invite.db').as_posix()}",
+        smtp_host="smtp.example",
+        smtp_from_email="no-reply@deployguard.example",
+        invitation_token_secret="i" * 32,
+        _env_file=None,
+    )
+    with TestClient(create_app(settings)) as smtp_client:
+        owner_headers, _ = development_session(smtp_client)
+        workspace_response = smtp_client.post(
+            "/api/v1/workspaces",
+            headers=owner_headers,
+            json={"name": "SMTP workspace", "slug": "smtp-workspace"},
+        )
+        assert workspace_response.status_code == 201
+        workspace_id = workspace_response.json()["id"]
+
+        response = smtp_client.post(
+            f"/api/v1/workspaces/{workspace_id}/invitations",
+            headers=owner_headers,
+            json={"email": "friend@example.com", "role": "viewer"},
+        )
+        assert response.status_code == 201
+        invitation = response.json()
+        assert invitation["delivery_mode"] == "smtp"
+        assert invitation["delivery_status"] == "queued"
+        assert "claim_token" not in invitation
+        assert "accept_path" not in invitation
+
+        with smtp_client.app.state.database.session_factory() as session:
+            job = session.scalar(select(BackgroundJob))
+            assert job is not None
+            assert job.workspace_id == workspace_id
+            assert job.payload == {
+                "schema_version": 1,
+                "invitation_id": invitation["id"],
+            }
 
 
 def test_tenant_isolation_and_invitation_email_binding(

@@ -212,7 +212,8 @@ Progress on 2026-08-03:
   existing records migrate honestly to `legacy-unversioned`.
 - Added previous-head migration regression coverage and production-shaped
   PostgreSQL migration-chain CI.
-- Remaining Phase 0 items below are still required before any runtime migration.
+- Golden/property/contract coverage is now in CI. A reference PostgreSQL and
+  multi-instance workload remains required before any runtime migration.
 
 Deliver:
 
@@ -223,18 +224,20 @@ Deliver:
   product/UI claims.
 - [x] Add `analysis_schema_version`, `engine_version`, `scoring_policy_version`, and
   `graph_version` to stored snapshots and API contracts.
-- [ ] Create a cross-runtime golden corpus covering ordinary cases and boundaries:
+- [x] Create a cross-runtime golden corpus covering ordinary cases and boundaries:
   unknown flags/tiers, empty graphs, cycles, duplicate edges, maximum hops,
   counter-evidence, ties, invalid numbers, stable ordering, rounding, and evidence
   IDs.
-- [ ] Add property/fuzz tests for bounded scores, monotonic safety inputs, cycle
+- [x] Add seeded property tests for bounded scores, monotonic safety inputs, cycle
   termination, deterministic ordering, and evidence-reference integrity.
-- [ ] Capture the OpenAPI document and representative API responses as versioned
+- [x] Capture the OpenAPI document and representative API responses as versioned
   contract fixtures.
 - [x] Add production-shaped PostgreSQL CI rather than validating migrations only on
   SQLite.
 - [ ] Establish baseline p50/p95/p99 latency, throughput, memory, startup, job-recovery,
-  and graph-size results on a documented reference environment.
+  and graph-size results on a documented PostgreSQL reference environment. The
+  repository has a reproducible local baseline, but it intentionally does not
+  claim multi-instance, provider, or production performance.
 
 Exit gates:
 
@@ -254,6 +257,16 @@ Rollback:
 ### Phase 1 — Close production-critical gaps on the current stack
 
 Goal: make the existing product safe enough to compare with any replacement.
+
+Progress on 2026-08-04:
+
+- Signed GitHub Check publication and SMTP invitation delivery now enqueue a
+  secret-free intent atomically with their domain change. The SMTP worker
+  derives its one-time claim token from a managed-secret setting and refuses an
+  automatic resend after an uncertain provider outcome.
+- The remaining work below is still open: notifications/retention producers,
+  a deployed redaction gateway, distributed ingress limiting, and scheduled
+  data lifecycle operations require their own contracts and deployment owners.
 
 Deliver:
 

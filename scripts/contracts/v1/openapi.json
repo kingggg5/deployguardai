@@ -2050,6 +2050,7 @@
           },
           "delivery_status": {
             "enum": [
+              "queued",
               "sent",
               "failed",
               "development_outbox",

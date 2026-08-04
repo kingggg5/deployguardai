@@ -135,6 +135,7 @@ export class App implements OnInit, OnDestroy {
   readonly isDoraLoading = signal(false);
   readonly switchingScenarioId = signal<string | null>(null);
   readonly loadError = signal('');
+  readonly awaitingConnectedEvidence = signal(false);
   readonly doraError = signal('');
 
   readonly isEvidenceXray = signal(false);
@@ -336,6 +337,7 @@ export class App implements OnInit, OnDestroy {
       this.isLoading.set(true);
     }
     this.loadError.set('');
+    this.awaitingConnectedEvidence.set(false);
     this.exportError.set('');
 
     this.dashboardRequest()
@@ -348,6 +350,7 @@ export class App implements OnInit, OnDestroy {
       )
       .subscribe({
         next: ({ scenarios, overview, linkedChange }) => {
+          this.awaitingConnectedEvidence.set(false);
           this.scenarios.set(scenarios);
           this.linkedChange.set(linkedChange);
           this.applyOverview(overview);
@@ -370,6 +373,15 @@ export class App implements OnInit, OnDestroy {
           this.loadDoraMetrics();
         },
         error: (error: unknown) => {
+          this.overview.set(null);
+          this.linkedChange.set(null);
+          this.doraMetrics.set(null);
+          this.doraError.set('');
+          if (this.isConnectedEvidenceReadiness(error)) {
+            this.scenarios.set([]);
+            this.awaitingConnectedEvidence.set(true);
+            return;
+          }
           this.loadError.set(
             this.errorMessage(error, this.t('error_dashboard_load'))
           );
@@ -1060,5 +1072,13 @@ export class App implements OnInit, OnDestroy {
     }
     if (error instanceof Error && error.message.trim()) return error.message;
     return fallback;
+  }
+
+  private isConnectedEvidenceReadiness(error: unknown): boolean {
+    if (!(error instanceof HttpErrorResponse) || error.status !== 409) {
+      return false;
+    }
+    const code = error.error?.code;
+    return code === 'active_scenario_not_found' || code === 'scenario_data_incomplete';
   }
 }
