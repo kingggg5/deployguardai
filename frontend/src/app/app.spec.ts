@@ -16,6 +16,9 @@ describe('DeployGuard investigation ledger', () => {
     getDoraMetrics: ReturnType<typeof vi.fn>;
     activateScenario: ReturnType<typeof vi.fn>;
     submitFeedback: ReturnType<typeof vi.fn>;
+    getDatasetReadiness: ReturnType<typeof vi.fn>;
+    createPostmortemSnapshot: ReturnType<typeof vi.fn>;
+    recordDatasetConsent: ReturnType<typeof vi.fn>;
     analyzeChange: ReturnType<typeof vi.fn>;
     getChange: ReturnType<typeof vi.fn>;
     exportPostMortem: ReturnType<typeof vi.fn>;
@@ -39,14 +42,31 @@ describe('DeployGuard investigation ledger', () => {
       analyzeChange: vi.fn(() => of(makeOverview().active_change)),
       getChange: vi.fn(() => of(makeOverview().active_change)),
       exportPostMortem: vi.fn(() => of('# Incident Post-Mortem')),
+      getDatasetReadiness: vi.fn(() =>
+        of({
+          incident_id: 'inc-checkout',
+          data_mode: 'synthetic' as const,
+          purpose: 'evaluation' as const,
+          status: 'not_applicable' as const,
+          connected_exporter_enabled: false as const,
+          requirements: [],
+          latest_snapshot: null,
+          latest_consent: null
+        })
+      ),
+      createPostmortemSnapshot: vi.fn(() => of({})),
+      recordDatasetConsent: vi.fn(() => of({})),
       submitFeedback: vi.fn(() =>
         of(
           makeOverview('checkout-latency', [
             {
+              id: 1,
               hypothesis_id: 'hyp-db',
               verdict: 'confirmed',
               note: 'The lock holder matches the changed transaction.',
-              submitted_at: '2026-07-26T12:04:00Z'
+              submitted_at: '2026-07-26T12:04:00Z',
+              actor: null,
+              verification_outcome: null
             }
           ]).active_incident!
         )
@@ -302,13 +322,22 @@ describe('DeployGuard investigation ledger', () => {
 
   it('submits a non-empty human verdict and applies the returned incident', () => {
     component.feedbackNote.set('The lock holder matches the changed transaction.');
+    component.verificationMethod.set('trace replay');
+    component.verificationSummary.set('The changed transaction retained the lock.');
+    component.verificationEvidenceIds.set(['ev-trace']);
     component.submitFeedback('confirmed');
     fixture.detectChanges();
 
     expect(api.submitFeedback).toHaveBeenCalledWith('inc-checkout', {
       hypothesis_id: 'hyp-db',
       verdict: 'confirmed',
-      note: 'The lock holder matches the changed transaction.'
+      note: 'The lock holder matches the changed transaction.',
+      verification_outcome: {
+        result: 'supported',
+        method: 'trace replay',
+        summary: 'The changed transaction retained the lock.',
+        evidence_ids: ['ev-trace']
+      }
     });
     expect(component.feedbackForSelectedHypothesis()).toHaveLength(1);
     expect(component.feedbackSuccess()).toContain('Verdict recorded');

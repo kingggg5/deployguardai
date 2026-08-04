@@ -1,48 +1,74 @@
 # DeployGuard AI
 
-ระบบวิเคราะห์ความเสี่ยงของ change และช่วยสืบสวน incident สำหรับทีม Platform,
-SRE และทีมวิศวกรรม โดยใช้หลักฐานที่ตรวจสอบย้อนกลับได้
+**ระบบวิเคราะห์ความเสี่ยงของการเปลี่ยนแปลง สืบสวน incident และกำกับดูแล operational dataset โดยยึดหลักฐานเป็นศูนย์กลาง**
 
-[English](README.md) · [คู่มือเริ่มต้นใช้งาน](docs/QUICKSTART.md) · [คู่มือ release](docs/RELEASE.md)
+[English](README.md) · [ภาษาไทย](README_TH.md) · [คู่มือเริ่มต้น](docs/QUICKSTART.md) · [เอกสารระบบ](docs/ARCHITECTURE.md)
 
-![DeployGuard AI workspace](docs/assets/dashboard-runtime-desktop.png)
+![หน้าสืบสวน incident ของ DeployGuard AI](docs/assets/dashboard-runtime-desktop.png)
 
-## DeployGuard ช่วยอะไร
+DeployGuard เชื่อม change, deployment, service topology, runtime signal และ
+การตัดสินใจของคนไว้ใน evidence ledger เดียว เพื่อช่วยตอบว่า **change นี้เสี่ยง
+เพราะอะไร** และ **สมมติฐานใดมีหลักฐานสนับสนุนมากที่สุด** ระบบไม่ deploy,
+rollback หรือแก้ infrastructure ให้เอง
 
-DeployGuard รวม pull request, deployment, dependency ของ service, telemetry
-และข้อสังเกตจากมนุษย์ไว้ใน workspace เดียว เพื่อช่วยตอบคำถามสำคัญสองข้อ:
+## ประโยชน์หลัก
 
-1. change นี้เสี่ยงตรงไหนก่อนขึ้น production
-2. สมมติฐานของ incident ใดมีหลักฐานสนับสนุนมากที่สุด มี counter-evidence อะไร
-   และควรตรวจสอบอะไรต่อ
+- อธิบาย risk score ด้วย signal, missing evidence, rollback readiness,
+  service criticality และ blast radius ที่ตรวจสอบย้อนกลับได้
+- จัดอันดับสมมติฐานด้วย supporting evidence และ counter-evidence โดยไม่ซ่อน
+  uncertainty และระบุขั้นตอนตรวจสอบถัดไป
+- เก็บ human verdict พร้อม actor provenance ที่ server เป็นผู้กำหนด และ
+  structured verification outcome พร้อม evidence ID ที่ใช้อ้างอิง
+- สร้าง immutable postmortem snapshot แบบ content-addressed เพื่อเก็บสถานะ
+  incident ที่ผู้ตรวจสอบยืนยันไว้จริง
+- ป้องกันการนำข้อมูล connected ไปสร้าง dataset จนกว่า incident จะ resolved,
+  มี snapshot และผ่าน consent แบบระบุวัตถุประสงค์พร้อม audit trail
 
-ผลลัพธ์ของระบบมาจาก deterministic engine น้ำหนักคะแนนที่ระบุชัดเจน หลักฐานที่
-เก็บไว้ และ policy ที่มี version จึงสามารถอธิบายและทำซ้ำได้ ระบบไม่ deploy,
-rollback, รัน shell หรือแก้ infrastructure เองโดยอัตโนมัติ
+## ความสามารถที่มีแล้ว
 
-## แนวทางข้อมูล: AI เป็นผู้ใช้ Evidence Graph
+| ส่วน | ความสามารถ |
+| --- | --- |
+| Change risk | deterministic scoring, policy version, missing evidence, rollback readiness และ blast radius |
+| Incident investigation | timeline, evidence, counter-evidence, ranked hypotheses, assignment, notification และ human verdict |
+| Dataset governance | actor provenance, structured verification, immutable snapshot, append-only consent และ readiness gate |
+| GitHub integration | GitHub App, repository sync, signed webhook และ optional Check Runs |
+| Workspace | OIDC/development auth, RBAC, invitation, audit event และ tenant isolation |
+| Operations | service catalog, normalized telemetry, durable job/outbox, retry, dead letter, metrics, backup และ restore |
+| Evaluation | DeployGuard Bench schema, synthetic examples, SHA-256 manifest, golden/property tests และ CI artifacts |
 
-DeployGuard AI กำลังสร้างฐานข้อมูลเชิงปฏิบัติการสำหรับประเมิน AI/LLM ด้าน
-Production Engineering โดยแบ่งเป็น 3 layer:
+## จาก Operational Data สู่ LLM Dataset
 
-1. **Operational Data** — GitHub, OpenTelemetry, Prometheus, deployment และ
-   เหตุการณ์จากการสืบสวน พร้อม provenance
-2. **Evidence Graph** — เชื่อม change, topology, supporting evidence,
-   counter-evidence, hypotheses, verification, human verdict และ postmortem
-3. **DeployGuard Bench** — ตัวอย่างที่ผ่าน privacy review และมี version สำหรับ
-   evaluation และใช้ train โมเดลได้เฉพาะเมื่อ consent/license/split policy อนุญาต
+AI เป็น **ผู้ใช้ข้อมูลที่ผ่านการตรวจสอบ** ไม่ใช่ผู้สร้างหลักฐานหรือ ground truth
 
-AI เป็น **consumer** ของ dataset ไม่ใช่ผู้สร้าง evidence หรือ ground truth
-ปัจจุบัน [DeployGuard Bench](bench/README.md) มี schema, deterministic exporter
-และ synthetic seed 3 ตัวอย่าง เป้าหมาย 1,000 deployment scenarios และ 500
-incident investigations เป็น roadmap ไม่ใช่จำนวนข้อมูลที่มีแล้ว Incident จริง
-เป็นเพียง candidate example จนกว่าจะผ่าน consent, redaction, licensing และ
-human review โดย synthetic seed ปัจจุบันใช้ evaluation เท่านั้นและยังไม่อนุมัติ
-ให้ใช้ train โมเดล
+1. **Operational Data** — GitHub, deployment, telemetry และเหตุการณ์จากการสืบสวน
+2. **Evidence Graph** — provenance, supporting evidence, counter-evidence และ hypotheses
+3. **Human Review** — verdict, verification และ immutable postmortem
+4. **Dataset Gate** — consent, privacy, license และ publication review
 
-## ทดลองในไม่กี่นาที
+![Dataset promotion gate](docs/assets/dataset-promotion-gate-desktop.png)
 
-โหมดปกติเป็น connected mode และเริ่มจากฐานข้อมูลว่าง:
+### Dataset/LLM ทำครบแล้วหรือยัง
+
+ยังไม่ครบทั้งกระบวนการ โดยสถานะจริงคือ:
+
+- **ทำแล้ว:** schema, deterministic synthetic exporter, evaluation harness,
+  synthetic examples 3 รายการ, actor provenance, structured verification,
+  immutable snapshot และ audited consent
+- **ยังปิดอยู่:** connected-data exporter แม้ทุก gate ผ่าน ระบบเพียงเปลี่ยนสถานะ
+  เป็น `ready_for_review` และจะไม่ส่งข้อมูลออกเอง
+- **ยังต้องทำ:** deterministic secret/PII redaction, publication review,
+  release registry, revocation propagation, leakage checks, frozen data splits,
+  annotation/adjudication และ real consented corpus
+- **LLM ภายนอก:** ยังไม่เรียกใช้ จนกว่า benchmark และ safety gate จะพิสูจน์ได้
+
+ปัจจุบัน DeployGuard Bench v0.1 มี synthetic example 3 รายการ: 2 รายการใช้
+development evaluation ได้, 1 รายการยังไม่มี ground truth และ 0 รายการได้รับ
+อนุมัติให้ train โมเดล เป้าหมาย 1,000 deployment scenarios และ 500 incident
+investigations เป็น roadmap ไม่ใช่จำนวนข้อมูลปัจจุบัน
+
+## เริ่มต้นใช้งาน
+
+ต้องมี Docker Engine หรือ Docker Desktop ที่รองรับ Compose v2
 
 ```bash
 git clone https://github.com/kingggg5/deployguardai.git
@@ -50,70 +76,34 @@ cd deployguardai
 docker compose up --build
 ```
 
-เปิด <http://127.0.0.1:4300> และดู OpenAPI ได้ที่
-<http://127.0.0.1:8100/docs>
-
-ถ้าต้องการดูหน้าจอพร้อมข้อมูลตัวอย่าง ให้ใช้ฐานข้อมูล demo ที่แยกออกจากระบบ
-จริงและมีป้าย `synthetic` ชัดเจน:
+เปิดเว็บที่ <http://127.0.0.1:4300> และ OpenAPI ที่
+<http://127.0.0.1:8100/docs> โหมด connected เริ่มจากฐานข้อมูลว่าง หากต้องการ
+ทดลองข้อมูล synthetic ที่แยกจากระบบจริง:
 
 ```bash
 docker compose -p deployguard-demo \
   -f docker-compose.yml -f docker-compose.demo.yml up --build
 ```
 
-ข้อมูล demo ไม่ใช่ข้อมูลจาก GitHub และห้ามนำไปใช้เป็นหลักฐาน production
-หรือ benchmark claim
+ข้อมูล synthetic มีป้ายกำกับชัดเจนและไม่สามารถผ่าน connected-data gate ได้
+รายละเอียด provider setup และ local development อยู่ใน
+[คู่มือเริ่มต้น](docs/QUICKSTART.md)
 
-## ความสามารถหลัก
+## เทคโนโลยี
 
-- วิเคราะห์ change risk พร้อมเหตุผล, missing evidence, rollback readiness,
-  service criticality และ blast radius
-- timeline ของ incident พร้อม evidence, counter-evidence, uncertainty,
-  ranked hypotheses และ human verdict
-- GitHub App, signed webhook, repository/PR sync และ deployment lifecycle
-- service catalog, risk policy, notifications, invitations และ audit ledger
-- tenant isolation, RBAC, PostgreSQL RLS และ durable worker/outbox
-- OpenTelemetry/OTLP, metrics ที่ลดข้อมูลละเอียดอ่อน และ restore/retention tools
-- evaluation manifest ที่ pin checksum และแยกข้อมูล `connected` กับ `synthetic`
+- **Web:** Angular 22, TypeScript 6, RxJS, SCSS design tokens
+- **API:** Python 3.12, FastAPI, Pydantic 2, SQLAlchemy 2, Alembic
+- **Data:** PostgreSQL 16 พร้อม RLS; SQLite สำหรับ local development
+- **Operations:** Docker Compose, OpenTelemetry, Prometheus, Nginx, GHCR
+- **Quality:** Pytest, Vitest, golden/property/contract tests, CodeQL,
+  dependency review, OpenSSF Scorecard, SBOM และ build provenance
 
-## สถานะ AI, dataset และ evaluation
+## เอกสารและชุมชน
 
-- **LLM:** ยังไม่มีการเรียก external model ระบบใช้ deterministic evidence
-  synthesis ที่ตรวจ citation ทุก statement ก่อนส่งผลลัพธ์
-- **Dataset:** DeployGuard Bench v0.1 มี synthetic seed 3 ตัวอย่าง โดย 2 ตัวอย่าง
-  ใช้ development evaluation ได้, 1 ตัวอย่างยังไม่มี ground truth และยังไม่มี
-  ตัวอย่างใดได้รับอนุมัติให้ใช้ train โมเดล
-- **Evaluation:** CI รัน engine-backed benchmark, golden/property tests และ
-  contract fixtures แล้ว แต่ยังไม่มีผล accuracy, calibration หรือผลกระทบจาก
-  production จริง
+[Quickstart](docs/QUICKSTART.md) · [Architecture](docs/ARCHITECTURE.md) ·
+[API](docs/API_CONTRACT.md) · [Security](docs/SECURITY.md) ·
+[Operations](docs/OPERATIONS.md) · [Evaluation](docs/EVALUATION.md) ·
+[Roadmap](docs/ROADMAP.md) · [Contributing](CONTRIBUTING.md)
 
-อ่าน methodology และข้อจำกัดได้ใน [Evaluation](docs/EVALUATION.md) และ
-[AI boundary](docs/AI_BOUNDARY.md)
-
-## ความปลอดภัยและความจริงของข้อมูล
-
-browser จะไม่เห็น GitHub installation token, App private key, SMTP password หรือ
-telemetry root credential การเปิดใช้ production ต้องเตรียม OIDC, GitHub App,
-HTTPS/WAF, managed secrets, distributed rate limiting, backup storage,
-alerting และผู้รับผิดชอบ on-call ให้ครบ จากนั้นรัน:
-
-```powershell
-python scripts/production_readiness.py
-```
-
-คำสั่งนี้เป็น fail-closed gate และจะไม่สร้างหรือพิมพ์ credential ให้เอง
-
-## เอกสาร
-
-- [Quickstart](docs/QUICKSTART.md)
-- [Architecture](docs/ARCHITECTURE.md)
-- [API contract](docs/API_CONTRACT.md)
-- [Security model](docs/SECURITY.md)
-- [Operations runbook](docs/OPERATIONS.md)
-- [Evaluation](docs/EVALUATION.md)
-- [DeployGuard Bench](bench/README.md)
-- [Contributing](CONTRIBUTING.md)
-- [Release guide](docs/RELEASE.md)
-
-โปรเจกต์ใช้สัญญา Apache-2.0 ดู [LICENSE](LICENSE) และหากพบปัญหาด้านความปลอดภัย
-ให้รายงานแบบส่วนตัวตาม [.github/SECURITY.md](.github/SECURITY.md)
+รายงานช่องโหว่แบบส่วนตัวตาม [`.github/SECURITY.md`](.github/SECURITY.md)
+โปรเจกต์ใช้สัญญาอนุญาต [Apache-2.0](LICENSE)

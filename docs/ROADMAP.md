@@ -1,351 +1,90 @@
 # DeployGuard AI roadmap
 
-Roadmap นี้เรียงตาม dependency และความเสี่ยง ไม่ใช้เลขสัปดาห์ เพราะเลขสัปดาห์
-ไม่ได้เป็นหลักฐานว่า capability พร้อมใช้งาน
-
-เอกสารนี้เป็น canonical public roadmap งาน implementation รายละเอียดควรอยู่ใน
-GitHub Issues/Projects และไม่สร้าง planning document ซ้ำใน repository
-
-## สถานะ
-
-- ✅ **Implemented** — มี runtime path และ automated test coverage ใน repository
-- 🟡 **Credential/environment gated** — code มีแล้ว แต่ต้อง configure external
-  provider หรือยังต้อง verify บน reference production environment
-- ⬜ **Planned** — ยังไม่มี complete runtime path
-- ⏸ **Deferred** — จงใจยังไม่ทำจนกว่า prerequisite gate ผ่าน
+This roadmap is ordered by dependency and operational risk. “Implemented” means
+the repository contains a runtime path and automated coverage; it does not mean
+every production environment is configured or independently certified.
 
 ## Capability map
 
 | Capability | Status | Current truth |
-|---|---:|---|
-| Angular/FastAPI application shell | ✅ | Typed API client, responsive workspace/investigation UI |
-| Deterministic risk + blast radius | ✅ | Explicit dimensions, bounded cycle-safe traversal |
-| Incident evidence + RCA + feedback | ✅ | Top hypotheses, counter-evidence และ persistent verdict |
-| Workspace, invitation และ RBAC | ✅ | Viewer/responder/admin/owner และ tenant-scoped context |
-| OIDC production authentication | 🟡 | JWT/JWKS verifier มีแล้ว; ต้อง configure issuer |
-| Alembic migrations | ✅ | Local/container upgrade ตอน startup; production one-shot schema-owner job และ runtime head check |
-| GitHub App connected repositories | 🟡 | Install/sync/webhook path มีแล้ว; ต้อง configure GitHub App |
-| GitHub Check Run feedback | 🟡 | Durable create-or-PATCH/retry path มีแล้ว; ต้องเปิด flag, Checks write และ verify กับ GitHub จริง |
-| SMTP invitation delivery | 🟡 | SMTP path มีแล้ว; local ใช้ development outbox |
-| Normalized telemetry ingestion | 🟡 | Workspace-derived collector bearer และ tenant ledger มีแล้ว; ไม่ใช่ native OTLP receiver |
-| Service catalog | ✅ | Validated dependency DAG ถูก overlay เข้า deterministic risk/blast-radius analysis |
-| Workspace risk policy | ✅ | Versioned thresholds และ safety requirements |
-| Durable operational events | ✅ | Tenant validation, server-owned provenance และ conflict-safe idempotency |
-| Canonical GitHub deployments | ✅ | Signed deployment/deployment-status webhooks upsert one deployment, link exact repository + SHA changes, and keep legacy DORA fields compatible |
-| Connector health read model | ✅ | Provider, webhook delivery, selected repository and Check publication health are visible without exposing credentials |
-| Durable GitHub Check worker/outbox | ✅ | Transactional webhook producer, allow-listed worker, provider recovery, W3C trace, bounded retry, stale lease, dead-letter และ replay |
-| Process metrics baseline | ✅ | Private low-cardinality Prometheus endpoint and request-guard counters; dashboards/alerts remain external |
-| OpenTelemetry tracing/Collector | ✅ | Optional API/worker OTLP tracing, redacting local config และ authenticated production exporter template |
-| Backup, restore and retention helpers | ✅ | Atomic backup, isolated writable restore rehearsal, batched dry-run/apply retention, legal hold และ append-only deletion audit; schedule/storage remain external |
-| Open-source onboarding | ✅ | Connected-mode and isolated synthetic demo quickstarts, English/Thai overview, screenshots, issue forms, and release checklist |
-| Citation-gated evidence explanation | ✅ | Deterministic baseline with versioned contract, evidence-bundle SHA-256, uncertainty, citation validation, audit metadata, and no external provider call |
-| DeployGuard Bench v0.1 foundation | ✅ | Operational-example JSON Schema, deterministic synthetic exporter, SHA-256 manifest, eligibility rules, 3 seed examples และ CI drift check |
-| Public/real operational benchmark | ⬜ | ยังไม่มี consented connected export, public dataset adapter, hidden test split หรือ independently reviewed corpus |
-| Signed container distribution | ✅ | Tag-driven GHCR API/web images for amd64/arm64 with SBOM and provenance attestations |
-| Incident lifecycle + notes | ✅ | Role-gated transitions, assignee และ append-only notes |
-| In-app notifications | ✅ | Recipient-scoped list/read state |
-| PostgreSQL tenant isolation | ✅ | RLS migration, transaction-local context และ negative CRUD/pool-leakage tests บน PostgreSQL 16 non-owner role |
-| Retention/deletion automation | ⬜ | ไม่มี scheduled policy/job |
-| Native OTLP ingestion pipeline | ⬜ | ต้องมี authenticated Collector/gateway mapping |
-| External LLM provider | ⏸ | Evidence-only deterministic baseline and citation validator are implemented; external provider activation remains gated on redaction, security, and blind evaluation |
-| Hosted public demo | ⬜ | ต้องมี isolated tenancy, cost limits, abuse protection และข้อมูล synthetic ที่ล้างได้ |
-| GitHub App marketplace distribution | ⬜ | ต้องมี production OAuth/App review, installation UX และ support ownership |
-| .NET 10 read-only parity spike | 🟡 | Golden 9/9, read-contract 5/5 และ read-only RLS probe ผ่าน; full CRUD/worker and operational comparison remain gated |
-| ASP.NET Core backend rewrite | ⏸ | .NET 10 LTS ทำได้ แต่ยังไม่มี evidence ว่า rewrite จะเพิ่มความน่าเชื่อถือหรือความสามารถมากกว่าการพัฒนา FastAPI ต่อ |
-
-## Runtime decision: FastAPI หรือ ASP.NET Core
-
-ASP.NET Core 10 ([.NET support policy](https://dotnet.microsoft.com/platform/support/policy)) เป็นตัวเลือกที่ดีสำหรับองค์กรที่มีมาตรฐาน .NET, ต้องใช้
-integrations ใน ecosystem ของ Microsoft หรือมีทีม C# เป็นหลัก แต่การเปลี่ยน
-runtime ไม่ได้แก้ข้อจำกัดสำคัญของระบบนี้โดยตรง เช่น GitHub App production
-verification, telemetry ingestion, retention automation และ public demo isolation
-
-คำแนะนำปัจจุบันคือรักษา FastAPI เป็น backend หลัก แล้วลงทุนกับ contract,
-security และ operational capabilities ต่อไปก่อน จะไม่ทำ rewrite ข้ามภาษาเพียงเพื่อ
-เปลี่ยน framework. ควรเปิดโครงการ .NET แยกเมื่อมีอย่างน้อยหนึ่งเงื่อนไขต่อไปนี้:
-
-- ผู้ใช้หรือผู้ดูแลระบบต้องการ deploy บนมาตรฐาน .NET อย่างชัดเจน
-- load test บน reference environment แสดง bottleneck ที่แก้ด้วย profiling/cache/DB ไม่ได้
-- มี core contributor ที่จะดูแล C# service และ migration ระยะยาว
-- ต้องการแยก ingestion หรือ enterprise connector เป็น ASP.NET Core service โดยมี API contract เดิมเป็นข้อผูกมัด
-
-## Foundation ที่ส่งมอบแล้ว
-
-### Deterministic investigation core
-
-- risk score 6 dimensions จาก explicit weights
-- risk reason และ evidence IDs
-- bounded BFS blast radius พร้อม hop cap และ cycle protection
-- deterministic RCA ที่พิจารณา evidence และ counter-evidence
-- human verdict แยกจาก original evidence snapshot
-- synthetic scenarios ที่ทำซ้ำได้และติดป้ายชัดเจน
-
-ข้อจำกัด: automated fixture correctness ไม่เท่ากับ real-dataset RCA accuracy
-
-### Tenant application layer
-
-- development bearer สำหรับ local
-- production OIDC JWT/JWKS verification
-- workspace/repository/scenario context ต่อ user
-- roles `viewer`, `responder`, `admin`, `owner`
-- invitation แบบ hashed, expiring, single-use และ revocable
-- application audit events
-- tenant-scoped change/incident/provider operations
-
-ข้อจำกัด: RLS ครอบคลุม data-plane tables; control-plane ยังพึ่ง application
-authorization และ audit store ยังไม่ tamper-proof
-
-### Connected provider layer
-
-- GitHub App install state และ callback
-- installation-to-workspace mapping
-- repository discovery/sync
-- raw-body webhook HMAC
-- durable GitHub delivery dedupe
-- PR processing status และ signed-retry repair สำหรับ normalized events
-- signed PR metadata เป็น connected change
-- SMTP invitation delivery
-- normalized telemetry HTTP endpoint
-
-Signed PR webhook บันทึก change และ GitHub Check job แบบ transactional แล้ว
-worker ทำ create/find/PATCH recovery พร้อม retry/DLQ ส่วน notification/email และ
-normalized event บางเส้นทางยัง synchronous รวมถึง deployment signal
-grouping/correlation ยังเป็นงานถัดไป Telemetry evidence endpoint ไม่ใช่ native
-OTLP receiver; Collector ใช้สำหรับ observability ของตัว DeployGuard
-
-### Operations workspace
-
-- service catalog ที่ไม่ต้องเดาจาก repository name
-- dependency validation ภายใน workspace และ cycle rejection
-- versioned workspace risk thresholds และ safety requirements
-- normalized operational-event ledger พร้อม tenant dedupe
-- incident state transitions, assignee และ responder notes
-- in-app notifications ที่ scope ตาม recipient
-
-ข้อจำกัด: retention CLI พร้อม legal hold/audit แล้วแต่ schedule ยังเป็น deployment
-workflow และยังไม่มี Slack/Teams/PagerDuty delivery หรือ SLO engine
-
-## P0 — Production hardening
-
-งานกลุ่มนี้ต้องเสร็จก่อนอ้าง production-ready
-
-### PostgreSQL contract verification
-
-Deliver:
-
-- run migrations บน empty และ upgraded PostgreSQL
-- concurrent policy/event/invitation tests
-- transaction retry policy สำหรับ serialization/deadlock
-- composite tenant constraints ที่เหมาะสม
-- PostgreSQL RLS เป็น defense in depth
-- query-plan/index review สำหรับ event/notification/audit list
-
-Exit gate:
-
-- SQLite local และ PostgreSQL contract behavior ตรงกัน
-- cross-tenant matrix ผ่านบน PostgreSQL
-- migration forward path และ restore path ถูกทดลองจริง
-
-### Ingestion reliability
-
-Deliver:
-
-- worker integration สำหรับ `background_jobs` และ fast webhook acknowledgement
-- bounded retry พร้อม exponential backoff
-- dead-letter queue และ replay authorization
-- scheduled/proactive GitHub reconciliation เพิ่มจาก signed-retry repair ที่มีแล้ว
-- per-source/workspace rate limit และ quota
-- request-body/cardinality limits
-- operational metrics: accepted, duplicate, rejected, lag, retry, dropped
-
-Exit gate:
-
-- duplicate input ไม่สร้าง side effect ซ้ำ
-- provider outage ไม่ทำ request thread ค้าง
-- replay มี audit และ tenant authorization
-- overload test แสดง bounded resource usage
-
-### Data lifecycle
-
-Deliver:
-
-- configurable retention ต่อ data class และ scheduled archive/delete job
-- workspace/provider uninstall deletion workflow
-- legal-hold override
-- backup/restore automation และ restore drill บน reference environment
-- deletion และ restore audit
-
-Exit gate:
-
-- policy ไม่ใช่เพียงข้อความใน docs
-- expired data ถูกลบจาก primary, backup ตาม policy และ search index ถ้ามี
-- restore drill บน reference environment ผ่าน
-
-### Platform security
-
-Deliver:
-
-- managed secret/KMS integration และ rotation
-- HTTPS/security headers/CSP deployment profile
-- dependency/image/SBOM pipeline
-- log/telemetry secret redaction
-- abuse/rate-limit tests
-- production threat review และ penetration test
-
-Exit gate:
-
-- development provider เปิดไม่ได้ใน production
-- no critical access-control/secret finding
-- rotation ไม่ทำ synthetic mode เสีย
-
-## P1 — Operational usefulness
-
-### Native telemetry gateway
-
-- OpenTelemetry Collector receiver
-- Collector deployment, rotation และ distribution ของ workspace-derived credential
-- semantic-convention version
-- allowlisted/redacted normalized event contract
-- queue/drop metrics และ backpressure
-- service/deployment/incident correlation windows
-
-FastAPI ไม่จำเป็นต้องเป็น OTLP receiver โดยตรง Collector ควรเป็น protocol
-boundary แล้วส่ง normalized event เข้า API
-
-### SLO และ error budget
-
-- service-level SLI/SLO definition
-- availability/latency/error-rate windows
-- error budget before/after deployment
-- regression detection tied to change/deployment
-- SLO evidence เป็น input ของ deterministic risk policy
-
-### Collaboration integrations
-
-- Slack/Teams notification delivery
-- PagerDuty/Opsgenie incident link
-- Jira/Linear action items
-- delivery preference, quiet hours, severity routing
-- connection health, last success/error และ test connection
-
-External notification ต้องเป็น allowlisted integration ไม่ใช่ arbitrary webhook
-URL
-
-### Search และ saved views
-
-- search commit SHA, PR, service, incident และ event
-- filters: time, severity, environment, source, status
-- saved views และ deep links
-- keyboard command palette
-- pagination/cursor contract สำหรับ large workspace
-
-## P2 — DeployGuard Bench, evidence quality และ evaluation
-
-### Operational dataset program
-
-Architecture:
-
-```text
-Operational Data -> Evidence Graph -> DeployGuard Bench -> AI/LLM consumers
-```
-
-Foundation ที่ implement แล้ว:
-
-- schema `deployguard-operational-example/v1`
-- deployment, topology, incident timeline, evidence/counter-evidence,
-  hypotheses, ground truth, verification, postmortem และ provenance contract
-- deterministic exporter จาก synthetic scenarios เท่านั้น
-- per-example/dataset SHA-256, split, license และ train/evaluation eligibility
-- checked-in v0.1 seed 3 examples และ CI drift check
-
-Target corpus หลัง schema และ review process เสถียร:
-
-- 1,000 deployment scenarios
-- 500 incident investigations
-- ทุก evaluation-ready case มี ground truth, supporting evidence,
-  counter-evidence, verification steps และ label source ที่ตรวจสอบได้
-- train/validation/hidden-test split แยกชัดเจน พร้อม contamination และ duplicate
-  detection
-
-Data-capture gap ที่ต้องปิดก่อน connected export:
-
-- human verdict ต้องเก็บ actor provenance แบบ tenant-scoped แล้วลบ identity
-  ออกจาก public artifact
-- verification step ต้องมี structured status และ observed outcome ไม่ใช่มีเพียง
-  next-step suggestion
-- postmortem ต้องมี immutable reviewed snapshot และ link กับ incident/change
-- dataset consent, redaction decision และ publication approval ต้อง audit ได้
-
-Connected incident ไม่ถูก export อัตโนมัติ ต้องมี workspace opt-in, revocable
-data-use agreement, secret/PII/customer/repository redaction, source license,
-retention policy, resolved outcome, human verdict, reviewer approval และ immutable
-dataset version ก่อน ข้อมูลที่ไม่ผ่าน gate ใช้ใน product ได้แต่ห้ามนับเป็น
-training/evaluation example
-
-เกณฑ์แยก DeployGuard Bench เป็น repository ใหม่:
-
-1. v1 schema stable
-2. license review ผ่าน
-3. อย่างน้อย 100 examples ผ่าน independent quality review
-4. ต้องมี release cadence หรือ maintainer ownership แยกจาก application จริง
-
-ก่อนผ่านเกณฑ์นี้ให้ incubate ใน monorepo เพื่อป้องกัน schema/engine/CI drift
-
-### Versioned evaluation harness
-
-- dataset/scenario/scoring/graph schema versions
-- frozen core/held-out suites
-- checksums และ run manifest
-- Top-K/MRR/graph correctness metrics
-- confidence intervals และ failure slices
-- public/real-dataset provenance และ license inventory
-
-ผล benchmark ทุกชุดต้อง pin commit, dataset และ configuration และต้องไม่ปน
-unit-test count กับ model accuracy
-
-### Risk calibration
-
-- compare predicted risk กับ deployment outcomes
-- false-positive/false-negative slices
-- policy simulation ก่อน activate
-- historical replay
-- model/weight version comparison
-- workspace feedback analytics โดยไม่ใช้ author identity เป็น risk signal
-
-### Service graph scale decision
-
-เริ่มด้วย relational adjacency/recursive CTE ก่อนเพิ่ม graph database พิจารณา
-graph store เฉพาะเมื่อ benchmark บน workload จริงแสดงว่า PostgreSQL ไม่ผ่าน
-latency/maintainability target
-
-## Deferred — Evidence-grounded LLM
-
-เปิดพิจารณาเมื่อ:
-
-1. evidence-only typed contract มี version ✅
-2. deterministic explanation เป็น baseline ✅
-3. unsupported-claim และ citation validator มี tests ✅
-4. prompt-injection corpus มี tests
-5. tenant/redaction/retention boundary ผ่าน review
-6. provider region/retention/cost policy ถูกกำหนด
-7. blind evaluation แสดงประโยชน์เหนือ deterministic template
-8. มี frozen DeployGuard Bench split ที่ไม่ถูกใช้ train หรือพัฒนา prompt และ
-   ผ่าน contamination review
-
-LLM เป็น consumer ของ dataset เท่านั้นและจะไม่มีสิทธิ์ให้คะแนน, สร้าง evidence,
-แก้ ground truth, execute tool, deploy, rollback หรือ remediate
+| --- | --- | --- |
+| Deterministic change risk and blast radius | Implemented | Explicit scoring dimensions, versioned policy, cycle-safe traversal |
+| Incident evidence, RCA, and lifecycle | Implemented | Timeline, evidence/counter-evidence, hypotheses, assignments, notes, notifications |
+| Human verdict governance | Implemented | Server-owned actor provenance and structured verification outcome |
+| Postmortem and consent governance | Implemented | Immutable content-addressed snapshots, append-only purpose-specific consent, readiness gate |
+| Workspace, RBAC, and PostgreSQL RLS | Implemented | Viewer/responder/admin/owner roles and negative tenant-isolation tests |
+| Durable GitHub provider workflow | Environment-gated | GitHub App, signed webhook, Check Runs, outbox, retry, DLQ, trace propagation |
+| OIDC and SMTP | Environment-gated | Runtime paths exist; operators must configure providers and secrets |
+| Normalized telemetry ingestion | Environment-gated | Tenant-scoped normalized contract; not a native OTLP receiver |
+| Backup, restore, and retention helpers | Implemented | Restore rehearsal, batched retention, legal hold, deletion audit; scheduling/storage external |
+| DeployGuard Bench synthetic foundation | Implemented | Schema, deterministic exporter, 3 synthetic examples, manifest, CI drift check |
+| Connected-data export/publication | Planned | Exporter remains closed; redaction, review, registry, and revocation propagation absent |
+| Public real-world benchmark | Planned | No consented corpus, hidden test split, independent annotation, or leaderboard |
+| External LLM provider | Deferred | Requires redaction, security, blinded evaluation, and frozen benchmark first |
+| Native OTLP gateway | Planned | Requires authenticated Collector mapping, quotas, and normalization policy |
+| Slack/Teams/PagerDuty | Planned | No arbitrary outbound webhook path is currently bundled |
+| Hosted public demo | Planned | Requires isolated tenancy, abuse protection, cost limits, and resettable synthetic data |
+| .NET 10 read-only parity spike | Environment-gated | Read-only parity exists; no measured reason to replace the production authority yet |
+
+## P0 — Close the connected-data safety loop
+
+1. Build deterministic secret, PII, customer-data, and tenant-identifier
+   redaction with inspectable review artifacts.
+2. Add a source license/retention inventory and publication approval workflow.
+3. Create an immutable dataset release registry and propagate consent revocation
+   as tombstones to every derived bundle.
+4. Add deduplication, contamination, and train/test leakage checks before any
+   record can leave `ready_for_review`.
+5. Verify migration `0010`, RLS, and immutability triggers on a real PostgreSQL
+   16 non-owner role in CI and a reference environment.
+
+## P1 — Make connected operations easier
+
+1. Native OTLP gateway with authenticated Collector mapping, allow-listed
+   attributes, cardinality limits, and redaction before persistence.
+2. Slack/Teams/PagerDuty adapters through the durable outbox with allow-listed
+   destinations, idempotency, retry, and auditable delivery state.
+3. SLO/error-budget dashboards backed by connected deployment and incident
+   evidence, not placeholder metrics.
+4. Search, saved views, and evidence filters that remain tenant-scoped and
+   preserve source provenance.
+5. Scheduled retention, backup storage ownership, restore alerts, and
+   multi-replica rate limiting.
+
+## P2 — Build a credible benchmark
+
+1. Collect the first consented operational corpus under the P0 publication
+   controls; current connected count is zero.
+2. Add annotation, adjudication, inter-rater agreement, and quality sampling.
+3. Freeze train, validation, public-test, and hidden-test splits with leakage
+   controls and versioned dataset cards.
+4. Publish deterministic and model baselines with calibration, failure slices,
+   cost, latency, and abstention metrics.
+5. Measure production usefulness separately: investigation time, evidence
+   coverage, verdict reversals, and reviewer trust.
+
+The 1,000 deployment-scenario and 500 incident-investigation target remains a
+long-term corpus goal. Quality, consent, and independent review take priority
+over example count.
+
+## Deferred — External LLM
+
+Do not add an external model call until the evidence-only contract, redaction,
+frozen evaluation split, prompt-injection tests, cost/latency limits, and blinded
+comparison show a measurable improvement over the deterministic baseline. AI
+remains a consumer of the evidence graph, never the owner of ground truth.
+
+## Runtime decision
+
+FastAPI remains the production authority. The .NET 10 spike is a read-only
+parity and operational measurement track. A migration should occur only if full
+OpenAPI, security/RLS, golden-corpus, performance, and operational parity are
+proven and the measured benefit exceeds the migration and split-runtime cost.
 
 ## Definition of done
 
-Capability จะเปลี่ยนเป็น implemented/verified ได้เมื่อมี:
-
-- typed API และ data contract
-- authorization/tenant negative tests
-- deterministic/idempotency tests ตามความเสี่ยง
-- migration และ operational failure behavior
-- frontend loading/error/empty/accessibility behavior ถ้ามี UI
-- reproducible verification command
-- documentation ของ credential requirements และ known limitations
-
-Deployment runbook อยู่ใน [OPERATIONS.md](OPERATIONS.md) และ threat controls อยู่
-ใน [SECURITY.md](SECURITY.md)
+A capability is complete only when its contract is typed, authorization and
+tenant boundaries are explicit, negative/security tests exist, migrations and
+rollback are documented, observability is useful, operator failure modes are
+described, and the UI never presents synthetic data or readiness as production
+truth.

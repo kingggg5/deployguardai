@@ -52,7 +52,8 @@
         "license",
         "contains_customer_data",
         "contains_personal_data",
-        "label_source"
+        "label_source",
+        "consent"
       ],
       "properties": {
         "source_kind": {"enum": ["hand_authored_synthetic", "public_dataset", "consented_operational_export"]},
@@ -64,6 +65,24 @@
         "label_source": {
           "oneOf": [
             {"enum": ["scenario_author", "human_verdict", "public_dataset_label"]},
+            {"type": "null"}
+          ]
+        },
+        "consent": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["decision_id", "purpose", "terms_version", "postmortem_sha256", "actor", "recorded_at"],
+              "properties": {
+                "decision_id": {"$ref": "#/$defs/nonEmptyString"},
+                "purpose": {"enum": ["evaluation", "training"]},
+                "terms_version": {"$ref": "#/$defs/nonEmptyString"},
+                "postmortem_sha256": {"$ref": "#/$defs/sha256"},
+                "actor": {"$ref": "#/$defs/actorProvenance"},
+                "recorded_at": {"$ref": "#/$defs/timestamp"}
+              }
+            },
             {"type": "null"}
           ]
         }
@@ -204,11 +223,13 @@
           "oneOf": [
             {
               "type": "object",
-              "required": ["verdict", "hypothesis_id", "note"],
+              "required": ["verdict", "hypothesis_id", "note", "actor", "submitted_at"],
               "properties": {
                 "verdict": {"enum": ["confirmed", "rejected", "partial"]},
                 "hypothesis_id": {"$ref": "#/$defs/nonEmptyString"},
-                "note": {"$ref": "#/$defs/nonEmptyString"}
+                "note": {"$ref": "#/$defs/nonEmptyString"},
+                "actor": {"$ref": "#/$defs/actorProvenance"},
+                "submitted_at": {"$ref": "#/$defs/timestamp"}
               }
             },
             {"type": "null"}
@@ -219,20 +240,27 @@
     "verification": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["status", "steps", "observed_outcome"],
+      "required": ["status", "steps", "method", "evidence_ids", "observed_outcome", "recorded_at"],
       "properties": {
-        "status": {"enum": ["not_recorded", "verified", "disproved", "inconclusive"]},
+        "status": {"enum": ["not_recorded", "supported", "contradicted", "inconclusive"]},
         "steps": {"$ref": "#/$defs/stringList"},
-        "observed_outcome": {"oneOf": [{"type": "string"}, {"type": "null"}]}
+        "method": {"oneOf": [{"type": "string"}, {"type": "null"}]},
+        "evidence_ids": {"$ref": "#/$defs/stringList"},
+        "observed_outcome": {"oneOf": [{"type": "string"}, {"type": "null"}]},
+        "recorded_at": {"oneOf": [{"$ref": "#/$defs/timestamp"}, {"type": "null"}]}
       }
     },
     "postmortem": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["status", "summary"],
+      "required": ["status", "summary", "snapshot_id", "snapshot_version", "content_sha256", "created_at"],
       "properties": {
         "status": {"enum": ["not_available", "summary_only", "complete"]},
-        "summary": {"oneOf": [{"type": "string"}, {"type": "null"}]}
+        "summary": {"oneOf": [{"type": "string"}, {"type": "null"}]},
+        "snapshot_id": {"oneOf": [{"type": "string"}, {"type": "null"}]},
+        "snapshot_version": {"oneOf": [{"type": "string"}, {"type": "null"}]},
+        "content_sha256": {"oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+        "created_at": {"oneOf": [{"$ref": "#/$defs/timestamp"}, {"type": "null"}]}
       }
     },
     "quality": {
@@ -273,6 +301,17 @@
       "type": "array",
       "uniqueItems": true,
       "items": {"type": "string"}
+    },
+    "actorProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actor_ref", "actor_type", "auth_provider", "recorded_at"],
+      "properties": {
+        "actor_ref": {"description": "A release-scoped pseudonymous actor reference, never a provider subject or email.", "$ref": "#/$defs/nonEmptyString"},
+        "actor_type": {"const": "authenticated_user"},
+        "auth_provider": {"$ref": "#/$defs/nonEmptyString"},
+        "recorded_at": {"$ref": "#/$defs/timestamp"}
+      }
     },
     "evidence": {
       "type": "object",

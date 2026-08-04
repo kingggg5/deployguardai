@@ -128,6 +128,7 @@ def build_example(raw_spec: Mapping[str, Any]) -> dict[str, Any]:
             "contains_customer_data": False,
             "contains_personal_data": False,
             "label_source": "scenario_author" if confirmed else None,
+            "consent": None,
         },
         "deployment": {
             "change_id": str(change["id"]),
@@ -174,7 +175,10 @@ def build_example(raw_spec: Mapping[str, Any]) -> dict[str, Any]:
         "verification": {
             "status": "not_recorded",
             "steps": verification_steps,
+            "method": None,
+            "evidence_ids": [],
             "observed_outcome": None,
+            "recorded_at": None,
         },
         "postmortem": {
             "status": (
@@ -183,6 +187,10 @@ def build_example(raw_spec: Mapping[str, Any]) -> dict[str, Any]:
             "summary": (
                 str(incident["summary"]) if incident.get("resolved_at") else None
             ),
+            "snapshot_id": None,
+            "snapshot_version": None,
+            "content_sha256": None,
+            "created_at": None,
         },
         "quality": {
             "evidence_reference_integrity": _reference_integrity(

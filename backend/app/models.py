@@ -158,7 +158,93 @@ class FeedbackRecord(Base):
     hypothesis_id: Mapped[str] = mapped_column(String(100))
     verdict: Mapped[str] = mapped_column(String(20))
     note: Mapped[str] = mapped_column(Text)
+    actor_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True, index=True
+    )
+    actor_display_name: Mapped[str | None] = mapped_column(
+        String(160), nullable=True
+    )
+    actor_auth_provider: Mapped[str | None] = mapped_column(
+        String(40), nullable=True
+    )
+    verification_result: Mapped[str] = mapped_column(
+        String(24), default="not_recorded", server_default="not_recorded"
+    )
+    verification_method: Mapped[str | None] = mapped_column(
+        String(160), nullable=True
+    )
+    verification_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    verification_evidence_ids: Mapped[list[str]] = mapped_column(
+        JSON, default=list, server_default="[]"
+    )
     submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class PostmortemSnapshotRecord(Base):
+    __tablename__ = "postmortem_snapshots"
+    __table_args__ = (
+        UniqueConstraint(
+            "incident_id",
+            "content_sha256",
+            name="uq_postmortem_incident_content",
+        ),
+        Index(
+            "ix_postmortem_workspace_incident_created",
+            "workspace_id",
+            "incident_id",
+            "created_at",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(
+        ForeignKey("workspaces.id"), index=True
+    )
+    incident_id: Mapped[str] = mapped_column(
+        ForeignKey("incidents.id"), index=True
+    )
+    snapshot_version: Mapped[str] = mapped_column(String(40))
+    content_markdown: Mapped[str] = mapped_column(Text)
+    content_sha256: Mapped[str] = mapped_column(String(64), index=True)
+    source_feedback_count: Mapped[int] = mapped_column(Integer)
+    analysis_schema_version: Mapped[str] = mapped_column(String(80))
+    engine_version: Mapped[str] = mapped_column(String(80))
+    created_by_user_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
+    created_by_display_name: Mapped[str] = mapped_column(String(160))
+    created_by_auth_provider: Mapped[str] = mapped_column(String(40))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class DatasetConsentDecisionRecord(Base):
+    __tablename__ = "dataset_consent_decisions"
+    __table_args__ = (
+        Index(
+            "ix_dataset_consent_workspace_incident_created",
+            "workspace_id",
+            "incident_id",
+            "created_at",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(
+        ForeignKey("workspaces.id"), index=True
+    )
+    incident_id: Mapped[str] = mapped_column(
+        ForeignKey("incidents.id"), index=True
+    )
+    postmortem_snapshot_id: Mapped[str] = mapped_column(
+        ForeignKey("postmortem_snapshots.id"), index=True
+    )
+    purpose: Mapped[str] = mapped_column(String(20), index=True)
+    decision: Mapped[str] = mapped_column(String(20))
+    terms_version: Mapped[str] = mapped_column(String(40))
+    reason: Mapped[str] = mapped_column(Text)
+    attestations: Mapped[list[str]] = mapped_column(JSON, default=list)
+    actor_user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    actor_display_name: Mapped[str] = mapped_column(String(160))
+    actor_auth_provider: Mapped[str] = mapped_column(String(40))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class User(Base):

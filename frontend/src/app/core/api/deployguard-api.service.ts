@@ -4,12 +4,17 @@ import { Observable } from 'rxjs';
 import {
   AnalyzeChangeRequest,
   ChangeDetail,
+  DatasetConsentRequest,
+  DatasetConsentSummary,
+  DatasetPurpose,
+  DatasetReadiness,
   DoraMetrics,
   EvidenceSynthesisResponse,
   FeedbackRequest,
   HealthResponse,
   IncidentDetail,
   Overview,
+  PostmortemSnapshotSummary,
   ScenarioSummary
 } from '../models/deployguard.models';
 import { DEPLOYGUARD_API_BASE } from '../config/deployguard-config';
@@ -87,6 +92,35 @@ export class DeployGuardApiService {
     return this.http.get(
       `${this.apiBase}/incidents/${encodeURIComponent(incidentId)}/export-markdown`,
       { responseType: 'text' }
+    );
+  }
+
+  getDatasetReadiness(
+    incidentId: string,
+    purpose: DatasetPurpose = 'evaluation'
+  ): Observable<DatasetReadiness> {
+    return this.http.get<DatasetReadiness>(
+      `${this.apiBase}/incidents/${encodeURIComponent(incidentId)}/dataset-readiness`,
+      { params: { purpose } }
+    );
+  }
+
+  createPostmortemSnapshot(
+    incidentId: string
+  ): Observable<PostmortemSnapshotSummary> {
+    return this.http.post<PostmortemSnapshotSummary>(
+      `${this.apiBase}/incidents/${encodeURIComponent(incidentId)}/postmortem-snapshots`,
+      {}
+    );
+  }
+
+  recordDatasetConsent(
+    incidentId: string,
+    request: DatasetConsentRequest
+  ): Observable<DatasetConsentSummary> {
+    return this.http.post<DatasetConsentSummary>(
+      `${this.apiBase}/incidents/${encodeURIComponent(incidentId)}/dataset-consent`,
+      request
     );
   }
 }

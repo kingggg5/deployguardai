@@ -1,6 +1,36 @@
 {
   "components": {
     "schemas": {
+      "ActorProvenance": {
+        "additionalProperties": false,
+        "properties": {
+          "auth_provider": {
+            "title": "Auth Provider",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "recorded_at": {
+            "format": "date-time",
+            "title": "Recorded At",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "display_name",
+          "auth_provider",
+          "recorded_at"
+        ],
+        "title": "ActorProvenance",
+        "type": "object"
+      },
       "AnalyzeChangeRequest": {
         "additionalProperties": false,
         "properties": {
@@ -679,6 +709,241 @@
         "title": "ConnectorHealthSummary",
         "type": "object"
       },
+      "DatasetConsentRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "attestations": {
+            "items": {
+              "enum": [
+                "workspace_authorized",
+                "secrets_reviewed",
+                "privacy_reviewed",
+                "license_reviewed"
+              ],
+              "type": "string"
+            },
+            "maxItems": 4,
+            "title": "Attestations",
+            "type": "array"
+          },
+          "decision": {
+            "enum": [
+              "approved",
+              "revoked"
+            ],
+            "title": "Decision",
+            "type": "string"
+          },
+          "purpose": {
+            "default": "evaluation",
+            "enum": [
+              "evaluation",
+              "training"
+            ],
+            "title": "Purpose",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "terms_version": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Terms Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision",
+          "terms_version",
+          "reason"
+        ],
+        "title": "DatasetConsentRequest",
+        "type": "object"
+      },
+      "DatasetConsentSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "actor": {
+            "$ref": "#/components/schemas/ActorProvenance"
+          },
+          "attestations": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Attestations",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "decision": {
+            "enum": [
+              "approved",
+              "revoked"
+            ],
+            "title": "Decision",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "incident_id": {
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "postmortem_snapshot_id": {
+            "title": "Postmortem Snapshot Id",
+            "type": "string"
+          },
+          "purpose": {
+            "enum": [
+              "evaluation",
+              "training"
+            ],
+            "title": "Purpose",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "terms_version": {
+            "title": "Terms Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "incident_id",
+          "postmortem_snapshot_id",
+          "purpose",
+          "decision",
+          "terms_version",
+          "reason",
+          "attestations",
+          "actor",
+          "created_at"
+        ],
+        "title": "DatasetConsentSummary",
+        "type": "object"
+      },
+      "DatasetReadinessRequirement": {
+        "additionalProperties": false,
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "key": {
+            "enum": [
+              "connected_incident",
+              "resolved_incident",
+              "attributed_human_verdict",
+              "structured_verification",
+              "immutable_postmortem",
+              "audited_consent"
+            ],
+            "title": "Key",
+            "type": "string"
+          },
+          "satisfied": {
+            "title": "Satisfied",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "satisfied",
+          "detail"
+        ],
+        "title": "DatasetReadinessRequirement",
+        "type": "object"
+      },
+      "DatasetReadinessResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "connected_exporter_enabled": {
+            "const": false,
+            "default": false,
+            "title": "Connected Exporter Enabled",
+            "type": "boolean"
+          },
+          "data_mode": {
+            "enum": [
+              "synthetic",
+              "connected"
+            ],
+            "title": "Data Mode",
+            "type": "string"
+          },
+          "incident_id": {
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "latest_consent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DatasetConsentSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "latest_snapshot": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PostmortemSnapshotSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "purpose": {
+            "enum": [
+              "evaluation",
+              "training"
+            ],
+            "title": "Purpose",
+            "type": "string"
+          },
+          "requirements": {
+            "items": {
+              "$ref": "#/components/schemas/DatasetReadinessRequirement"
+            },
+            "title": "Requirements",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "not_applicable",
+              "blocked",
+              "ready_for_review"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "incident_id",
+          "data_mode",
+          "purpose",
+          "status",
+          "requirements",
+          "latest_snapshot",
+          "latest_consent"
+        ],
+        "title": "DatasetReadinessResponse",
+        "type": "object"
+      },
       "DeploymentResponse": {
         "additionalProperties": false,
         "properties": {
@@ -1183,9 +1448,23 @@
       "Feedback": {
         "additionalProperties": false,
         "properties": {
+          "actor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActorProvenance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "hypothesis_id": {
             "title": "Hypothesis Id",
             "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
           },
           "note": {
             "title": "Note",
@@ -1204,9 +1483,20 @@
             ],
             "title": "Verdict",
             "type": "string"
+          },
+          "verification_outcome": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VerificationOutcome"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
+          "id",
           "verdict",
           "hypothesis_id",
           "note",
@@ -1238,6 +1528,16 @@
             ],
             "title": "Verdict",
             "type": "string"
+          },
+          "verification_outcome": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VerificationOutcomeRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -2592,6 +2892,65 @@
         "title": "OverviewStats",
         "type": "object"
       },
+      "PostmortemSnapshotSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "analysis_schema_version": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Analysis Schema Version",
+            "type": "string"
+          },
+          "content_sha256": {
+            "title": "Content Sha256",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "$ref": "#/components/schemas/ActorProvenance"
+          },
+          "engine_version": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Engine Version",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "incident_id": {
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "snapshot_version": {
+            "title": "Snapshot Version",
+            "type": "string"
+          },
+          "source_feedback_count": {
+            "minimum": 1.0,
+            "title": "Source Feedback Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "incident_id",
+          "snapshot_version",
+          "content_sha256",
+          "source_feedback_count",
+          "analysis_schema_version",
+          "engine_version",
+          "created_by",
+          "created_at"
+        ],
+        "title": "PostmortemSnapshotSummary",
+        "type": "object"
+      },
       "ProductCapabilities": {
         "additionalProperties": false,
         "properties": {
@@ -3785,6 +4144,94 @@
         "title": "ValidationError",
         "type": "object"
       },
+      "VerificationOutcome": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "method": {
+            "title": "Method",
+            "type": "string"
+          },
+          "recorded_at": {
+            "format": "date-time",
+            "title": "Recorded At",
+            "type": "string"
+          },
+          "result": {
+            "enum": [
+              "supported",
+              "contradicted",
+              "inconclusive",
+              "not_recorded"
+            ],
+            "title": "Result",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "result",
+          "method",
+          "summary",
+          "evidence_ids",
+          "recorded_at"
+        ],
+        "title": "VerificationOutcome",
+        "type": "object"
+      },
+      "VerificationOutcomeRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence_ids": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "method": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Method",
+            "type": "string"
+          },
+          "result": {
+            "enum": [
+              "supported",
+              "contradicted",
+              "inconclusive"
+            ],
+            "title": "Result",
+            "type": "string"
+          },
+          "summary": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "result",
+          "method",
+          "summary",
+          "evidence_ids"
+        ],
+        "title": "VerificationOutcomeRequest",
+        "type": "object"
+      },
       "WorkspaceCreate": {
         "additionalProperties": false,
         "properties": {
@@ -4238,6 +4685,118 @@
         "summary": "Incident"
       }
     },
+    "/api/v1/incidents/{incident_id}/dataset-consent": {
+      "post": {
+        "operationId": "incident_dataset_consent_record_api_v1_incidents__incident_id__dataset_consent_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "title": "Incident Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatasetConsentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetConsentSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Incident Dataset Consent Record"
+      }
+    },
+    "/api/v1/incidents/{incident_id}/dataset-readiness": {
+      "get": {
+        "operationId": "incident_dataset_readiness_api_v1_incidents__incident_id__dataset_readiness_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "title": "Incident Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "purpose",
+            "required": false,
+            "schema": {
+              "default": "evaluation",
+              "enum": [
+                "evaluation",
+                "training"
+              ],
+              "title": "Purpose",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetReadinessResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Incident Dataset Readiness"
+      }
+    },
     "/api/v1/incidents/{incident_id}/export-markdown": {
       "get": {
         "operationId": "incident_export_markdown_api_v1_incidents__incident_id__export_markdown_get",
@@ -4440,6 +4999,50 @@
           }
         ],
         "summary": "Incident Note Create"
+      }
+    },
+    "/api/v1/incidents/{incident_id}/postmortem-snapshots": {
+      "post": {
+        "operationId": "incident_postmortem_snapshot_create_api_v1_incidents__incident_id__postmortem_snapshots_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "title": "Incident Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostmortemSnapshotSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Incident Postmortem Snapshot Create"
       }
     },
     "/api/v1/incidents/{incident_id}/synthesize": {

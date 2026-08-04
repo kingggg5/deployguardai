@@ -75,6 +75,53 @@ describe('DeployGuardApiService', () => {
     request.flush({});
   });
 
+  it('loads dataset readiness for a scoped purpose', () => {
+    service.getDatasetReadiness('inc/checkout', 'training').subscribe();
+
+    const request = http.expectOne(
+      (candidate) =>
+        candidate.url ===
+          '/test-api/v1/incidents/inc%2Fcheckout/dataset-readiness' &&
+        candidate.params.get('purpose') === 'training'
+    );
+    expect(request.request.method).toBe('GET');
+    request.flush({});
+  });
+
+  it('creates an immutable postmortem snapshot with an empty body', () => {
+    service.createPostmortemSnapshot('inc/checkout').subscribe();
+
+    const request = http.expectOne(
+      '/test-api/v1/incidents/inc%2Fcheckout/postmortem-snapshots'
+    );
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({});
+    request.flush({});
+  });
+
+  it('records the typed dataset consent decision', () => {
+    const payload = {
+      purpose: 'evaluation' as const,
+      decision: 'approved' as const,
+      terms_version: 'dataset-consent-v1',
+      reason: 'Approved for evaluation.',
+      attestations: [
+        'workspace_authorized' as const,
+        'secrets_reviewed' as const,
+        'privacy_reviewed' as const,
+        'license_reviewed' as const
+      ]
+    };
+    service.recordDatasetConsent('inc/checkout', payload).subscribe();
+
+    const request = http.expectOne(
+      '/test-api/v1/incidents/inc%2Fcheckout/dataset-consent'
+    );
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual(payload);
+    request.flush({});
+  });
+
   it('fetches an immutable change by encoded id', () => {
     service.getChange('change/checkout').subscribe();
 

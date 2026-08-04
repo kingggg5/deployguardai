@@ -30,6 +30,10 @@ import {
   BlastRadiusEdge,
   BlastRadiusNode,
   ChangeDetail,
+  DatasetAttestation,
+  DatasetPurpose,
+  DatasetReadiness,
+  DatasetReadinessKey,
   DoraMetrics,
   EvidenceSynthesisResponse,
   FeedbackVerdict,
@@ -37,7 +41,8 @@ import {
   IncidentHypothesis,
   Overview,
   ScenarioSummary,
-  TopologyPoint
+  TopologyPoint,
+  VerificationResult
 } from './core/models/deployguard.models';
 import {
   WorkspaceLinkTarget,
@@ -96,6 +101,13 @@ const EMPTY_ANALYSIS_DRAFT: AnalysisDraft = {
   previousFailures: 0
 };
 
+const DATASET_ATTESTATION_OPTIONS: readonly DatasetAttestation[] = [
+  'workspace_authorized',
+  'secrets_reviewed',
+  'privacy_reviewed',
+  'license_reviewed'
+];
+
 @Component({
   selector: 'app-root',
   standalone: true,
@@ -145,6 +157,20 @@ export class App implements OnInit, OnDestroy {
   readonly feedbackError = signal('');
   readonly feedbackSuccess = signal('');
   readonly isSubmittingFeedback = signal(false);
+  readonly verificationResult = signal<VerificationResult>('supported');
+  readonly verificationMethod = signal('');
+  readonly verificationSummary = signal('');
+  readonly verificationEvidenceIds = signal<string[]>([]);
+
+  readonly datasetPurpose = signal<DatasetPurpose>('evaluation');
+  readonly datasetReadiness = signal<DatasetReadiness | null>(null);
+  readonly isDatasetReadinessLoading = signal(false);
+  readonly isGovernanceMutating = signal(false);
+  readonly governanceError = signal('');
+  readonly governanceNotice = signal('');
+  readonly datasetConsentReason = signal('');
+  readonly datasetAttestations = signal<DatasetAttestation[]>([]);
+  readonly datasetAttestationOptions = DATASET_ATTESTATION_OPTIONS;
 
   readonly evidenceSynthesis = signal<EvidenceSynthesisResponse | null>(null);
   readonly evidenceSynthesisError = signal('');
@@ -240,6 +266,36 @@ export class App implements OnInit, OnDestroy {
         draft.changedServices.length
     );
   });
+
+  readonly canSubmitVerifiedFeedback = computed(
+    () =>
+      Boolean(this.feedbackNote().trim()) &&
+      Boolean(this.verificationMethod().trim()) &&
+      Boolean(this.verificationSummary().trim()) &&
+      this.verificationEvidenceIds().length > 0
+  );
+
+  readonly canCreatePostmortemSnapshot = computed(() => {
+    const readiness = this.datasetReadiness();
+    if (!readiness || readiness.data_mode !== 'connected' || readiness.latest_snapshot) {
+      return false;
+    }
+    return readiness.requirements
+      .filter((item) =>
+        ['connected_incident', 'resolved_incident', 'attributed_human_verdict', 'structured_verification']
+          .includes(item.key)
+      )
+      .every((item) => item.satisfied);
+  });
+
+  readonly canApproveDataset = computed(
+    () =>
+      Boolean(this.datasetReadiness()?.latest_snapshot) &&
+      Boolean(this.datasetConsentReason().trim()) &&
+      DATASET_ATTESTATION_OPTIONS.every((item) =>
+        this.datasetAttestations().includes(item)
+      )
+  );
 
   t(key: string): string {
     return TRANSLATIONS[this.lang()][key] ?? TRANSLATIONS.en[key] ?? key;
@@ -489,8 +545,23 @@ export class App implements OnInit, OnDestroy {
   selectHypothesis(hypothesis: IncidentHypothesis): void {
     this.selectedHypothesisId.set(hypothesis.id);
     this.selectedNodeId.set(hypothesis.cause_service);
+    this.resetVerificationDraft(hypothesis);
     this.feedbackError.set('');
     this.feedbackSuccess.set('');
+  }
+
+  setVerificationResult(result: string): void {
+    if (result === 'supported' || result === 'contradicted' || result === 'inconclusive') {
+      this.verificationResult.set(result);
+    }
+  }
+
+  toggleVerificationEvidence(evidenceId: string, selected: boolean): void {
+    this.verificationEvidenceIds.update((current) =>
+      selected
+        ? [...new Set([...current, evidenceId])]
+        : current.filter((item) => item !== evidenceId)
+    );
   }
 
   toggleEvidenceXray(): void {
@@ -503,8 +574,16 @@ export class App implements OnInit, OnDestroy {
     if (!incident || !hypothesis || this.isSubmittingFeedback()) return;
 
     const note = this.feedbackNote().trim();
-    if (!note) {
-      this.feedbackError.set(this.t('error_feedback_note'));
+    const verificationMethod = this.verificationMethod().trim();
+    const verificationSummary = this.verificationSummary().trim();
+    const verificationEvidenceIds = this.verificationEvidenceIds();
+    if (
+      !note ||
+      !verificationMethod ||
+      !verificationSummary ||
+      !verificationEvidenceIds.length
+    ) {
+      this.feedbackError.set(this.t('error_verification_required'));
       return;
     }
 
@@ -516,7 +595,13 @@ export class App implements OnInit, OnDestroy {
       .submitFeedback(incident.id, {
         hypothesis_id: hypothesis.id,
         verdict,
-        note
+        note,
+        verification_outcome: {
+          result: this.verificationResult(),
+          method: verificationMethod,
+          summary: verificationSummary,
+          evidence_ids: verificationEvidenceIds
+        }
       })
       .pipe(
         takeUntilDestroyed(this.destroyRef),
@@ -528,13 +613,118 @@ export class App implements OnInit, OnDestroy {
             current ? { ...current, active_incident: updatedIncident } : current
           );
           this.feedbackNote.set('');
+          this.verificationMethod.set('');
+          this.verificationSummary.set('');
           this.feedbackSuccess.set(
             this.t('feedback_recorded').replace('{rank}', String(hypothesis.rank))
           );
+          this.loadDatasetReadiness(updatedIncident.id);
         },
         error: (error: unknown) => {
           this.feedbackError.set(
             this.errorMessage(error, this.t('error_feedback_submit'))
+          );
+        }
+      });
+  }
+
+  setDatasetPurpose(value: string): void {
+    if (value !== 'evaluation' && value !== 'training') return;
+    this.datasetPurpose.set(value);
+    const incident = this.activeIncident();
+    if (incident) this.loadDatasetReadiness(incident.id);
+  }
+
+  toggleDatasetAttestation(
+    attestation: DatasetAttestation,
+    selected: boolean
+  ): void {
+    this.datasetAttestations.update((current) =>
+      selected
+        ? [...new Set([...current, attestation])]
+        : current.filter((item) => item !== attestation)
+    );
+  }
+
+  datasetRequirementLabel(key: DatasetReadinessKey): string {
+    return this.t(`dataset_requirement_${key}`);
+  }
+
+  createImmutablePostmortem(): void {
+    const incident = this.activeIncident();
+    if (!incident || !this.canCreatePostmortemSnapshot() || this.isGovernanceMutating()) {
+      return;
+    }
+    this.isGovernanceMutating.set(true);
+    this.governanceError.set('');
+    this.governanceNotice.set('');
+    this.api
+      .createPostmortemSnapshot(incident.id)
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.isGovernanceMutating.set(false))
+      )
+      .subscribe({
+        next: () => {
+          this.governanceNotice.set(this.t('postmortem_snapshot_created'));
+          this.loadDatasetReadiness(incident.id);
+        },
+        error: (error: unknown) => {
+          this.governanceError.set(
+            this.errorMessage(error, this.t('error_postmortem_snapshot'))
+          );
+        }
+      });
+  }
+
+  approveDatasetConsent(): void {
+    const incident = this.activeIncident();
+    if (!incident || !this.canApproveDataset() || this.isGovernanceMutating()) return;
+    this.isGovernanceMutating.set(true);
+    this.governanceError.set('');
+    this.governanceNotice.set('');
+    this.api
+      .recordDatasetConsent(incident.id, {
+        purpose: this.datasetPurpose(),
+        decision: 'approved',
+        terms_version: 'dataset-consent-v1',
+        reason: this.datasetConsentReason().trim(),
+        attestations: this.datasetAttestations()
+      })
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.isGovernanceMutating.set(false))
+      )
+      .subscribe({
+        next: () => {
+          this.governanceNotice.set(this.t('dataset_consent_recorded'));
+          this.datasetConsentReason.set('');
+          this.datasetAttestations.set([]);
+          this.loadDatasetReadiness(incident.id);
+        },
+        error: (error: unknown) => {
+          this.governanceError.set(
+            this.errorMessage(error, this.t('error_dataset_consent'))
+          );
+        }
+      });
+  }
+
+  private loadDatasetReadiness(incidentId: string): void {
+    this.isDatasetReadinessLoading.set(true);
+    this.governanceError.set('');
+    this.api
+      .getDatasetReadiness(incidentId, this.datasetPurpose())
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.isDatasetReadinessLoading.set(false))
+      )
+      .subscribe({
+        next: (readiness) => this.datasetReadiness.set(readiness),
+        error: (error: unknown) => {
+          this.datasetReadiness.set(null);
+          this.governanceError.set(
+            this.errorMessage(error, this.t('error_dataset_readiness'))
           );
         }
       });
@@ -939,12 +1129,40 @@ export class App implements OnInit, OnDestroy {
     if (!currentHypothesisExists) {
       this.selectedHypothesisId.set(hypotheses[0]?.id ?? null);
     }
+    const activeHypothesis = hypotheses.find(
+      (hypothesis) => hypothesis.id === this.selectedHypothesisId()
+    );
+    this.resetVerificationDraft(activeHypothesis);
 
     this.feedbackNote.set('');
     this.feedbackError.set('');
     this.exportSuccess.set('');
     this.evidenceSynthesis.set(null);
     this.evidenceSynthesisError.set('');
+    this.governanceNotice.set('');
+    this.datasetConsentReason.set('');
+    this.datasetAttestations.set([]);
+    if (overview.active_incident) {
+      this.loadDatasetReadiness(overview.active_incident.id);
+    } else {
+      this.datasetReadiness.set(null);
+    }
+  }
+
+  private resetVerificationDraft(
+    hypothesis: IncidentHypothesis | undefined
+  ): void {
+    this.verificationResult.set('supported');
+    this.verificationMethod.set('');
+    this.verificationSummary.set('');
+    this.verificationEvidenceIds.set(
+      hypothesis
+        ? [...new Set([
+            ...hypothesis.evidence_ids,
+            ...hypothesis.counter_evidence_ids
+          ])]
+        : []
+    );
   }
 
   private buildTopologyPoints(): Map<string, TopologyPoint> {
