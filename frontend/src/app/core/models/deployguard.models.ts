@@ -10,6 +10,13 @@ export type DeploymentStatus =
   | string;
 export type IncidentStatus = 'open' | 'investigating' | 'mitigated' | 'resolved' | string;
 export type FeedbackVerdict = 'confirmed' | 'rejected' | 'partial';
+export type VerificationResult = 'supported' | 'contradicted' | 'inconclusive';
+export type DatasetPurpose = 'evaluation' | 'training';
+export type DatasetAttestation =
+  | 'workspace_authorized'
+  | 'secrets_reviewed'
+  | 'privacy_reviewed'
+  | 'license_reviewed';
 
 export interface HealthResponse {
   status: string;
@@ -143,10 +150,28 @@ export interface IncidentHypothesis {
 }
 
 export interface IncidentFeedback {
+  id: number;
   verdict: FeedbackVerdict | string;
   hypothesis_id: string;
   note: string;
   submitted_at: string;
+  actor: ActorProvenance | null;
+  verification_outcome: VerificationOutcome | null;
+}
+
+export interface ActorProvenance {
+  user_id: string;
+  display_name: string;
+  auth_provider: string;
+  recorded_at: string;
+}
+
+export interface VerificationOutcome {
+  result: VerificationResult | 'not_recorded';
+  method: string;
+  summary: string;
+  evidence_ids: string[];
+  recorded_at: string;
 }
 
 export interface IncidentDetail {
@@ -227,6 +252,70 @@ export interface FeedbackRequest {
   hypothesis_id: string;
   verdict: FeedbackVerdict;
   note: string;
+  verification_outcome?: {
+    result: VerificationResult;
+    method: string;
+    summary: string;
+    evidence_ids: string[];
+  };
+}
+
+export interface PostmortemSnapshotSummary {
+  id: string;
+  incident_id: string;
+  snapshot_version: string;
+  content_sha256: string;
+  source_feedback_count: number;
+  analysis_schema_version: string;
+  engine_version: string;
+  created_by: ActorProvenance;
+  created_at: string;
+}
+
+export interface DatasetConsentSummary {
+  id: string;
+  incident_id: string;
+  postmortem_snapshot_id: string;
+  purpose: DatasetPurpose;
+  decision: 'approved' | 'revoked';
+  terms_version: string;
+  reason: string;
+  attestations: string[];
+  actor: ActorProvenance;
+  created_at: string;
+}
+
+export type DatasetReadinessKey =
+  | 'connected_incident'
+  | 'resolved_incident'
+  | 'attributed_human_verdict'
+  | 'structured_verification'
+  | 'immutable_postmortem'
+  | 'audited_consent';
+
+export interface DatasetReadinessRequirement {
+  key: DatasetReadinessKey;
+  satisfied: boolean;
+  detail: string;
+}
+
+export interface DatasetReadiness {
+  incident_id: string;
+  data_mode: DataMode;
+  purpose: DatasetPurpose;
+  status: 'not_applicable' | 'blocked' | 'ready_for_review';
+  connected_exporter_enabled: false;
+  requirements: DatasetReadinessRequirement[];
+  latest_snapshot: PostmortemSnapshotSummary | null;
+  latest_consent: DatasetConsentSummary | null;
+}
+
+export interface DatasetConsentRequest {
+  purpose: DatasetPurpose;
+  decision: 'approved' | 'revoked';
+  terms_version: string;
+  reason: string;
+  attestations: DatasetAttestation[];
 }
 
 export interface ApiErrorEnvelope {

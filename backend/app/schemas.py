@@ -6,6 +6,11 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_vali
 
 DataMode = Literal["synthetic", "connected"]
 RiskLevel = Literal["low", "moderate", "high", "critical"]
+VerificationResult = Literal[
+    "supported", "contradicted", "inconclusive", "not_recorded"
+]
+DatasetPurpose = Literal["evaluation", "training"]
+DatasetConsentDecision = Literal["approved", "revoked"]
 NonEmptyString = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 VersionIdentifier = Annotated[
     str,
@@ -135,11 +140,29 @@ class Hypothesis(APIModel):
     status: str
 
 
+class ActorProvenance(APIModel):
+    user_id: str
+    display_name: str
+    auth_provider: str
+    recorded_at: datetime
+
+
+class VerificationOutcome(APIModel):
+    result: VerificationResult
+    method: str
+    summary: str
+    evidence_ids: list[str]
+    recorded_at: datetime
+
+
 class Feedback(APIModel):
+    id: int
     verdict: Literal["confirmed", "rejected", "partial"]
     hypothesis_id: str
     note: str
     submitted_at: datetime
+    actor: ActorProvenance | None = None
+    verification_outcome: VerificationOutcome | None = None
 
 
 class IncidentDetail(APIModel):
@@ -224,10 +247,90 @@ class AnalyzeChangeRequest(APIModel):
         return list(dict.fromkeys(value))
 
 
+class VerificationOutcomeRequest(APIModel):
+    result: Literal["supported", "contradicted", "inconclusive"]
+    method: NonEmptyString = Field(max_length=160)
+    summary: NonEmptyString = Field(max_length=2_000)
+    evidence_ids: list[NonEmptyString] = Field(min_length=1, max_length=100)
+
+    @field_validator("evidence_ids")
+    @classmethod
+    def unique_evidence_ids(cls, value: list[str]) -> list[str]:
+        return list(dict.fromkeys(value))
+
+
 class FeedbackRequest(APIModel):
     hypothesis_id: NonEmptyString = Field(max_length=100)
     verdict: Literal["confirmed", "rejected", "partial"]
     note: NonEmptyString = Field(max_length=2_000)
+    verification_outcome: VerificationOutcomeRequest | None = None
+
+
+class PostmortemSnapshotSummary(APIModel):
+    id: str
+    incident_id: str
+    snapshot_version: str
+    content_sha256: str
+    source_feedback_count: int = Field(ge=1)
+    analysis_schema_version: VersionIdentifier
+    engine_version: VersionIdentifier
+    created_by: ActorProvenance
+    created_at: datetime
+
+
+class DatasetConsentRequest(APIModel):
+    purpose: DatasetPurpose = "evaluation"
+    decision: DatasetConsentDecision
+    terms_version: NonEmptyString = Field(max_length=40)
+    reason: NonEmptyString = Field(max_length=2_000)
+    attestations: list[Literal[
+        "workspace_authorized",
+        "secrets_reviewed",
+        "privacy_reviewed",
+        "license_reviewed",
+    ]] = Field(default_factory=list, max_length=4)
+
+    @field_validator("attestations")
+    @classmethod
+    def unique_attestations(cls, value: list[str]) -> list[str]:
+        return list(dict.fromkeys(value))
+
+
+class DatasetConsentSummary(APIModel):
+    id: str
+    incident_id: str
+    postmortem_snapshot_id: str
+    purpose: DatasetPurpose
+    decision: DatasetConsentDecision
+    terms_version: str
+    reason: str
+    attestations: list[str]
+    actor: ActorProvenance
+    created_at: datetime
+
+
+class DatasetReadinessRequirement(APIModel):
+    key: Literal[
+        "connected_incident",
+        "resolved_incident",
+        "attributed_human_verdict",
+        "structured_verification",
+        "immutable_postmortem",
+        "audited_consent",
+    ]
+    satisfied: bool
+    detail: str
+
+
+class DatasetReadinessResponse(APIModel):
+    incident_id: str
+    data_mode: DataMode
+    purpose: DatasetPurpose
+    status: Literal["not_applicable", "blocked", "ready_for_review"]
+    connected_exporter_enabled: Literal[False] = False
+    requirements: list[DatasetReadinessRequirement]
+    latest_snapshot: PostmortemSnapshotSummary | None
+    latest_consent: DatasetConsentSummary | None
 
 
 class DoraMetricsResponse(APIModel):

@@ -1,24 +1,24 @@
 {
   "data_mode": "synthetic",
   "dataset": "DeployGuard Bench Synthetic Seed",
-  "dataset_sha256": "5efc45aeee82f28e0837b9b4269a77e24cf7e90028cb9bef8ad1dfc614cc0b32",
+  "dataset_sha256": "029dc8b56ce5154d33e859e5b29873cfa923dc05f900f2aaa4600872f467fc9b",
   "evaluation_eligible_examples": 2,
   "example_schema": "deployguard-operational-example/v1",
-  "example_schema_sha256": "07499cd6c65e9e604e9d66a6c1626d4803caa0273f1f35e05f18b756576c486f",
+  "example_schema_sha256": "dd1846da053e1dc13537ac785e3c55d5bd99190f59aeba1ac5fb25520fdf68a0",
   "examples": [
     {
       "example_id": "synthetic/auth-key-rotation",
-      "sha256": "99315406efc57a3946a14bdd27cd6cf6039f3b752e84b6f65b5d5f2ee489b3f2",
+      "sha256": "7dfea396cc85e140dc774d3e57642a02714ca36f72c75176417347f52c3d9799",
       "split": "development"
     },
     {
       "example_id": "synthetic/catalog-cache-regression",
-      "sha256": "c2e5673931d2ac538556897aae88236b910a5f377bf24873a7ca8f3ad975ed05",
+      "sha256": "3e0fe9bf8ada534b80087f0ba58ae5b1f0438d84327ceca363a2289b2708a5a0",
       "split": "development"
     },
     {
       "example_id": "synthetic/checkout-retry-storm",
-      "sha256": "ab45bcbde9d3c9678e29185492ee2e927b432404902349b9bf88f7062f47962c",
+      "sha256": "a2198c2d877861774d62c0dbbd3d0102052b0c7cc8dbd29526fe63f59178b756",
       "split": "unverified"
     }
   ],

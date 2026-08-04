@@ -42,12 +42,14 @@ REQUIRED_TABLES = {
     "provider_connections", "repositories", "scenarios", "services",
     "user_contexts", "users", "webhook_deliveries",
     "workspace_invitations", "workspace_memberships",
-    "workspace_risk_policies", "workspaces",
+    "workspace_risk_policies", "workspaces", "postmortem_snapshots",
+    "dataset_consent_decisions",
 }
 RLS_TABLES = {
     "repositories", "scenarios", "changes", "incidents", "audit_events",
     "services", "workspace_risk_policies", "operational_events",
-    "deployments", "incident_feedback",
+    "deployments", "incident_feedback", "postmortem_snapshots",
+    "dataset_consent_decisions",
 }
 
 

@@ -1,319 +1,128 @@
 # Security model
 
-DeployGuard AI เป็นระบบวิเคราะห์และ collaboration แบบ read-mostly ไม่มี
-credential สำหรับ deploy, rollback, shell หรือ cluster และไม่มี autonomous
-remediation อย่างไรก็ตามระบบรับข้อมูลจาก identity provider, GitHub, SMTP และ
-telemetry source จึงต้องถือ external content ทุกชนิดเป็น untrusted
+DeployGuard is a read-mostly analysis and collaboration system. It holds no
+deployment, rollback, shell, or cluster execution credential and provides no
+autonomous remediation. Identity, GitHub, SMTP, and telemetry inputs are
+untrusted until authenticated, scoped, validated, and normalized.
 
-## Security posture ปัจจุบัน
+## Current posture
 
-### Implemented controls
+DeployGuard is **production-integratable**, not universally
+**production-hardened**. Runtime controls exist, but each deployment must supply
+managed secrets, TLS/WAF, distributed rate limits, provider configuration,
+backup storage, alerts, restore exercises, and on-call ownership.
 
-- production profile บังคับ `AUTH_PROVIDER=oidc`
-- OIDC ตรวจ signature ผ่าน JWKS พร้อม issuer, audience, expiry, issued-at และ
-  verified email
-- development identity เปิดเฉพาะ non-production
-- opaque development access token และ invitation token เก็บเฉพาะ SHA-256 digest
-- `WorkspaceMembership` เป็น application tenant boundary
-- service layer บังคับ role `viewer`, `responder`, `admin`, `owner`
-- tenant-owned read/write filter ด้วย workspace context
-- GitHub App install state เป็น hashed, expiring และ single-use
-- GitHub webhook ตรวจ HMAC SHA-256 บน raw body ด้วย constant-time comparison
-- GitHub delivery dedupe ด้วย database unique constraint
-- operational event dedupe ด้วย workspace/source/provider event identity
-- service dependencies และ event foreign IDs ถูกตรวจว่าอยู่ workspace เดียวกัน
-- incident assignee และ notification recipient ถูกจำกัดใน workspace
-- audit event ถูกเพิ่มพร้อม tenant mutation สำคัญ
-- canonical deployment upsert ใช้ provider identity + workspace uniqueness และ exact repository/commit matching; connector health เป็น read-only summary ที่ไม่คืน credential
-- Alembic จัดการ schema; production ปฏิเสธ unversioned non-empty database
-- provider credential ที่ไม่ configured ทำให้ capability ปิดหรือ API คืน `503`
-- request ID, structured access log, bounded request body และ process-local rate
-  limit บน auth/ingestion routes
-- durable background job payload guard, idempotency, bounded retry, stale lease
-  recovery, dead-letter, explicit replay, allow-listed worker และ transactional
-  signed-PR producer
-- PostgreSQL RLS บน data-plane tables พร้อม transaction-local tenant context,
-  non-owner negative CRUD tests และ connection-pool leakage test
-- private low-cardinality metrics endpoint ที่ไม่ใส่ tenant/path/payload labels
-- OpenTelemetry API/worker traces ผ่าน Collector config ที่ redact sensitive fields
-- atomic backup, read-only validation, isolated writable restore rehearsal และ
-  retention legal-hold/deletion-audit helpers
-- Citation-gated deterministic evidence synthesis is available. It has no model
-  provider, SDK, outbound request, prompt, or tool access; every emitted
-  statement is validated against the incident's evidence IDs before response.
+## Implemented controls
 
-### Controls ที่ยังขาดหรือขึ้นกับ deployment
+- Production requires OIDC; JWT signature, JWKS, issuer, audience, expiry,
+  issued-at, and verified email are checked.
+- Development identity and database reset are unavailable in production.
+- Development access and invitation tokens are stored as SHA-256 digests.
+- Workspace membership and role checks protect every tenant mutation.
+- PostgreSQL RLS covers data-plane tables with transaction-local tenant context,
+  negative CRUD tests, and a connection-pool leakage test.
+- GitHub install state is hashed, expiring, and single-use; signed webhooks use
+  constant-time raw-body HMAC verification and durable delivery deduplication.
+- Provider jobs use a transactional outbox, allow-listed worker, bounded retry,
+  stale-lease recovery, dead letters, explicit replay, and trace propagation.
+- Operational events discard member-supplied trust claims and write server-owned
+  provenance after workspace/resource validation.
+- Request IDs, bounded bodies, structured logs, low-cardinality metrics, and
+  optional redacting OpenTelemetry export are available.
+- Backup, read-only validation, isolated restore rehearsal, retention legal
+  holds, and append-only deletion audit helpers exist.
+- Evidence synthesis is deterministic and citation-gated, with no external
+  model, prompt, provider SDK, outbound model request, or tool access.
 
-- distributed API rate limit และ per-workspace quota (repository มี request-body
-  limit และ process-local baseline แล้ว)
-- managed secret/KMS integration และ automated rotation
-- production worker isolation/supervision และ dead-letter alert ownership
-- scheduled retention/deletion, workspace deletion และ managed backup storage
-- restore drill ตาม RPO/RTO ใน reference environment
-- raw telemetry redaction pipeline
-- tamper-resistant external audit sink
-- penetration test, production threat review และ incident-response exercise
+## Dataset-governance controls
 
-ดังนั้นสถานะที่ถูกต้องคือ **production-integratable** เมื่อ configure
-dependencies ครบ แต่ยังไม่ควรเรียก **production-hardened** จนกว่าจะผ่าน
-deployment-specific controls และ restore/incident exercises
+- Verdict actor provenance comes from the authenticated tenant scope, never the
+  request body.
+- Structured verification references evidence belonging to the same incident.
+- Snapshot creation requires a connected, resolved incident with an attributed,
+  structured verdict.
+- Postmortem snapshots are content-addressed and protected by database triggers
+  that reject updates and deletes.
+- Consent requires an administrator and binds an exact incident, snapshot,
+  purpose, terms version, attestations, and actor.
+- Consent decisions are append-only; revocation creates a later decision.
+- Synthetic incidents cannot enter connected-data readiness.
+- The connected-data exporter is hard-disabled even after every readiness gate
+  passes.
+
+These controls prevent accidental promotion. They do not replace deterministic
+redaction, legal review, or publication approval.
 
 ## Trust boundaries
 
 ```mermaid
 flowchart LR
-    Browser["Browser<br/>untrusted client"]
-    OIDC["OIDC issuer"]
-    GitHub["GitHub App + webhook"]
-    Collector["Telemetry gateway/Collector"]
-    API["FastAPI trust boundary"]
-    Tenant["Tenant + RBAC policy"]
-    Core["Deterministic core"]
-    DB["Workspace data"]
-    SMTP["SMTP provider"]
-    LLM["External LLM<br/>not connected"]
-
-    Browser -->|"OIDC/development bearer"| API
-    API -->|"JWKS verification"| OIDC
-    GitHub -->|"signed raw webhook"| API
-    API -->|"short-lived installation token"| GitHub
-    Collector -->|"ingest bearer + normalized event"| API
-    API --> Tenant --> Core --> DB
-    API -->|"invitation without claim token in response"| SMTP
-    Core -.->|"future redacted evidence-only data"| LLM
+    Browser["Browser\nuntrusted client"] --> API["FastAPI trust boundary"]
+    OIDC["OIDC issuer"] --> API
+    GitHub["GitHub App and signed webhook"] --> API
+    Collector["Telemetry gateway"] --> API
+    API --> Tenant["Membership, RBAC, RLS"]
+    Tenant --> Core["Deterministic engines"]
+    Core --> DB[("Workspace data")]
+    DB -. "export disabled" .-> Dataset["Connected dataset publication"]
+    LLM["External LLM\nnot connected"]
 ```
 
-## Authentication
-
-### Development
-
-`POST /auth/development-session` ออก opaque bearer token และคืน raw token เพียง
-ครั้งเดียว Token มี expiry และ database เก็บ digest เท่านั้น Endpoint ถูกปิด
-เมื่อ environment เป็น production
-
-Legacy synthetic investigation routes บางส่วนยอมใช้ configured development user
-เมื่อ request ไม่มี bearer เพื่อรักษา local demo flow Fallback นี้เปิดเฉพาะเมื่อ
-development auth available และถูกปิดใน production ส่วน workspace-management และ
-operations routes ยังต้องมี bearer
-
-Development auth มีไว้สำหรับ local verification ไม่ใช่ shared deployment และ
-ไม่ควรเปิดผ่าน public network
-
-### OIDC
-
-Production verifier:
-
-1. ดึง signing key จาก configured JWKS URL
-2. จำกัด algorithm ตาม allowlist
-3. ตรวจ `iss`, `aud`, `exp`, `iat`, `sub`
-4. ต้องมี email ที่ valid และ `email_verified = true`
-5. map stable provider subject จาก issuer + subject
-6. ปฏิเสธ email collision ระหว่างคนละ identity
-
-Browser token storage/refresh behavior ขึ้นกับ Angular OIDC client และ identity
-provider deployment การ review CSP, refresh-token rotation และ XSS defense ต้อง
-ทำร่วมกับ configuration จริง
-
-## Tenant isolation และ RBAC
-
-Application policy:
-
-| Operation class | Minimum role |
-|---|---|
-| Read tenant data | `viewer` |
-| Analyze/change incident/event/note | `responder` |
-| Catalog, risk policy, provider, repository, invitation, audit | `admin` |
-| Invite `admin` | `owner` |
-
-เมื่อ principal ไม่เป็นสมาชิก ระบบคืน `404` แทน `403` เพื่อลด resource
-enumeration Foreign IDs เช่น repository, service, incident และ assignee ต้อง
-ถูก resolve พร้อม `workspace_id` ไม่ query ด้วย ID เดี่ยว
-
-PostgreSQL revision `0009` เปิด RLS บน data-plane tables และทดสอบ negative
-SELECT/INSERT/UPDATE/DELETE, missing context และ connection-pool leakage กับ role
-ที่ไม่เป็น owner Production ต้องแยก schema-owner migration credential ออกจาก
-API/worker runtime role มิฉะนั้น owner จะ bypass policy ได้ Control-plane tables
-ยังคงถูกป้องกันด้วย application authorization และไม่ใช่ RLS scope
-
-## GitHub App boundary
-
-- ใช้ GitHub App แทน personal access token
-- private key และ webhook secret มาจาก runtime secret configuration
-- installation access token ถูก mint ฝั่ง server และไม่ส่งเข้า browser
-- install callback state bind กับ user/workspace, มี expiry และ single-use
-- installation ID unique และห้าม map ข้าม workspace
-- repository sync รับเฉพาะ ID ที่ installation เข้าถึงได้จริง
-- webhook HMAC ตรวจ raw body ก่อน parse/use
-- `X-GitHub-Delivery` เป็น durable dedupe key
-- monitored PR ใช้ processing status และ signed retry เดินเฉพาะ delivery ที่ยัง
-  ไม่ processed; workflow/deployment retry ซ่อม normalized event ที่หายได้
-- retry ต้องมี installation/repository identity ตรงกับ delivery ที่บันทึกไว้
-- production ปฏิเสธ unmapped installation และไม่ใช้ synthetic fallback
-- disconnected repository ถูก mark revoked/deselected แทนการแกล้งว่า connected
-- GitHub Check write ปิดโดย default; เมื่อเปิดจะตรวจ `Checks: write`, connected
-  repository/change และ responder role สำหรับ manual publish ส่วน signed PR
-  webhook publish แบบ system actor ได้เฉพาะ installation/repository ที่ map แล้ว
-- GitHub Check publication มี unique repository/head identity, stable external ID,
-  provider Check ID, attempt/error และ next-retry metadata; retry recover/PATCH
-  Check เดิมแทนการสร้าง duplicate
-
-Signed PR webhook enqueue GitHub Check job ใน transaction เดียวกับ delivery state
-และ worker ทำ delivery reconciliation แบบ allow-listed พร้อม retry/DLQ แล้ว
-ข้อจำกัดที่ยังมีคือ notification/invitation/event บางส่วนยัง synchronous,
-backpressure metrics ยังไม่ครบ และไม่มี persisted raw-body replay
-
-อ้างอิงวิธีตรวจ webhook:
-[Validating webhook deliveries](https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries)
-
-## Telemetry และ operational-event boundary
-
-มี ingestion สองระดับที่ต้องไม่สับสน:
-
-1. `/telemetry/events` รับ normalized metric/log/trace/alert ด้วย bearer ที่ derive
-   จาก server credential root + workspace ID และตรวจ service/repository scope
-   ไม่ใช่ native OTLP receiver Production ไม่ยอมรับ raw credential root
-2. `/workspaces/{workspace_id}/events` รับ tenant-scoped operational event จาก
-   authenticated responder และ dedupe ด้วย `(workspace_id, source,
-   provider_event_id)`
-
-Operational event จาก member discard client provenance ทั้ง object แล้วสร้าง
-`authenticated_member` trust statement ใหม่ Reserved `_ingestion` ถูกเขียนฝั่ง
-server เสมอ: `member_api` มี actor/request ID ส่วน `trusted_internal` ใช้ได้เฉพาะ
-adapter ภายในหลัง map provider identity เป็น workspace/repository แล้ว Namespace
-ของ GitHub/telemetry/OTel ถูกสงวนจาก member endpoint
-
-ข้อกำหนดสำหรับ production gateway/Collector:
-
-- ใช้ TLS และ workspace-derived collector credential แยกจาก human token
-- ส่ง `X-DeployGuard-Workspace`, stable event ID และ repository scope เมื่อมี
-- allowlist resource attributes ที่ใช้ correlation
-- redact authorization header, cookie, secret, credential และ PII ก่อน ingest
-- จำกัด body size, field size, cardinality และ event rate
-- ไม่ส่ง raw log/trace ทั้งชุดเมื่อ normalized evidence เพียงพอ
-- pin semantic-convention/normalization version
-
-Repository มี [telemetry gateway contract](TELEMETRY_GATEWAY.md) แต่จงใจไม่มี
-Collector config ที่ชี้ OTLP payload เข้า normalized endpoint โดยตรง FastAPI ไม่มี
-OTLP protocol implementation และยังไม่มี raw telemetry retention/redaction job
-
-## Operational collaboration controls
-
-- Service slug unique ต่อ workspace
-- Dependency ต้องอยู่ workspace เดียวกันและ graph ต้องเป็น DAG
-- Risk policy update ใช้ explicit version เพื่อป้องกัน lost update
-- `warn_threshold` ต้องน้อยกว่า `block_threshold`
-- Operational event replay คืน row เดิมแบบ idempotent และไม่สร้าง
-  row/audit/notification ซ้ำเฉพาะ canonical payload/origin เดิม ถ้า key เดิมแต่
-  content/origin ต่างกันคืน `409`
-- Resolved incident เป็น terminal สำหรับ lifecycle mutation แต่ยังเพิ่ม
-  post-resolution note ได้
-- Incident assignee ต้องเป็น active workspace member
-- Incident note เป็น append-only และเก็บ author
-- Notification query scope ด้วย recipient user และ workspace membership
-- Notification เป็น in-app เท่านั้น ไม่มี arbitrary outgoing webhook
-
-## Invitation และ email
-
-- invitation token สุ่ม, hash at rest, expiring, revocable และ single-use
-- token bind กับ normalized email ของ authenticated user
-- list API ไม่คืน claim token
-- development outbox คืน token ครั้งเดียวด้วย `Cache-Control: no-store`
-- SMTP mode ไม่คืน token ใน API response และเก็บเฉพาะ delivery outcome
-
-SMTP credential ยังอยู่ใน runtime environment; repository ไม่มี managed
-secret-store adapter หรือ rotation job
+The browser never receives GitHub installation tokens, App private keys, SMTP
+passwords, telemetry root credentials, or future model-provider keys.
 
 ## Threat model
 
-| Threat | ตัวอย่าง | Control ปัจจุบัน | Remaining work |
-|---|---|---|---|
-| Spoofed webhook | ส่ง deployment ปลอม | Raw-body HMAC | Secret rotation drill |
-| Replay/duplicate | delivery ถูกส่งซ้ำ | Durable unique delivery ID + Check publication identity/recovery | Background scheduler/TTL policy |
-| Cross-tenant access | workspace A อ่าน incident B | Membership + tenant predicates + PostgreSQL RLS | Composite constraints/control-plane review |
-| IDOR | เปลี่ยน service/assignee เป็น ID tenant อื่น | Same-workspace validation | Fuzz/negative matrix |
-| Secret leakage | key อยู่ใน log/error | ไม่คืน installation/token ใน API | Central redaction tests/KMS |
-| Telemetry poisoning | source ส่ง evidence ปลอม | Workspace-HMAC bearer + server-owned source/provenance + scope validation | Per-source credential, quota, signing |
-| Event flood | webhook/log จำนวนมาก | Typed size limits บาง field | Global body/rate/queue limits |
-| Policy overwrite | admin สองคนแก้พร้อมกัน | Explicit monotonic version | ETag/transaction concurrency tests |
-| Audit tampering | Application DB user แก้ audit row | Append-only API behavior | Privilege separation/external sink |
-| XSS/token theft | untrusted event text เข้า UI | Angular escaping by default | CSP and deployment review |
-| Prompt injection | log สั่ง model ให้ทำ action | ไม่มี LLM runtime/tool | Corpus + citation validator ก่อนเปิด |
-| Unsafe remediation | ระบบสั่ง rollback | ไม่มี execution credential/path | Keep architecture boundary |
+| Threat | Current mitigation | Remaining work |
+| --- | --- | --- |
+| Spoofed/replayed provider event | Raw-body HMAC, durable unique delivery identity, tenant mapping | Rotation drill, queue-level quotas |
+| Cross-tenant access/IDOR | Membership predicates, same-workspace validation, PostgreSQL RLS | Broader fuzz matrix and control-plane review |
+| Secret leakage | Credentials remain server-side; sensitive response fields excluded | Managed KMS, centralized redaction tests |
+| Telemetry poisoning | Workspace-derived bearer, server-owned provenance, source/resource validation | Per-source credentials, signing, quotas |
+| Event flood | Typed field/body limits, process-local guards, bounded worker retry | Distributed limits and per-workspace budgets |
+| Audit tampering | Append-oriented application behavior | Privilege separation and external immutable sink |
+| Dataset exfiltration/consent bypass | Connected exporter disabled; exact-snapshot consent gate; immutable records | Redaction, publication service, release registry, revocation propagation |
+| Prompt injection | No model/tool runtime; deterministic candidates and citation validation | Adversarial corpus before any provider activation |
+| Unsafe remediation | No deployment, rollback, shell, or infrastructure execution path | Preserve the architecture boundary |
 
-## Secrets
+## Data minimization and retention
 
-ห้าม commit:
+DeployGuard stores normalized metadata and evidence; it does not clone an entire
+repository by default. Retention tooling is explicit, allow-listed, supports dry
+run/apply, legal holds, and deletion audit. Scheduling, storage lifecycle,
+workspace deletion orchestration, uninstall cleanup, and backup expiry remain
+operator-owned.
 
-- OIDC client secret ถ้ามี
-- GitHub App private key และ webhook secret
-- SMTP password
-- database credential
-- telemetry ingest token
-- future model provider key
+Dataset attestations record human review but do not prove that secret/PII
+redaction succeeded. Raw prompts, credentials, private source content, customer
+payloads, and unredacted telemetry remain outside the public dataset contract.
 
-Local ใช้ ignored `.env` ได้ Production ต้องใช้ managed secret provider และ
-inject เป็น runtime environment การ rotate ต้องไม่ต้อง rebuild image
+## Secrets and deployment requirements
 
-## Data minimization และ retention
+Never commit OIDC client secrets, GitHub App keys/webhook secrets, SMTP
+passwords, database credentials, telemetry credentials, or future model keys.
+Production must inject them from a managed secret provider and support rotation
+without rebuilding the image.
 
-ปัจจุบันระบบเก็บ normalized metadata/evidence และไม่ clone repository โดย
-default มี retention helper แบบ allow-listed ที่ต้องเรียก explicit แต่ยังไม่มี
-scheduler, legal hold หรือ deletion audit:
+Minimum deployment controls:
 
-| Data class | Current behavior |
-|---|---|
-| Synthetic fixtures | อยู่ตาม repository/application version |
-| Webhook delivery ledger | เก็บจนกว่าจะมี external cleanup |
-| Operational events | เก็บจนกว่าจะมี external cleanup |
-| Incident evidence/notes/feedback | เก็บใน database ไม่มี TTL |
-| Notification | เก็บแม้ mark read |
-| Audit event | เก็บใน database ไม่มี archival policy |
+- HTTPS, secure headers, WAF/body limits, and distributed rate limiting;
+- non-owner PostgreSQL runtime role with RLS and separate migration role;
+- managed secret rotation and egress policy;
+- worker supervision and dead-letter alerts;
+- scheduled retention, managed backups, and tested RPO/RTO;
+- dependency/image scanning, penetration testing, and incident-response drills.
 
-ห้ามอ้างว่าระบบลบข้อมูลตาม 7/30/90 วันจนกว่าจะมี configuration, scheduled job,
-deletion audit และ tests จริง Workspace deletion, uninstall cleanup, legal hold
-และ backup expiry ยังต้องออกแบบ
+Run `python scripts/production_readiness.py` as a fail-closed configuration
+check. It does not provision or print secrets.
 
 ## LLM boundary
 
-The repository ships an evidence-only deterministic baseline, not an external
-LLM integration. `POST /incidents/{incident_id}/synthesize` is tenant-scoped,
-returns a SHA-256 evidence-bundle digest and versioned contract metadata, and
-records only those safe metadata fields in the audit log. A response with an
-empty, unknown, or hypothesis-unrelated citation is rejected. The deprecated
-`/synthesize-llm` route is a compatibility alias for the same baseline; it does
-not invoke a model.
+`POST /incidents/{incident_id}/synthesize` is a deterministic evidence
+explanation. The deprecated `/synthesize-llm` route is only an alias. Before an
+external provider can be enabled, the project requires tenant-scoped redaction,
+typed citation-bound output, prompt-injection and failure tests, safe audit
+metadata, cost/latency limits, and blinded improvement on a frozen benchmark.
 
-See [AI_BOUNDARY.md](AI_BOUNDARY.md) for the external-provider activation gate.
-
-LLM ไม่ได้ implement หากเพิ่มในอนาคตต้องผ่านเงื่อนไข:
-
-- model เห็นเฉพาะ redacted evidence ของ tenant เดียว
-- external text อยู่ใน data field ไม่ใช่ instruction
-- deterministic candidate set เป็นขอบเขตคำตอบ
-- typed output ต้องอ้าง evidence IDs
-- unsupported claim ถูก reject
-- ไม่มี shell/file/GitHub/deploy/rollback tool
-- timeout/failure fallback เป็น deterministic template
-- prompt/model/evidence bundle/validator version ถูก audit
-
-## Security verification checklist
-
-คำสั่งใน checklist เป็นขั้นตอนที่ต้องรันใน release pipeline ไม่ใช่คำยืนยันว่า
-environment ปัจจุบันผ่านแล้ว:
-
-- `pytest`
-- `npm test -- --watch=false`
-- `npm run build`
-- `npm audit --omit=dev`
-- `docker compose config`
-- Alembic upgrade บน empty SQLite และ PostgreSQL
-- invalid/expired OIDC token tests
-- cross-workspace negative tests ทุก endpoint
-- invalid GitHub signature และ duplicate delivery tests
-- duplicate operational event และ cross-tenant foreign-ID tests
-- dependency cycle, stale policy version และ illegal incident transition tests
-- secret-fixture log scan
-- backup/restore drill
-- dependency/image scan และ production penetration test
-
-Operations runbook อยู่ใน [OPERATIONS.md](OPERATIONS.md)
+See [AI_BOUNDARY.md](AI_BOUNDARY.md) for the complete activation gate and
+[OPERATIONS.md](OPERATIONS.md) for deployment and recovery procedures.

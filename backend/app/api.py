@@ -1,3 +1,5 @@
+from typing import Literal
+
 from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
@@ -9,6 +11,9 @@ from .models import Scenario
 from .schemas import (
     AnalyzeChangeRequest,
     ChangeDetail,
+    DatasetConsentRequest,
+    DatasetConsentSummary,
+    DatasetReadinessResponse,
     DoraMetricsResponse,
     FeedbackRequest,
     GitHubWebhookResponse,
@@ -17,6 +22,7 @@ from .schemas import (
     IncidentDetail,
     EvidenceSynthesisResponse,
     Overview,
+    PostmortemSnapshotSummary,
     ScenarioSummary,
     TelemetryIngestRequest,
 )
@@ -24,9 +30,11 @@ from .services import (
     active_scenario,
     activate_scenario,
     analyze_change,
+    create_postmortem_snapshot,
     export_incident_postmortem,
     get_change,
     get_dora_metrics,
+    get_dataset_readiness,
     get_incident,
     get_overview,
     ingest_telemetry_event,
@@ -34,6 +42,7 @@ from .services import (
     list_incidents,
     list_scenarios,
     process_github_webhook,
+    record_dataset_consent,
     reset_database,
     submit_feedback,
     synthesize_evidence_hypotheses,
@@ -43,6 +52,7 @@ from .tenant import (
     TenantScope,
     activate_context_scenario,
     get_legacy_scope,
+    require_admin_scope,
     require_responder_scope,
 )
 from .workspace_api import request_id
@@ -377,6 +387,7 @@ def incident_export_markdown(
     status_code=status.HTTP_201_CREATED,
 )
 def incident_feedback(
+    request: Request,
     incident_id: str,
     payload: FeedbackRequest,
     session: Session = Depends(get_session),
@@ -387,6 +398,74 @@ def incident_feedback(
         incident_id,
         payload,
         scope.workspace_id,
+        actor_user_id=scope.user.id,
+        actor_display_name=scope.user.display_name,
+        actor_auth_provider=scope.user.auth_provider,
+        request_id=request_id(request),
+    )
+
+
+@router.post(
+    "/incidents/{incident_id}/postmortem-snapshots",
+    response_model=PostmortemSnapshotSummary,
+    status_code=status.HTTP_201_CREATED,
+)
+def incident_postmortem_snapshot_create(
+    request: Request,
+    incident_id: str,
+    session: Session = Depends(get_session),
+    scope: TenantScope = Depends(require_responder_scope),
+) -> PostmortemSnapshotSummary:
+    return create_postmortem_snapshot(
+        session,
+        incident_id,
+        workspace_id=scope.workspace_id,
+        actor_user_id=scope.user.id,
+        actor_display_name=scope.user.display_name,
+        actor_auth_provider=scope.user.auth_provider,
+        request_id=request_id(request),
+    )
+
+
+@router.get(
+    "/incidents/{incident_id}/dataset-readiness",
+    response_model=DatasetReadinessResponse,
+)
+def incident_dataset_readiness(
+    incident_id: str,
+    purpose: Literal["evaluation", "training"] = "evaluation",
+    session: Session = Depends(get_session),
+    scope: TenantScope = Depends(get_legacy_scope),
+) -> DatasetReadinessResponse:
+    return get_dataset_readiness(
+        session,
+        incident_id,
+        workspace_id=scope.workspace_id,
+        purpose=purpose,
+    )
+
+
+@router.post(
+    "/incidents/{incident_id}/dataset-consent",
+    response_model=DatasetConsentSummary,
+    status_code=status.HTTP_201_CREATED,
+)
+def incident_dataset_consent_record(
+    request: Request,
+    incident_id: str,
+    payload: DatasetConsentRequest,
+    session: Session = Depends(get_session),
+    scope: TenantScope = Depends(require_admin_scope),
+) -> DatasetConsentSummary:
+    return record_dataset_consent(
+        session,
+        incident_id,
+        payload,
+        workspace_id=scope.workspace_id,
+        actor_user_id=scope.user.id,
+        actor_display_name=scope.user.display_name,
+        actor_auth_provider=scope.user.auth_provider,
+        request_id=request_id(request),
     )
 
 

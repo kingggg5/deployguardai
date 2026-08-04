@@ -24,10 +24,12 @@ from .errors import DomainError
 from .job_producers import enqueue_github_check_publication
 from .models import (
     ChangeRecord,
+    DatasetConsentDecisionRecord,
     FeedbackRecord,
     IncidentRecord,
     LEGACY_REPOSITORY_ID,
     LEGACY_WORKSPACE_ID,
+    PostmortemSnapshotRecord,
     Repository,
     Scenario,
     Workspace,
@@ -43,6 +45,9 @@ from .rls import set_tenant_context
 from .schemas import (
     AnalyzeChangeRequest,
     ChangeDetail,
+    DatasetConsentRequest,
+    DatasetConsentSummary,
+    DatasetReadinessResponse,
     DoraMetricsResponse,
     FeedbackRequest,
     GitHubWebhookResponse,
@@ -50,10 +55,22 @@ from .schemas import (
     EvidenceSynthesisResponse,
     Overview,
     OverviewStats,
+    PostmortemSnapshotSummary,
     ScenarioSummary,
     TelemetryIngestRequest,
 )
 from .workspace_services import audit
+
+
+POSTMORTEM_SNAPSHOT_VERSION = "deployguard-postmortem/v1"
+REQUIRED_DATASET_ATTESTATIONS = frozenset(
+    {
+        "workspace_authorized",
+        "secrets_reviewed",
+        "privacy_reviewed",
+        "license_reviewed",
+    }
+)
 
 
 def _utc(value: datetime | None) -> datetime | None:
@@ -124,10 +141,36 @@ def incident_detail(session: Session, record: IncidentRecord) -> IncidentDetail:
             "hypotheses": record.hypotheses,
             "feedback": [
                 {
+                    "id": item.id,
                     "verdict": item.verdict,
                     "hypothesis_id": item.hypothesis_id,
                     "note": item.note,
                     "submitted_at": _utc(item.submitted_at),
+                    "actor": (
+                        {
+                            "user_id": item.actor_user_id,
+                            "display_name": item.actor_display_name,
+                            "auth_provider": item.actor_auth_provider,
+                            "recorded_at": _utc(item.submitted_at),
+                        }
+                        if item.actor_user_id
+                        and item.actor_display_name
+                        and item.actor_auth_provider
+                        else None
+                    ),
+                    "verification_outcome": (
+                        {
+                            "result": item.verification_result,
+                            "method": item.verification_method,
+                            "summary": item.verification_summary,
+                            "evidence_ids": item.verification_evidence_ids,
+                            "recorded_at": _utc(item.submitted_at),
+                        }
+                        if item.verification_result != "not_recorded"
+                        and item.verification_method
+                        and item.verification_summary
+                        else None
+                    ),
                 }
                 for item in feedback_records
             ],
@@ -566,6 +609,11 @@ def submit_feedback(
     incident_id: str,
     request: FeedbackRequest,
     workspace_id: str | None = None,
+    *,
+    actor_user_id: str | None = None,
+    actor_display_name: str | None = None,
+    actor_auth_provider: str | None = None,
+    request_id: str = "untracked",
 ) -> IncidentDetail:
     statement = select(IncidentRecord).where(IncidentRecord.id == incident_id)
     if workspace_id is not None:
@@ -585,20 +633,63 @@ def submit_feedback(
             404,
         )
 
+    verification = request.verification_outcome
+    if verification is not None:
+        evidence_ids = {str(item["id"]) for item in incident.evidence}
+        unknown_evidence = set(verification.evidence_ids) - evidence_ids
+        if unknown_evidence:
+            raise DomainError(
+                "Verification references evidence outside this incident",
+                "verification_evidence_not_found",
+                409,
+            )
+
     hypotheses = [dict(item) for item in incident.hypotheses]
     for hypothesis in hypotheses:
         if hypothesis["id"] == request.hypothesis_id:
             hypothesis["status"] = request.verdict
     incident.hypotheses = hypotheses
-    session.add(
-        FeedbackRecord(
-            incident_id=incident.id,
-            hypothesis_id=request.hypothesis_id,
-            verdict=request.verdict,
-            note=request.note,
-            submitted_at=datetime.now(UTC),
-        )
+    submitted_at = datetime.now(UTC)
+    feedback = FeedbackRecord(
+        incident_id=incident.id,
+        hypothesis_id=request.hypothesis_id,
+        verdict=request.verdict,
+        note=request.note,
+        actor_user_id=actor_user_id,
+        actor_display_name=actor_display_name,
+        actor_auth_provider=actor_auth_provider,
+        verification_result=(
+            verification.result if verification is not None else "not_recorded"
+        ),
+        verification_method=(
+            verification.method if verification is not None else None
+        ),
+        verification_summary=(
+            verification.summary if verification is not None else None
+        ),
+        verification_evidence_ids=(
+            verification.evidence_ids if verification is not None else []
+        ),
+        submitted_at=submitted_at,
     )
+    session.add(feedback)
+    session.flush()
+    if workspace_id is not None:
+        audit(
+            session,
+            workspace_id=workspace_id,
+            actor_user_id=actor_user_id,
+            action="incident.verdict.recorded",
+            resource_type="incident_feedback",
+            resource_id=str(feedback.id),
+            request_id=request_id,
+            metadata={
+                "incident_id": incident.id,
+                "hypothesis_id": request.hypothesis_id,
+                "verdict": request.verdict,
+                "verification_result": feedback.verification_result,
+            },
+        )
     session.commit()
     return incident_detail(session, incident)
 
@@ -1409,12 +1500,7 @@ def ingest_telemetry_event(
     }
 
 
-def export_incident_postmortem(
-    session: Session,
-    incident_id: str,
-    workspace_id: str | None = None,
-) -> str:
-    inc = get_incident(session, incident_id, workspace_id)
+def _render_incident_postmortem(inc: IncidentDetail) -> str:
     lines = [
         f"# Incident Post-Mortem: {inc.title}",
         "",
@@ -1440,10 +1526,395 @@ def export_incident_postmortem(
         "## Human Feedback & Verification Log",
     ])
     for f in inc.feedback:
-        lines.append(f"- **Verdict**: `{f.verdict.upper()}` | **Submitted At**: `{f.submitted_at}`")
+        actor = (
+            f"{f.actor.display_name} (`{f.actor.user_id}` via "
+            f"`{f.actor.auth_provider}`)"
+            if f.actor
+            else "Legacy/unattributed actor"
+        )
+        lines.append(
+            f"- **Verdict**: `{f.verdict.upper()}` | "
+            f"**Submitted At**: `{f.submitted_at}` | **Actor**: {actor}"
+        )
         lines.append(f"  - **Note**: {f.note}")
+        if f.verification_outcome:
+            outcome = f.verification_outcome
+            lines.append(
+                f"  - **Verification**: `{outcome.result.upper()}` via "
+                f"`{outcome.method}`"
+            )
+            lines.append(f"  - **Observed outcome**: {outcome.summary}")
+            lines.append(
+                "  - **Evidence**: "
+                + ", ".join(f"`{item}`" for item in outcome.evidence_ids)
+            )
 
     return "\n".join(lines)
+
+
+def export_incident_postmortem(
+    session: Session,
+    incident_id: str,
+    workspace_id: str | None = None,
+) -> str:
+    inc = get_incident(session, incident_id, workspace_id)
+    return _render_incident_postmortem(inc)
+
+
+def _postmortem_snapshot_summary(
+    record: PostmortemSnapshotRecord,
+) -> PostmortemSnapshotSummary:
+    created_at = _utc(record.created_at)
+    return PostmortemSnapshotSummary.model_validate(
+        {
+            "id": record.id,
+            "incident_id": record.incident_id,
+            "snapshot_version": record.snapshot_version,
+            "content_sha256": record.content_sha256,
+            "source_feedback_count": record.source_feedback_count,
+            "analysis_schema_version": record.analysis_schema_version,
+            "engine_version": record.engine_version,
+            "created_by": {
+                "user_id": record.created_by_user_id,
+                "display_name": record.created_by_display_name,
+                "auth_provider": record.created_by_auth_provider,
+                "recorded_at": created_at,
+            },
+            "created_at": created_at,
+        }
+    )
+
+
+def _dataset_consent_summary(
+    record: DatasetConsentDecisionRecord,
+) -> DatasetConsentSummary:
+    created_at = _utc(record.created_at)
+    return DatasetConsentSummary.model_validate(
+        {
+            "id": record.id,
+            "incident_id": record.incident_id,
+            "postmortem_snapshot_id": record.postmortem_snapshot_id,
+            "purpose": record.purpose,
+            "decision": record.decision,
+            "terms_version": record.terms_version,
+            "reason": record.reason,
+            "attestations": record.attestations,
+            "actor": {
+                "user_id": record.actor_user_id,
+                "display_name": record.actor_display_name,
+                "auth_provider": record.actor_auth_provider,
+                "recorded_at": created_at,
+            },
+            "created_at": created_at,
+        }
+    )
+
+
+def _governance_incident(
+    session: Session,
+    incident_id: str,
+    workspace_id: str,
+) -> IncidentRecord:
+    incident = session.scalar(
+        select(IncidentRecord).where(
+            IncidentRecord.id == incident_id,
+            IncidentRecord.workspace_id == workspace_id,
+        )
+    )
+    if incident is None:
+        raise DomainError("Incident not found", "incident_not_found", 404)
+    return incident
+
+
+def create_postmortem_snapshot(
+    session: Session,
+    incident_id: str,
+    *,
+    workspace_id: str,
+    actor_user_id: str,
+    actor_display_name: str,
+    actor_auth_provider: str,
+    request_id: str,
+) -> PostmortemSnapshotSummary:
+    incident = _governance_incident(session, incident_id, workspace_id)
+    if incident.data_mode != "connected":
+        raise DomainError(
+            "Immutable dataset snapshots are only created from connected incidents",
+            "connected_incident_required",
+            409,
+        )
+    if incident.status != "resolved" or incident.resolved_at is None:
+        raise DomainError(
+            "Resolve the incident before creating an immutable postmortem snapshot",
+            "resolved_incident_required",
+            409,
+        )
+
+    detail = incident_detail(session, incident)
+    eligible_feedback = [
+        item
+        for item in detail.feedback
+        if item.actor is not None and item.verification_outcome is not None
+    ]
+    if not eligible_feedback:
+        raise DomainError(
+            "Record an attributed human verdict with a structured verification outcome first",
+            "verified_human_verdict_required",
+            409,
+        )
+
+    content = _render_incident_postmortem(detail)
+    content_sha256 = hashlib.sha256(content.encode("utf-8")).hexdigest()
+    existing = session.scalar(
+        select(PostmortemSnapshotRecord).where(
+            PostmortemSnapshotRecord.incident_id == incident.id,
+            PostmortemSnapshotRecord.workspace_id == workspace_id,
+            PostmortemSnapshotRecord.content_sha256 == content_sha256,
+        )
+    )
+    if existing is not None:
+        return _postmortem_snapshot_summary(existing)
+
+    created_at = datetime.now(UTC)
+    snapshot = PostmortemSnapshotRecord(
+        id=str(uuid4()),
+        workspace_id=workspace_id,
+        incident_id=incident.id,
+        snapshot_version=POSTMORTEM_SNAPSHOT_VERSION,
+        content_markdown=content,
+        content_sha256=content_sha256,
+        source_feedback_count=len(detail.feedback),
+        analysis_schema_version=incident.analysis_schema_version,
+        engine_version=incident.engine_version,
+        created_by_user_id=actor_user_id,
+        created_by_display_name=actor_display_name,
+        created_by_auth_provider=actor_auth_provider,
+        created_at=created_at,
+    )
+    session.add(snapshot)
+    audit(
+        session,
+        workspace_id=workspace_id,
+        actor_user_id=actor_user_id,
+        action="incident.postmortem.snapshot_created",
+        resource_type="postmortem_snapshot",
+        resource_id=snapshot.id,
+        request_id=request_id,
+        metadata={
+            "incident_id": incident.id,
+            "content_sha256": content_sha256,
+            "source_feedback_count": len(detail.feedback),
+        },
+    )
+    session.commit()
+    return _postmortem_snapshot_summary(snapshot)
+
+
+def get_dataset_readiness(
+    session: Session,
+    incident_id: str,
+    *,
+    workspace_id: str,
+    purpose: str = "evaluation",
+) -> DatasetReadinessResponse:
+    incident = _governance_incident(session, incident_id, workspace_id)
+    feedback = session.scalars(
+        select(FeedbackRecord)
+        .where(FeedbackRecord.incident_id == incident.id)
+        .order_by(FeedbackRecord.submitted_at, FeedbackRecord.id)
+    ).all()
+    snapshot = session.scalar(
+        select(PostmortemSnapshotRecord)
+        .where(
+            PostmortemSnapshotRecord.workspace_id == workspace_id,
+            PostmortemSnapshotRecord.incident_id == incident.id,
+        )
+        .order_by(
+            PostmortemSnapshotRecord.created_at.desc(),
+            PostmortemSnapshotRecord.id.desc(),
+        )
+    )
+    consent = session.scalar(
+        select(DatasetConsentDecisionRecord)
+        .where(
+            DatasetConsentDecisionRecord.workspace_id == workspace_id,
+            DatasetConsentDecisionRecord.incident_id == incident.id,
+            DatasetConsentDecisionRecord.purpose == purpose,
+        )
+        .order_by(
+            DatasetConsentDecisionRecord.created_at.desc(),
+            DatasetConsentDecisionRecord.id.desc(),
+        )
+    )
+
+    connected = incident.data_mode == "connected"
+    resolved = incident.status == "resolved" and incident.resolved_at is not None
+    attributed = any(item.actor_user_id for item in feedback)
+    verified = any(
+        item.actor_user_id
+        and item.verification_result != "not_recorded"
+        and bool(item.verification_evidence_ids)
+        for item in feedback
+    )
+    snapshotted = snapshot is not None
+    consented = bool(
+        consent
+        and consent.decision == "approved"
+        and snapshot
+        and consent.postmortem_snapshot_id == snapshot.id
+        and REQUIRED_DATASET_ATTESTATIONS.issubset(consent.attestations)
+    )
+    requirements = [
+        {
+            "key": "connected_incident",
+            "satisfied": connected,
+            "detail": "The incident originated from a connected workspace.",
+        },
+        {
+            "key": "resolved_incident",
+            "satisfied": resolved,
+            "detail": "The incident is resolved with a recorded resolution time.",
+        },
+        {
+            "key": "attributed_human_verdict",
+            "satisfied": attributed,
+            "detail": "A verdict is attributed to an authenticated workspace member.",
+        },
+        {
+            "key": "structured_verification",
+            "satisfied": verified,
+            "detail": "A verdict records method, outcome, and cited evidence IDs.",
+        },
+        {
+            "key": "immutable_postmortem",
+            "satisfied": snapshotted,
+            "detail": "A content-addressed postmortem snapshot is immutable in storage.",
+        },
+        {
+            "key": "audited_consent",
+            "satisfied": consented,
+            "detail": "The latest consent decision approves this exact snapshot and purpose.",
+        },
+    ]
+    status = (
+        "not_applicable"
+        if not connected
+        else "ready_for_review"
+        if all(bool(item["satisfied"]) for item in requirements)
+        else "blocked"
+    )
+    return DatasetReadinessResponse.model_validate(
+        {
+            "incident_id": incident.id,
+            "data_mode": incident.data_mode,
+            "purpose": purpose,
+            "status": status,
+            "connected_exporter_enabled": False,
+            "requirements": requirements,
+            "latest_snapshot": (
+                _postmortem_snapshot_summary(snapshot) if snapshot else None
+            ),
+            "latest_consent": (
+                _dataset_consent_summary(consent) if consent else None
+            ),
+        }
+    )
+
+
+def record_dataset_consent(
+    session: Session,
+    incident_id: str,
+    payload: DatasetConsentRequest,
+    *,
+    workspace_id: str,
+    actor_user_id: str,
+    actor_display_name: str,
+    actor_auth_provider: str,
+    request_id: str,
+) -> DatasetConsentSummary:
+    readiness = get_dataset_readiness(
+        session,
+        incident_id,
+        workspace_id=workspace_id,
+        purpose=payload.purpose,
+    )
+    if readiness.data_mode != "connected":
+        raise DomainError(
+            "Dataset consent only applies to connected incidents",
+            "connected_incident_required",
+            409,
+        )
+    snapshot = readiness.latest_snapshot
+    if snapshot is None:
+        raise DomainError(
+            "Create an immutable postmortem snapshot before recording consent",
+            "postmortem_snapshot_required",
+            409,
+        )
+    if payload.decision == "approved":
+        incomplete = [
+            item.key
+            for item in readiness.requirements
+            if item.key != "audited_consent" and not item.satisfied
+        ]
+        if incomplete:
+            raise DomainError(
+                "Dataset consent prerequisites are incomplete: "
+                + ", ".join(incomplete),
+                "dataset_consent_prerequisites_incomplete",
+                409,
+            )
+        missing_attestations = REQUIRED_DATASET_ATTESTATIONS - set(
+            payload.attestations
+        )
+        if missing_attestations:
+            raise DomainError(
+                "Dataset approval requires all privacy, secret, license, and authority attestations",
+                "dataset_consent_attestations_incomplete",
+                409,
+            )
+    elif readiness.latest_consent is None:
+        raise DomainError(
+            "There is no prior dataset consent to revoke",
+            "dataset_consent_not_found",
+            409,
+        )
+
+    created_at = datetime.now(UTC)
+    decision = DatasetConsentDecisionRecord(
+        id=str(uuid4()),
+        workspace_id=workspace_id,
+        incident_id=incident_id,
+        postmortem_snapshot_id=snapshot.id,
+        purpose=payload.purpose,
+        decision=payload.decision,
+        terms_version=payload.terms_version,
+        reason=payload.reason,
+        attestations=payload.attestations,
+        actor_user_id=actor_user_id,
+        actor_display_name=actor_display_name,
+        actor_auth_provider=actor_auth_provider,
+        created_at=created_at,
+    )
+    session.add(decision)
+    audit(
+        session,
+        workspace_id=workspace_id,
+        actor_user_id=actor_user_id,
+        action=f"dataset.consent.{payload.decision}",
+        resource_type="dataset_consent_decision",
+        resource_id=decision.id,
+        request_id=request_id,
+        metadata={
+            "incident_id": incident_id,
+            "postmortem_snapshot_id": snapshot.id,
+            "purpose": payload.purpose,
+            "terms_version": payload.terms_version,
+            "attestations": payload.attestations,
+        },
+    )
+    session.commit()
+    return _dataset_consent_summary(decision)
 
 
 def synthesize_evidence_hypotheses(

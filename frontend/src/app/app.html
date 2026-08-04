@@ -636,10 +636,17 @@ FORM: GitHub/Primer-inspired repository workspace; interaction grammar is famili
                   @if (feedbackForSelectedHypothesis().length) {
                     <div class="previous-verdicts">
                       <span>{{ t('recorded_verdicts') }}</span>
-                      @for (feedback of feedbackForSelectedHypothesis(); track feedback.submitted_at) {
+                      @for (feedback of feedbackForSelectedHypothesis(); track feedback.id) {
                         <div>
                           <strong>{{ feedbackLabel(feedback.verdict) }}</strong>
                           <p>{{ feedback.note }}</p>
+                          <span class="verdict-provenance">
+                            {{ feedback.actor?.display_name ?? t('legacy_actor') }}
+                            @if (feedback.verification_outcome; as outcome) {
+                              · {{ t('verification_' + outcome.result) }}
+                              · {{ outcome.evidence_ids.length }} {{ t('evidence_refs') }}
+                            }
+                          </span>
                         </div>
                       }
                     </div>
@@ -662,23 +669,74 @@ FORM: GitHub/Primer-inspired repository workspace; interaction grammar is famili
                   ></textarea>
                   <p class="field-help">{{ t('verdict_help') }}</p>
 
+                  <fieldset class="verification-fields">
+                    <legend>{{ t('verification_outcome_title') }}</legend>
+                    <p>{{ t('verification_outcome_help') }}</p>
+                    <div class="verification-field-grid">
+                      <label>
+                        <span>{{ t('verification_result') }}</span>
+                        <select
+                          [value]="verificationResult()"
+                          (change)="setVerificationResult($any($event.target).value)"
+                        >
+                          <option value="supported">{{ t('verification_supported') }}</option>
+                          <option value="contradicted">{{ t('verification_contradicted') }}</option>
+                          <option value="inconclusive">{{ t('verification_inconclusive') }}</option>
+                        </select>
+                      </label>
+                      <label>
+                        <span>{{ t('verification_method') }}</span>
+                        <input
+                          type="text"
+                          [placeholder]="t('verification_method_placeholder')"
+                          [value]="verificationMethod()"
+                          (input)="verificationMethod.set($any($event.target).value)"
+                        >
+                      </label>
+                    </div>
+                    <label class="verification-summary">
+                      <span>{{ t('verification_observed_outcome') }}</span>
+                      <textarea
+                        rows="3"
+                        [placeholder]="t('verification_summary_placeholder')"
+                        [value]="verificationSummary()"
+                        (input)="verificationSummary.set($any($event.target).value)"
+                      ></textarea>
+                    </label>
+                    <div class="verification-evidence">
+                      <span>{{ t('verification_evidence_title') }}</span>
+                      <div>
+                        @for (evidence of visibleEvidence(); track evidence.id) {
+                          <label>
+                            <input
+                              type="checkbox"
+                              [checked]="verificationEvidenceIds().includes(evidence.id)"
+                              (change)="toggleVerificationEvidence(evidence.id, $any($event.target).checked)"
+                            >
+                            <code>{{ evidence.id }}</code>
+                          </label>
+                        }
+                      </div>
+                    </div>
+                  </fieldset>
+
                   <div class="verdict-actions">
                     <button
                       type="button"
                       class="button button--confirm"
-                      [disabled]="isSubmittingFeedback()"
+                      [disabled]="!canSubmitVerifiedFeedback() || isSubmittingFeedback()"
                       (click)="submitFeedback('confirmed')"
                     >{{ t('confirm_cause') }}</button>
                     <button
                       type="button"
                       class="button button--partial"
-                      [disabled]="isSubmittingFeedback()"
+                      [disabled]="!canSubmitVerifiedFeedback() || isSubmittingFeedback()"
                       (click)="submitFeedback('partial')"
                     >{{ t('mark_partial') }}</button>
                     <button
                       type="button"
                       class="button button--reject"
-                      [disabled]="isSubmittingFeedback()"
+                      [disabled]="!canSubmitVerifiedFeedback() || isSubmittingFeedback()"
                       (click)="submitFeedback('rejected')"
                     >{{ t('reject_hypothesis') }}</button>
                   </div>
@@ -691,6 +749,143 @@ FORM: GitHub/Primer-inspired repository workspace; interaction grammar is famili
                 }
               </section>
             </div>
+
+            <section class="instrument-panel dataset-governance" aria-labelledby="dataset-governance-title">
+              <header class="panel-heading governance-heading">
+                <div>
+                  <p class="system-kicker">{{ t('dataset_governance_kicker') }}</p>
+                  <h2 id="dataset-governance-title">{{ t('dataset_governance_title') }}</h2>
+                </div>
+                @if (datasetReadiness(); as readiness) {
+                  <span class="governance-status" [attr.data-status]="readiness.status">
+                    {{ t('dataset_status_' + readiness.status) }}
+                  </span>
+                }
+              </header>
+
+              @if (isDatasetReadinessLoading() && !datasetReadiness()) {
+                <div class="governance-loading" aria-busy="true">{{ t('loading_dataset_readiness') }}</div>
+              } @else if (datasetReadiness(); as readiness) {
+                <p class="governance-intro">{{ t('dataset_governance_intro') }}</p>
+                <ol class="governance-gates">
+                  @for (requirement of readiness.requirements; track requirement.key) {
+                    <li [class.is-complete]="requirement.satisfied">
+                      <span class="governance-gate-mark" aria-hidden="true">
+                        {{ requirement.satisfied ? '✓' : '–' }}
+                      </span>
+                      <div>
+                        <strong>{{ datasetRequirementLabel(requirement.key) }}</strong>
+                        <p>{{ requirement.detail }}</p>
+                      </div>
+                    </li>
+                  }
+                </ol>
+
+                <dl class="governance-lineage">
+                  <div>
+                    <dt>{{ t('postmortem_snapshot') }}</dt>
+                    <dd>
+                      @if (readiness.latest_snapshot; as snapshot) {
+                        <code [title]="snapshot.content_sha256">{{ snapshot.content_sha256.slice(0, 12) }}</code>
+                        · {{ snapshot.created_by.display_name }}
+                      } @else {
+                        {{ t('not_recorded') }}
+                      }
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>{{ t('dataset_consent') }}</dt>
+                    <dd>
+                      @if (readiness.latest_consent; as consent) {
+                        {{ t('dataset_consent_' + consent.decision) }} · {{ consent.purpose }}
+                      } @else {
+                        {{ t('not_recorded') }}
+                      }
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>{{ t('connected_exporter') }}</dt>
+                    <dd>{{ t('connected_exporter_closed') }}</dd>
+                  </div>
+                </dl>
+
+                @if (governanceNotice()) {
+                  <div class="notice notice--success" role="status">{{ governanceNotice() }}</div>
+                }
+                @if (governanceError()) {
+                  <div class="notice notice--error" role="alert">{{ governanceError() }}</div>
+                }
+
+                @if (readiness.data_mode === 'connected') {
+                  <div class="governance-actions">
+                    <div class="snapshot-action">
+                      <div>
+                        <strong>{{ t('immutable_snapshot_action') }}</strong>
+                        <p>{{ t('immutable_snapshot_help') }}</p>
+                      </div>
+                      <button
+                        type="button"
+                        class="button button--secondary"
+                        [disabled]="!canCreatePostmortemSnapshot() || isGovernanceMutating()"
+                        (click)="createImmutablePostmortem()"
+                      >{{ t('create_snapshot') }}</button>
+                    </div>
+
+                    <div class="consent-action">
+                      <div class="consent-action-heading">
+                        <div>
+                          <strong>{{ t('dataset_consent_action') }}</strong>
+                          <p>{{ t('dataset_consent_help') }}</p>
+                        </div>
+                        <label>
+                          <span>{{ t('dataset_purpose') }}</span>
+                          <select
+                            [value]="datasetPurpose()"
+                            (change)="setDatasetPurpose($any($event.target).value)"
+                          >
+                            <option value="evaluation">{{ t('purpose_evaluation') }}</option>
+                            <option value="training">{{ t('purpose_training') }}</option>
+                          </select>
+                        </label>
+                      </div>
+                      <label class="consent-reason">
+                        <span>{{ t('consent_reason') }}</span>
+                        <textarea
+                          rows="2"
+                          [placeholder]="t('consent_reason_placeholder')"
+                          [value]="datasetConsentReason()"
+                          (input)="datasetConsentReason.set($any($event.target).value)"
+                        ></textarea>
+                      </label>
+                      <fieldset class="consent-attestations">
+                        <legend>{{ t('consent_attestations') }}</legend>
+                        @for (attestation of datasetAttestationOptions; track attestation) {
+                          <label>
+                            <input
+                              type="checkbox"
+                              [checked]="datasetAttestations().includes(attestation)"
+                              (change)="toggleDatasetAttestation(attestation, $any($event.target).checked)"
+                            >
+                            <span>{{ t('attestation_' + attestation) }}</span>
+                          </label>
+                        }
+                      </fieldset>
+                      <button
+                        type="button"
+                        class="button button--primary"
+                        [disabled]="!canApproveDataset() || isGovernanceMutating()"
+                        (click)="approveDatasetConsent()"
+                      >{{ t('record_dataset_approval') }}</button>
+                    </div>
+                  </div>
+                } @else {
+                  <div class="synthetic-boundary">
+                    <strong>{{ t('synthetic_dataset_boundary') }}</strong>
+                    <p>{{ t('synthetic_dataset_boundary_help') }}</p>
+                  </div>
+                }
+              }
+            </section>
           }
         } @else if (activeTab() === 'change_risk') {
           @if (displayedRiskChange(); as change) {

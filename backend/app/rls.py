@@ -35,6 +35,8 @@ DIRECT_TENANT_TABLES = (
     "workspace_risk_policies",
     "operational_events",
     "deployments",
+    "postmortem_snapshots",
+    "dataset_consent_decisions",
 )
 INDIRECT_TENANT_TABLES = ("incident_feedback",)
 

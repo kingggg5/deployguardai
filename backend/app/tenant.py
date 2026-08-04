@@ -274,3 +274,15 @@ def require_responder_scope(
             403,
         )
     return scope
+
+
+def require_admin_scope(
+    scope: Annotated[TenantScope, Depends(get_legacy_scope)],
+) -> TenantScope:
+    if ROLE_LEVEL[scope.role] < ROLE_LEVEL["admin"]:
+        raise DomainError(
+            "Administrator permission is required for this action",
+            "forbidden",
+            403,
+        )
+    return scope
