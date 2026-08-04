@@ -275,7 +275,9 @@ jobs:
         run: docker build --tag deployguard-ai-web:ci ./frontend
 
       - name: Start the production-shaped Compose runtime
-        run: docker compose up --detach --build postgres migrate grant-runtime api worker web
+        run: >-
+          docker compose up --build --wait --wait-timeout 180
+          postgres migrate grant-runtime api worker web
 
       - name: Smoke test API, web, worker, and runtime RLS role
         run: |
