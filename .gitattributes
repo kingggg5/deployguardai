@@ -1,0 +1,3 @@
+bench/schema/*.json text eol=lf
+bench/datasets/**/*.json text eol=lf
+bench/datasets/**/*.jsonl text eol=lf

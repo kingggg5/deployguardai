@@ -7,12 +7,15 @@ release notes from `main` and will use semantic versioning for tagged releases.
 
 ### Added
 
+- DeployGuard Bench v0.1 foundation with a versioned operational-example schema,
+  deterministic synthetic exporter, provenance and eligibility rules,
+  reproducible dataset artifacts, contract tests, and CI drift checks.
 - Citation-gated deterministic incident explanations with a versioned evidence
   contract, evidence-bundle hash, uncertainty, validation, and audit metadata.
 - Cross-platform local development commands, a `make demo` entry point, and CI
   coverage reports/floors for backend and frontend suites.
 - An explicit AI-boundary document, public-preview release-note draft, and a
-  maintainer launch checklist with a real contributor backlog.
+  dependency-ordered public roadmap.
 - Three-minute connected and isolated demo quickstarts, a polished English/Thai
   project overview, and a real dashboard screenshot for repository discovery.
 - A tag-driven GHCR release workflow that reuses CI, publishes signed
@@ -62,6 +65,8 @@ release notes from `main` and will use semantic versioning for tagged releases.
 
 ### Changed
 
+- Project positioning now makes the operational-data -> evidence-graph ->
+  dataset architecture explicit and treats AI/LLMs as downstream consumers.
 - README and operations documentation now distinguish implemented hardening from provider- and infrastructure-dependent production work.
 - Backend test dependency updated to a secure pytest 9.x range.
 - GitHub Actions baseline moved to Node 24-compatible action majors to remove the hosted-runner Node 20 deprecation path.

@@ -240,7 +240,8 @@ post-resolution investigation/postmortem note ได้
 | `GET` | `/incidents/{incident_id}` | Viewer | Timeline, evidence, hypotheses และ feedback |
 | `POST` | `/incidents/{incident_id}/feedback` | Responder | Human verdict ต่อ hypothesis |
 | `GET` | `/incidents/{incident_id}/export-markdown` | Viewer | Postmortem markdown |
-| `POST` | `/incidents/{incident_id}/synthesize-llm` | Viewer | Reserved; ปัจจุบันคืน `501` |
+| `POST` | `/incidents/{incident_id}/synthesize` | Viewer | Deterministic, citation-gated evidence explanation; ไม่เรียก external model |
+| `POST` | `/incidents/{incident_id}/synthesize-llm` | Viewer | Deprecated compatibility alias ของ `/synthesize`; ไม่เรียก external model |
 | `GET` | `/metrics/dora` | Viewer | DORA-style aggregate ของ workspace |
 
 `POST /changes/analyze` persist snapshot ใหม่ แต่ไม่เปลี่ยน active scenario
@@ -392,7 +393,6 @@ returned by these endpoints.
 | `409` | Version, lifecycle, provider หรือ state conflict |
 | `413` | GitHub webhook body เกิน configured limit |
 | `422` | Pydantic/FastAPI validation error |
-| `501` | LLM capability ยังไม่ implement |
 | `503` | Credential-gated provider ยังไม่ configured |
 
 Domain error:

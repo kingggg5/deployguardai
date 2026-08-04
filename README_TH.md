@@ -20,6 +20,26 @@ DeployGuard รวม pull request, deployment, dependency ของ service, te
 เก็บไว้ และ policy ที่มี version จึงสามารถอธิบายและทำซ้ำได้ ระบบไม่ deploy,
 rollback, รัน shell หรือแก้ infrastructure เองโดยอัตโนมัติ
 
+## แนวทางข้อมูล: AI เป็นผู้ใช้ Evidence Graph
+
+DeployGuard AI กำลังสร้างฐานข้อมูลเชิงปฏิบัติการสำหรับประเมิน AI/LLM ด้าน
+Production Engineering โดยแบ่งเป็น 3 layer:
+
+1. **Operational Data** — GitHub, OpenTelemetry, Prometheus, deployment และ
+   เหตุการณ์จากการสืบสวน พร้อม provenance
+2. **Evidence Graph** — เชื่อม change, topology, supporting evidence,
+   counter-evidence, hypotheses, verification, human verdict และ postmortem
+3. **DeployGuard Bench** — ตัวอย่างที่ผ่าน privacy review และมี version สำหรับ
+   evaluation และใช้ train โมเดลได้เฉพาะเมื่อ consent/license/split policy อนุญาต
+
+AI เป็น **consumer** ของ dataset ไม่ใช่ผู้สร้าง evidence หรือ ground truth
+ปัจจุบัน [DeployGuard Bench](bench/README.md) มี schema, deterministic exporter
+และ synthetic seed 3 ตัวอย่าง เป้าหมาย 1,000 deployment scenarios และ 500
+incident investigations เป็น roadmap ไม่ใช่จำนวนข้อมูลที่มีแล้ว Incident จริง
+เป็นเพียง candidate example จนกว่าจะผ่าน consent, redaction, licensing และ
+human review โดย synthetic seed ปัจจุบันใช้ evaluation เท่านั้นและยังไม่อนุมัติ
+ให้ใช้ train โมเดล
+
 ## ทดลองในไม่กี่นาที
 
 โหมดปกติเป็น connected mode และเริ่มจากฐานข้อมูลว่าง:
@@ -56,6 +76,20 @@ docker compose -p deployguard-demo \
 - OpenTelemetry/OTLP, metrics ที่ลดข้อมูลละเอียดอ่อน และ restore/retention tools
 - evaluation manifest ที่ pin checksum และแยกข้อมูล `connected` กับ `synthetic`
 
+## สถานะ AI, dataset และ evaluation
+
+- **LLM:** ยังไม่มีการเรียก external model ระบบใช้ deterministic evidence
+  synthesis ที่ตรวจ citation ทุก statement ก่อนส่งผลลัพธ์
+- **Dataset:** DeployGuard Bench v0.1 มี synthetic seed 3 ตัวอย่าง โดย 2 ตัวอย่าง
+  ใช้ development evaluation ได้, 1 ตัวอย่างยังไม่มี ground truth และยังไม่มี
+  ตัวอย่างใดได้รับอนุมัติให้ใช้ train โมเดล
+- **Evaluation:** CI รัน engine-backed benchmark, golden/property tests และ
+  contract fixtures แล้ว แต่ยังไม่มีผล accuracy, calibration หรือผลกระทบจาก
+  production จริง
+
+อ่าน methodology และข้อจำกัดได้ใน [Evaluation](docs/EVALUATION.md) และ
+[AI boundary](docs/AI_BOUNDARY.md)
+
 ## ความปลอดภัยและความจริงของข้อมูล
 
 browser จะไม่เห็น GitHub installation token, App private key, SMTP password หรือ
@@ -77,6 +111,7 @@ python scripts/production_readiness.py
 - [Security model](docs/SECURITY.md)
 - [Operations runbook](docs/OPERATIONS.md)
 - [Evaluation](docs/EVALUATION.md)
+- [DeployGuard Bench](bench/README.md)
 - [Contributing](CONTRIBUTING.md)
 - [Release guide](docs/RELEASE.md)
 

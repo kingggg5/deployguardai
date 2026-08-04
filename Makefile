@@ -4,7 +4,7 @@ PYTHON ?= python3
 NPM ?= npm
 COMPOSE ?= docker compose
 
-.PHONY: help install dev stop test test-backend test-frontend coverage demo demo-down compose-config
+.PHONY: help install dev stop test test-backend test-frontend coverage bench demo demo-down compose-config
 
 help:
 	@printf '%s\n' 'DeployGuard development commands:' \
@@ -13,6 +13,7 @@ help:
 	  '  make stop           Stop only processes started by make dev' \
 	  '  make test           Run backend and frontend tests' \
 	  '  make coverage       Run test suites with coverage reports' \
+	  '  make bench          Run evaluation and verify dataset artifacts' \
 	  '  make demo           Start an isolated, visibly-labelled synthetic demo' \
 	  '  make demo-down      Stop the isolated demo without removing volumes' \
 	  '  make compose-config Validate the default Compose configuration'
@@ -39,6 +40,10 @@ test-frontend:
 coverage:
 	@cd backend && .venv/bin/python -m pytest -p pytest_cov --cov=app --cov-report=term-missing --cov-report=xml:coverage.xml --cov-fail-under=80
 	@$(NPM) --prefix frontend run test:coverage
+
+bench:
+	@$(PYTHON) scripts/evaluate_benchmarks.py --output .runtime/evaluation-results.json
+	@$(PYTHON) scripts/export_operational_dataset.py --check --output-dir bench/datasets/synthetic-v0.1
 
 demo:
 	@$(COMPOSE) -p deployguard-demo -f docker-compose.yml -f docker-compose.demo.yml up --build
