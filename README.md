@@ -13,10 +13,10 @@ traceable evidence instead of guesses.
 </p>
 
 <p align="center">
-  <img src="docs/assets/workspace-connected-mobile.jpg" alt="DeployGuard AI connected-mode workspace setup on a mobile viewport, with no synthetic repository data" width="320" />
+  <img src="docs/assets/workspace-connected-desktop.png" alt="DeployGuard AI connected-mode workspace setup on a desktop viewport, with no synthetic repository data" width="100%" />
 </p>
 
-<p align="center"><em>Latest connected-mode mobile setup. No synthetic repository or incident data is shown.</em></p>
+<p align="center"><em>Latest connected-mode desktop setup. No synthetic repository or incident data is shown.</em></p>
 
 <p align="center">
   <a href="README.md">English</a> · <a href="README_TH.md">ภาษาไทย</a> · <a href="docs/QUICKSTART.md">Quickstart</a> · <a href="docs/RELEASE.md">Release guide</a>
