@@ -35,7 +35,7 @@ rollback, รัน shell หรือเข้าถึง cluster
 | Process metrics | มี private, low-cardinality Prometheus endpoint; dashboard/alerts ยังเป็น deployment concern |
 | Backup/retention tooling | มี isolated writable restore rehearsal และ allow-listed retention dry-run/apply พร้อม legal hold, batching และ deletion audit; schedule/storage เป็น deployment concern |
 | PostgreSQL | รองรับผ่าน SQLAlchemy/psycopg และ RLS revision `0009`; production ต้องแยก owner/runtime roles |
-| LLM synthesis | Deferred; endpoint ปัจจุบันคืน `501` |
+| External LLM synthesis | Deferred; `/synthesize` และ deprecated `/synthesize-llm` ใช้ deterministic, citation-gated baseline และไม่เรียก external model |
 
 ## System context
 

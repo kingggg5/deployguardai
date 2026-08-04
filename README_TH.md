@@ -56,6 +56,19 @@ docker compose -p deployguard-demo \
 - OpenTelemetry/OTLP, metrics ที่ลดข้อมูลละเอียดอ่อน และ restore/retention tools
 - evaluation manifest ที่ pin checksum และแยกข้อมูล `connected` กับ `synthetic`
 
+## สถานะ AI, dataset และ evaluation
+
+- **LLM:** ยังไม่มีการเรียก external model ระบบใช้ deterministic evidence
+  synthesis ที่ตรวจ citation ทุก statement ก่อนส่งผลลัพธ์
+- **Dataset:** มี versioned synthetic regression dataset และ golden corpus
+  ที่สร้างใน repository เท่านั้น ยังไม่มีข้อมูลลูกค้าหรือ public benchmark
+- **Evaluation:** CI รัน engine-backed benchmark, golden/property tests และ
+  contract fixtures แล้ว แต่ยังไม่มีผล accuracy, calibration หรือผลกระทบจาก
+  production จริง
+
+อ่าน methodology และข้อจำกัดได้ใน [Evaluation](docs/EVALUATION.md) และ
+[AI boundary](docs/AI_BOUNDARY.md)
+
 ## ความปลอดภัยและความจริงของข้อมูล
 
 browser จะไม่เห็น GitHub installation token, App private key, SMTP password หรือ
