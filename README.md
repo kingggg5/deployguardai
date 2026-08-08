@@ -71,7 +71,7 @@ Resolve the immutable pin from the release tag before enabling branch
 protection:
 
 ~~~bash
-git ls-remote https://github.com/kingggg5/deployguardai.git refs/tags/v0.1.0
+git ls-remote https://github.com/kingggg5/deployguardai.git 'refs/tags/v0.1.0^{}'
 ~~~
 
 The receipt is written to .deployguard/artifacts/evidence-receipt.json and
