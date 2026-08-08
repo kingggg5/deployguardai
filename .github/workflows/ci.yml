@@ -100,7 +100,7 @@ jobs:
 
       - name: Upload backend coverage
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: deployguard-backend-coverage
           path: backend/coverage.xml
@@ -163,7 +163,7 @@ jobs:
 
       - name: Upload frontend coverage
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: deployguard-frontend-coverage
           path: frontend/coverage
@@ -245,7 +245,7 @@ jobs:
           tests/test_operational_dataset_export.py
 
       - name: Upload evaluation results
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: deployguard-evaluation
           path: |
@@ -288,7 +288,7 @@ jobs:
 
       - name: Upload control-plane coverage
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: deployguard-control-plane-coverage
           path: control-plane/TestResults/**/coverage.cobertura.xml
