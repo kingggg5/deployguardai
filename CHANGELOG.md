@@ -17,6 +17,15 @@ release notes from `main` and will use semantic versioning for tagged releases.
 - DeployGuard Bench v0.1 foundation with a versioned operational-example schema,
   deterministic synthetic exporter, provenance and eligibility rules,
   reproducible dataset artifacts, contract tests, and CI drift checks.
+- Authenticated evidence-receipt ingestion with exact repository/head-SHA
+  matching, detached attestation state, and evidence-backed GitHub Check
+  publication; metadata-only checks remain neutral.
+- Explicit post-deployment outcome records with stable-window, failure,
+  rollback, incident-link, and human-confirmation states, plus an Operations
+  surface for SLO/error-budget summaries and accountable response.
+- Conservative secret/PII redaction and cross-split leakage checks, immutable
+  dataset release records with revocation tombstones, and fixed-destination
+  Slack/Teams/PagerDuty notification outbox jobs.
 - Citation-gated deterministic incident explanations with a versioned evidence
   contract, evidence-bundle hash, uncertainty, validation, and audit metadata.
 - Cross-platform local development commands, a `make demo` entry point, and CI

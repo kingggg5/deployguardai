@@ -27,6 +27,7 @@ from app.engines import (  # noqa: E402 - repository-local import
     RCA_SCORING_POLICY_VERSION,
     rank_hypotheses,
 )
+from app.dataset_safety import leakage_findings, redact_payload  # noqa: E402
 from app.seed import SCENARIO_SPECS  # noqa: E402 - repository-local import
 
 
@@ -231,6 +232,15 @@ def validate_example(example: Mapping[str, Any]) -> None:
         raise ValueError(f"example schema must be {EXAMPLE_SCHEMA}")
     if example.get("data_mode") != "synthetic":
         raise ValueError("the public seed exporter accepts synthetic data only")
+    _, redaction_findings = redact_payload(example)
+    if redaction_findings:
+        raise ValueError(
+            "dataset contains redaction findings; review before publication: "
+            + ", ".join(
+                f"{finding.category}@{finding.path}"
+                for finding in redaction_findings
+            )
+        )
     prohibited = PROHIBITED_PUBLIC_KEYS.intersection(_walk_keys(example))
     if prohibited:
         raise ValueError(
@@ -281,6 +291,12 @@ def build_dataset() -> tuple[list[dict[str, Any]], dict[str, Any]]:
     schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
     examples = [build_example(spec) for spec in SCENARIO_SPECS]
     examples.sort(key=lambda item: str(item["example_id"]))
+    leakage = leakage_findings(examples)
+    if leakage:
+        raise ValueError(
+            "dataset split leakage detected: "
+            + ", ".join(item["second_example"] for item in leakage)
+        )
     jsonl = b"".join(_canonical_bytes(example) + b"\n" for example in examples)
     example_entries = [
         {

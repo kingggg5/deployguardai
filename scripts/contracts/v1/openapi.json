@@ -968,6 +968,242 @@
         "title": "DatasetReadinessResponse",
         "type": "object"
       },
+      "DatasetReleaseCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "bundle_sha256": {
+            "maxLength": 64,
+            "minLength": 64,
+            "pattern": "^[0-9a-fA-F]{64}$",
+            "title": "Bundle Sha256",
+            "type": "string"
+          },
+          "manifest": {
+            "additionalProperties": true,
+            "title": "Manifest",
+            "type": "object"
+          },
+          "purpose": {
+            "default": "evaluation",
+            "enum": [
+              "evaluation",
+              "training"
+            ],
+            "title": "Purpose",
+            "type": "string"
+          },
+          "release_version": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Release Version",
+            "type": "string"
+          },
+          "source_snapshot_count": {
+            "maximum": 10000000.0,
+            "minimum": 1.0,
+            "title": "Source Snapshot Count",
+            "type": "integer"
+          },
+          "status": {
+            "default": "ready_for_review",
+            "enum": [
+              "ready_for_review",
+              "published"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "release_version",
+          "bundle_sha256",
+          "source_snapshot_count"
+        ],
+        "title": "DatasetReleaseCreate",
+        "type": "object"
+      },
+      "DatasetReleaseRevocationRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "DatasetReleaseRevocationRequest",
+        "type": "object"
+      },
+      "DatasetReleaseRevocationSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "actor": {
+            "$ref": "#/components/schemas/ActorProvenance"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "release_id": {
+            "title": "Release Id",
+            "type": "string"
+          },
+          "tombstone_sha256": {
+            "title": "Tombstone Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "release_id",
+          "tombstone_sha256",
+          "reason",
+          "actor",
+          "created_at"
+        ],
+        "title": "DatasetReleaseRevocationSummary",
+        "type": "object"
+      },
+      "DatasetReleaseSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "bundle_sha256": {
+            "title": "Bundle Sha256",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "$ref": "#/components/schemas/ActorProvenance"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "manifest": {
+            "additionalProperties": true,
+            "title": "Manifest",
+            "type": "object"
+          },
+          "purpose": {
+            "enum": [
+              "evaluation",
+              "training"
+            ],
+            "title": "Purpose",
+            "type": "string"
+          },
+          "release_version": {
+            "title": "Release Version",
+            "type": "string"
+          },
+          "source_snapshot_count": {
+            "title": "Source Snapshot Count",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "ready_for_review",
+              "published",
+              "revoked"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "workspace_id": {
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workspace_id",
+          "release_version",
+          "purpose",
+          "status",
+          "bundle_sha256",
+          "source_snapshot_count",
+          "manifest",
+          "created_by",
+          "created_at"
+        ],
+        "title": "DatasetReleaseSummary",
+        "type": "object"
+      },
+      "DeploymentOutcomeRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "incident_id": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Incident Id"
+          },
+          "stable_window_minutes": {
+            "anyOf": [
+              {
+                "maximum": 43200.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stable Window Minutes"
+          },
+          "state": {
+            "enum": [
+              "unknown",
+              "stable_window_met",
+              "failed",
+              "rolled_back",
+              "incident_linked"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "summary": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "summary",
+          "evidence_ids"
+        ],
+        "title": "DeploymentOutcomeRequest",
+        "type": "object"
+      },
       "DeploymentResponse": {
         "additionalProperties": false,
         "properties": {
@@ -1028,6 +1264,56 @@
               }
             ],
             "title": "Last Event Id"
+          },
+          "outcome_confirmed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome Confirmed At"
+          },
+          "outcome_confirmed_by_user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome Confirmed By User Id"
+          },
+          "outcome_evidence": {
+            "additionalProperties": true,
+            "title": "Outcome Evidence",
+            "type": "object"
+          },
+          "outcome_incident_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome Incident Id"
+          },
+          "outcome_state": {
+            "enum": [
+              "unknown",
+              "stable_window_met",
+              "failed",
+              "rolled_back",
+              "incident_linked"
+            ],
+            "title": "Outcome State",
+            "type": "string"
           },
           "provider": {
             "title": "Provider",
@@ -1118,6 +1404,11 @@
           "commit_sha",
           "ref",
           "status",
+          "outcome_state",
+          "outcome_evidence",
+          "outcome_incident_id",
+          "outcome_confirmed_by_user_id",
+          "outcome_confirmed_at",
           "provider_url",
           "service_ids",
           "last_event_id",
@@ -1575,6 +1866,16 @@
       "GitHubCheckRunResponse": {
         "additionalProperties": false,
         "properties": {
+          "attestation_state": {
+            "default": "missing",
+            "enum": [
+              "verified",
+              "missing",
+              "invalid"
+            ],
+            "title": "Attestation State",
+            "type": "string"
+          },
           "change_id": {
             "title": "Change Id",
             "type": "string"
@@ -1582,9 +1883,21 @@
           "conclusion": {
             "enum": [
               "neutral",
+              "failure",
               "success"
             ],
             "title": "Conclusion",
+            "type": "string"
+          },
+          "decision": {
+            "default": "review",
+            "enum": [
+              "pass",
+              "review",
+              "block",
+              "error"
+            ],
+            "title": "Decision",
             "type": "string"
           },
           "details_url": {
@@ -1599,6 +1912,17 @@
             "format": "date-time",
             "title": "Published At",
             "type": "string"
+          },
+          "receipt_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receipt Sha256"
           },
           "status": {
             "title": "Status",
@@ -2642,6 +2966,79 @@
         "title": "MembershipSummary",
         "type": "object"
       },
+      "NotificationDeliveryResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "event_id": {
+            "title": "Event Id",
+            "type": "string"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "provider": {
+            "enum": [
+              "slack",
+              "teams",
+              "pagerduty"
+            ],
+            "title": "Provider",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed",
+              "dead_letter"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "provider",
+          "event_id",
+          "status",
+          "created_at"
+        ],
+        "title": "NotificationDeliveryResponse",
+        "type": "object"
+      },
+      "NotificationProviderRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "event_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Event Id",
+            "type": "string"
+          },
+          "provider": {
+            "enum": [
+              "slack",
+              "teams",
+              "pagerduty"
+            ],
+            "title": "Provider",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "event_id"
+        ],
+        "title": "NotificationProviderRequest",
+        "type": "object"
+      },
       "NotificationResponse": {
         "additionalProperties": false,
         "properties": {
@@ -2712,6 +3109,93 @@
           "created_at"
         ],
         "title": "NotificationResponse",
+        "type": "object"
+      },
+      "OTLPJsonEventRequest": {
+        "additionalProperties": false,
+        "description": "Small, authenticated JSON bridge for an OTLP Collector transform.\n\nThe gateway accepts normalized signal fields only; it does not persist\narbitrary OTLP attributes or execute a collector-provided query.",
+        "properties": {
+          "attributes": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                }
+              ]
+            },
+            "title": "Attributes",
+            "type": "object"
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At"
+          },
+          "service_name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Service Name",
+            "type": "string"
+          },
+          "signal_type": {
+            "enum": [
+              "metric",
+              "log",
+              "trace",
+              "alert"
+            ],
+            "title": "Signal Type",
+            "type": "string"
+          },
+          "summary": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Summary",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "service_name",
+          "signal_type",
+          "summary"
+        ],
+        "title": "OTLPJsonEventRequest",
         "type": "object"
       },
       "OperationalEventResponse": {
@@ -3406,6 +3890,112 @@
         "title": "RiskPolicyUpdate",
         "type": "object"
       },
+      "SLODashboardResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "data_mode": {
+            "enum": [
+              "synthetic",
+              "connected"
+            ],
+            "title": "Data Mode",
+            "type": "string"
+          },
+          "services": {
+            "items": {
+              "$ref": "#/components/schemas/SLOServiceSummary"
+            },
+            "title": "Services",
+            "type": "array"
+          },
+          "window_minutes": {
+            "minimum": 1.0,
+            "title": "Window Minutes",
+            "type": "integer"
+          },
+          "workspace_id": {
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspace_id",
+          "window_minutes",
+          "data_mode",
+          "services"
+        ],
+        "title": "SLODashboardResponse",
+        "type": "object"
+      },
+      "SLOServiceSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "error_budget_remaining": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Budget Remaining"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "objective": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Objective",
+            "type": "number"
+          },
+          "observed_error_events": {
+            "minimum": 0.0,
+            "title": "Observed Error Events",
+            "type": "integer"
+          },
+          "service_id": {
+            "title": "Service Id",
+            "type": "string"
+          },
+          "service_name": {
+            "title": "Service Name",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "healthy",
+              "degraded",
+              "unknown"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "window_minutes": {
+            "minimum": 1.0,
+            "title": "Window Minutes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "service_id",
+          "service_name",
+          "objective",
+          "status",
+          "observed_error_events",
+          "window_minutes",
+          "evidence_ids"
+        ],
+        "title": "SLOServiceSummary",
+        "type": "object"
+      },
       "ScenarioSummary": {
         "additionalProperties": false,
         "properties": {
@@ -3884,12 +4474,44 @@
       "TelemetryIngestRequest": {
         "additionalProperties": false,
         "properties": {
+          "attributes": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                }
+              ]
+            },
+            "title": "Attributes",
+            "type": "object"
+          },
           "contradicts_hypothesis_ids": {
             "items": {
               "type": "string"
             },
             "title": "Contradicts Hypothesis Ids",
             "type": "array"
+          },
+          "occurred_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Occurred At"
           },
           "service_id": {
             "maxLength": 100,
@@ -4256,6 +4878,71 @@
         "title": "VerificationOutcomeRequest",
         "type": "object"
       },
+      "VerificationReceiptIngestResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "attestation_state": {
+            "enum": [
+              "verified",
+              "missing",
+              "invalid"
+            ],
+            "title": "Attestation State",
+            "type": "string"
+          },
+          "authenticated_at": {
+            "format": "date-time",
+            "title": "Authenticated At",
+            "type": "string"
+          },
+          "change_id": {
+            "title": "Change Id",
+            "type": "string"
+          },
+          "decision": {
+            "enum": [
+              "pass",
+              "review",
+              "block",
+              "error"
+            ],
+            "title": "Decision",
+            "type": "string"
+          },
+          "head_sha": {
+            "title": "Head Sha",
+            "type": "string"
+          },
+          "receipt_id": {
+            "title": "Receipt Id",
+            "type": "string"
+          },
+          "receipt_sha256": {
+            "title": "Receipt Sha256",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "accepted",
+              "duplicate"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "receipt_id",
+          "change_id",
+          "head_sha",
+          "receipt_sha256",
+          "decision",
+          "attestation_state",
+          "status",
+          "authenticated_at"
+        ],
+        "title": "VerificationReceiptIngestResponse",
+        "type": "object"
+      },
       "WorkspaceCreate": {
         "additionalProperties": false,
         "properties": {
@@ -4582,6 +5269,60 @@
           }
         ],
         "summary": "Deployment"
+      }
+    },
+    "/api/v1/deployments/{deployment_id}/outcome": {
+      "post": {
+        "operationId": "deployment_outcome_api_v1_deployments__deployment_id__outcome_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "deployment_id",
+            "required": true,
+            "schema": {
+              "title": "Deployment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeploymentOutcomeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeploymentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Deployment Outcome"
       }
     },
     "/api/v1/health": {
@@ -5662,6 +6403,47 @@
         "summary": "Telemetry Ingest"
       }
     },
+    "/api/v1/telemetry/otlp/v1/events": {
+      "post": {
+        "description": "Accept a Collector-normalized JSON signal with the same tenant token.\n\nThis is intentionally a narrow bridge for an OTLP Collector transform. A\nnative protobuf receiver can be deployed at the edge later without\nwidening the application storage contract or trusting arbitrary labels.",
+        "operationId": "otlp_json_ingest_api_v1_telemetry_otlp_v1_events_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OTLPJsonEventRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Otlp Json Ingest Api V1 Telemetry Otlp V1 Events Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Otlp Json Ingest"
+      }
+    },
     "/api/v1/webhooks/github": {
       "post": {
         "operationId": "github_webhook_api_v1_webhooks_github_post",
@@ -5854,6 +6636,169 @@
           }
         ],
         "summary": "Workspace Connectors"
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/dataset/releases": {
+      "get": {
+        "operationId": "dataset_releases_api_v1_workspaces__workspace_id__dataset_releases_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DatasetReleaseSummary"
+                  },
+                  "title": "Response Dataset Releases Api V1 Workspaces  Workspace Id  Dataset Releases Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Dataset Releases"
+      },
+      "post": {
+        "operationId": "dataset_release_create_api_v1_workspaces__workspace_id__dataset_releases_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatasetReleaseCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetReleaseSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Dataset Release Create"
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/dataset/releases/{release_id}/revoke": {
+      "post": {
+        "operationId": "dataset_release_revoke_api_v1_workspaces__workspace_id__dataset_releases__release_id__revoke_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "release_id",
+            "required": true,
+            "schema": {
+              "title": "Release Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatasetReleaseRevocationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetReleaseRevocationSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Dataset Release Revoke"
       }
     },
     "/api/v1/workspaces/{workspace_id}/deployments": {
@@ -6549,6 +7494,60 @@
         "summary": "Members"
       }
     },
+    "/api/v1/workspaces/{workspace_id}/notification-deliveries": {
+      "post": {
+        "operationId": "notification_delivery_api_v1_workspaces__workspace_id__notification_deliveries_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationProviderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationDeliveryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Notification Delivery"
+      }
+    },
     "/api/v1/workspaces/{workspace_id}/providers/github": {
       "delete": {
         "operationId": "github_disconnect_api_v1_workspaces__workspace_id__providers_github_delete",
@@ -6779,6 +7778,55 @@
           }
         ],
         "summary": "Github Repositories Sync"
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/providers/github/repositories/{repository_id}/receipts": {
+      "post": {
+        "description": "Accept one signed, canonical receipt from the reusable Verify Action.\n\nThis endpoint intentionally has no user session. It is an integration\nboundary authenticated by a deployment-managed HMAC secret and scoped by\nthe repository path; it never accepts a policy document from the PR head.",
+        "operationId": "ingest_github_receipt_api_v1_workspaces__workspace_id__providers_github_repositories__repository_id__receipts_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "repository_id",
+            "required": true,
+            "schema": {
+              "title": "Repository Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerificationReceiptIngestResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ingest Github Receipt"
       }
     },
     "/api/v1/workspaces/{workspace_id}/repositories": {
@@ -7194,6 +8242,62 @@
           }
         ],
         "summary": "Service Create"
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/slo": {
+      "get": {
+        "operationId": "slo_dashboard_api_v1_workspaces__workspace_id__slo_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "window_minutes",
+            "required": false,
+            "schema": {
+              "default": 60,
+              "maximum": 43200,
+              "minimum": 5,
+              "title": "Window Minutes",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SLODashboardResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Slo Dashboard"
       }
     }
   }

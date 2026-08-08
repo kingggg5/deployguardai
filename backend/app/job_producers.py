@@ -8,6 +8,8 @@ from .job_contracts import (
     GitHubCheckPublishPayload,
     INVITATION_EMAIL_DELIVER_JOB,
     InvitationEmailDeliverPayload,
+    OPERATIONAL_NOTIFICATION_DELIVER_JOB,
+    OperationalNotificationDeliverPayload,
     validated_trace_context,
 )
 from .job_models import BackgroundJob
@@ -90,5 +92,32 @@ def enqueue_invitation_email_delivery(
         # SMTP has no idempotency key.  Once an attempt reaches the provider,
         # the handler records an uncertain result instead of retrying blindly.
         max_attempts=1,
+        commit=commit,
+    )
+
+
+def enqueue_operational_notification_delivery(
+    session: Session,
+    *,
+    workspace_id: str,
+    provider: str,
+    event_id: str,
+    request_id: str,
+    commit: bool = True,
+) -> BackgroundJob:
+    """Queue a provider notification without persisting destination secrets."""
+
+    contract = OperationalNotificationDeliverPayload(
+        provider=provider,
+        event_id=event_id,
+    )
+    return enqueue_job(
+        session,
+        job_type=OPERATIONAL_NOTIFICATION_DELIVER_JOB,
+        payload=contract.model_dump(mode="json"),
+        idempotency_key=f"notification:{provider}:{event_id}",
+        workspace_id=workspace_id,
+        request_id=request_id,
+        max_attempts=5,
         commit=commit,
     )

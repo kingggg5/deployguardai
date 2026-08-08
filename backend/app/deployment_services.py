@@ -6,9 +6,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .deployment_models import DeploymentRecord
-from .deployment_schemas import DeploymentResponse
+from .deployment_schemas import DeploymentOutcomeRequest, DeploymentResponse
 from .errors import DomainError
-from .models import ChangeRecord, Repository, User
+from .models import ChangeRecord, IncidentRecord, Repository, User
 from .operations_models import ServiceCatalogEntry
 from .operations_schemas import OperationalEventResponse
 from .workspace_services import audit, membership_for, new_id, now_utc
@@ -70,6 +70,11 @@ def deployment_response(record: DeploymentRecord) -> DeploymentResponse:
             "commit_sha": record.commit_sha,
             "ref": record.ref,
             "status": record.status,
+            "outcome_state": record.outcome_state,
+            "outcome_evidence": record.outcome_evidence or {},
+            "outcome_incident_id": record.outcome_incident_id,
+            "outcome_confirmed_by_user_id": record.outcome_confirmed_by_user_id,
+            "outcome_confirmed_at": _utc(record.outcome_confirmed_at),
             "provider_url": record.provider_url,
             "service_ids": record.service_ids,
             "last_event_id": record.last_event_id,
@@ -386,4 +391,67 @@ def get_deployment(
     if record is None:
         raise DomainError("Deployment not found", "deployment_not_found", 404)
     membership_for(session, user, record.workspace_id)
+    return deployment_response(record)
+
+
+def record_deployment_outcome(
+    session: Session,
+    user: User,
+    deployment_id: str,
+    payload: DeploymentOutcomeRequest,
+    *,
+    request_id: str,
+) -> DeploymentResponse:
+    """Attach an explicit, human-confirmed outcome to one deployment.
+
+    Temporal proximity is not treated as causality. The caller must provide
+    evidence identifiers and the actor is always taken from the authenticated
+    session, so an outcome can be audited and later revoked without rewriting
+    the deployment record's original provider history.
+    """
+
+    record = session.get(DeploymentRecord, deployment_id)
+    if record is None:
+        raise DomainError("Deployment not found", "deployment_not_found", 404)
+    membership_for(session, user, record.workspace_id, "responder")
+    if payload.incident_id is not None:
+        incident = session.scalar(
+            select(IncidentRecord).where(
+                IncidentRecord.id == payload.incident_id,
+                IncidentRecord.workspace_id == record.workspace_id,
+            )
+        )
+        if incident is None:
+            raise DomainError("Incident not found", "incident_not_found", 404)
+
+    now = now_utc()
+    evidence = {
+        "summary": payload.summary.strip(),
+        "evidence_ids": list(dict.fromkeys(payload.evidence_ids)),
+        "stable_window_minutes": payload.stable_window_minutes,
+        "recorded_at": now.isoformat(),
+        "recorded_by": user.id,
+    }
+    record.outcome_state = payload.state
+    record.outcome_evidence = evidence
+    record.outcome_incident_id = payload.incident_id
+    record.outcome_confirmed_by_user_id = user.id
+    record.outcome_confirmed_at = now
+    record.updated_at = now
+    record.version += 1
+    audit(
+        session,
+        workspace_id=record.workspace_id,
+        actor_user_id=user.id,
+        action="deployment.outcome.confirmed",
+        resource_type="deployment",
+        resource_id=record.id,
+        request_id=request_id,
+        metadata={
+            "outcome_state": payload.state,
+            "evidence_count": len(evidence["evidence_ids"]),
+            "incident_id": payload.incident_id,
+        },
+    )
+    session.commit()
     return deployment_response(record)

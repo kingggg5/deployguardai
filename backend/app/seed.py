@@ -16,7 +16,8 @@ from .engines import (
     calculate_change_risk,
     rank_hypotheses,
 )
-from .models import ChangeRecord, IncidentRecord, Scenario
+from .models import LEGACY_WORKSPACE_ID, ChangeRecord, IncidentRecord, Scenario
+from .rls import set_tenant_context
 
 
 def _timestamp(value: str) -> datetime:
@@ -687,6 +688,11 @@ def _service_tiers(graph: dict[str, Any]) -> dict[str, object]:
 
 def seed_database(session: Session) -> None:
     """Create the reproducible synthetic dataset without duplicating records."""
+
+    # Synthetic fixtures live in the dedicated legacy demo workspace. Bind the
+    # session before the first read or write so PostgreSQL RLS scopes startup
+    # seeding exactly like request-time access.
+    set_tenant_context(session, LEGACY_WORKSPACE_ID)
 
     existing_scenarios = set(session.scalars(select(Scenario.id)))
     existing_changes = set(session.scalars(select(ChangeRecord.id)))

@@ -9,7 +9,8 @@ from app.engines import (
     RCA_SCORING_POLICY_VERSION,
     RISK_SCORING_POLICY_VERSION,
 )
-from app.models import ChangeRecord, IncidentRecord, Scenario
+from app.models import LEGACY_WORKSPACE_ID, ChangeRecord, IncidentRecord, Scenario
+from app.rls import TENANT_SESSION_INFO_KEY
 from app.seed import seed_database
 
 
@@ -20,6 +21,8 @@ def test_seed_is_idempotent(tmp_path) -> None:
     try:
         seed_database(session)
         seed_database(session)
+
+        assert session.info[TENANT_SESSION_INFO_KEY] == LEGACY_WORKSPACE_ID
 
         assert session.scalar(
             select(func.count()).select_from(Scenario)

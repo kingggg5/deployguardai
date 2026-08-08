@@ -27,19 +27,19 @@ jobs:
         language: [python, javascript-typescript, csharp]
     steps:
       - name: Check out source
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4.37.4
+        uses: github/codeql-action/init@ea14db8afdef5d462e69d78c4ca45002d4522418 # v4.37.4
         with:
           languages: ${{ matrix.language }}
           queries: security-extended
 
       - name: Set up Python for CodeQL
         if: matrix.language == 'python'
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.12'
 
@@ -50,7 +50,7 @@ jobs:
 
       - name: Set up Node.js for CodeQL
         if: matrix.language == 'javascript-typescript'
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: '24'
           cache: npm
@@ -63,15 +63,15 @@ jobs:
 
       - name: Set up .NET for CodeQL
         if: matrix.language == 'csharp'
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           dotnet-version: '10.0.x'
 
       - name: Autobuild analyzed code
         if: matrix.language == 'javascript-typescript' || matrix.language == 'csharp'
-        uses: github/codeql-action/autobuild@v4.37.4
+        uses: github/codeql-action/autobuild@ea14db8afdef5d462e69d78c4ca45002d4522418 # v4.37.4
 
       - name: Upload CodeQL results
-        uses: github/codeql-action/analyze@v4.37.4
+        uses: github/codeql-action/analyze@ea14db8afdef5d462e69d78c4ca45002d4522418 # v4.37.4
         with:
           category: /language:${{ matrix.language }}

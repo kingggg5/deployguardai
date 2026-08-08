@@ -1,5 +1,6 @@
 from functools import lru_cache
 from typing import Annotated, Literal
+from urllib.parse import urlparse
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
@@ -47,6 +48,9 @@ class Settings(BaseSettings):
     github_api_url: str = "https://api.github.com"
     github_api_version: str = "2026-03-10"
     github_checks_enabled: bool = False
+    # HMAC root for the keyless Verify Action receipt ingress. Store the
+    # secret in deployment secret management; never place it in job payloads.
+    receipt_ingest_secret: str = ""
     github_webhook_max_body_bytes: int = Field(
         default=1_048_576,
         ge=1_024,
@@ -62,6 +66,11 @@ class Settings(BaseSettings):
     otel_traces_endpoint: str = ""
     otel_service_name: str = "deployguard-api"
     otel_export_timeout_seconds: int = Field(default=5, ge=1, le=30)
+    # Fixed, deployment-owned notification destinations. Requests carry only
+    # provider/event references; secrets never enter the outbox payload.
+    slack_webhook_url: str = ""
+    teams_webhook_url: str = ""
+    pagerduty_routing_key: str = ""
     smtp_host: str = ""
     smtp_port: int = Field(default=587, ge=1, le=65535)
     smtp_username: str = ""
@@ -193,6 +202,29 @@ class Settings(BaseSettings):
             raise ValueError(
                 "Production GITHUB_WEBHOOK_SECRET must be at least 32 characters"
             )
+        if production and self.receipt_ingest_secret and len(
+            self.receipt_ingest_secret
+        ) < 32:
+            raise ValueError(
+                "Production RECEIPT_INGEST_SECRET must be at least 32 characters"
+            )
+        if production:
+            for name, value, allowed_hosts in (
+                ("SLACK_WEBHOOK_URL", self.slack_webhook_url, {"hooks.slack.com"}),
+                ("TEAMS_WEBHOOK_URL", self.teams_webhook_url, {"outlook.office.com"}),
+            ):
+                if not value.strip():
+                    continue
+                parsed = urlparse(value.strip())
+                host = (parsed.hostname or "").lower().rstrip(".")
+                if parsed.scheme != "https" or host not in allowed_hosts:
+                    raise ValueError(
+                        f"Production {name} must use an HTTPS allow-listed host"
+                    )
+            if self.pagerduty_routing_key and len(self.pagerduty_routing_key) < 32:
+                raise ValueError(
+                    "Production PAGERDUTY_ROUTING_KEY must be at least 32 characters"
+                )
         smtp_values = (self.smtp_host, self.smtp_from_email)
         if any(value.strip() for value in smtp_values) and not all(
             value.strip() for value in smtp_values
@@ -230,6 +262,15 @@ class Settings(BaseSettings):
         if self.environment.strip().lower() != "production":
             return "development_outbox"
         return "disabled"
+
+    def notification_provider_configured(
+        self, provider: Literal["slack", "teams", "pagerduty"]
+    ) -> bool:
+        return {
+            "slack": bool(self.slack_webhook_url.strip()),
+            "teams": bool(self.teams_webhook_url.strip()),
+            "pagerduty": bool(self.pagerduty_routing_key.strip()),
+        }[provider]
 
 @lru_cache
 def get_settings() -> Settings:

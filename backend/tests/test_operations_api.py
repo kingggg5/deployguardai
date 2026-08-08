@@ -1,10 +1,12 @@
 from datetime import UTC, datetime
+from uuid import uuid4
 
 from alembic.script import ScriptDirectory
 from fastapi.testclient import TestClient
 from sqlalchemy import func, inspect, select, text
 
 from app.models import LEGACY_WORKSPACE_ID
+from app.deployment_models import DeploymentRecord
 from app.operations_models import OperationalEvent
 
 
@@ -438,7 +440,6 @@ def test_operational_event_ingestion_dedupe_filters_and_security_bounds(
             )
         )
     assert count == 1
-
     filtered = client.get(
         events_url,
         headers=owner_headers,
@@ -546,6 +547,85 @@ def test_operational_event_ingestion_dedupe_filters_and_security_bounds(
     )
     assert same_provider_id_other_tenant.status_code == 201
     assert same_provider_id_other_tenant.json()["id"] != created.json()["id"]
+
+
+def test_deployment_outcome_requires_evidence_and_records_actor_provenance(
+    client: TestClient,
+) -> None:
+    owner_headers, owner_session = session_headers(
+        client, "deployment-owner@example.com", "Deployment Owner"
+    )
+    workspace = create_workspace(
+        client,
+        owner_headers,
+        name="Deployment Outcomes",
+        slug="deployment-outcomes",
+    )
+    repository = create_repository(
+        client, owner_headers, workspace["id"], "acme/deployment-outcomes"
+    )
+    deployment_id = str(uuid4())
+    now = datetime.now(UTC)
+    with client.app.state.database.session_factory() as session:
+        session.add(
+            DeploymentRecord(
+                id=deployment_id,
+                workspace_id=workspace["id"],
+                repository_id=repository["id"],
+                change_id=None,
+                provider="github",
+                provider_deployment_id="deployment-001",
+                environment="production",
+                commit_sha="a" * 40,
+                ref="main",
+                status="succeeded",
+                outcome_state="unknown",
+                outcome_evidence={},
+                outcome_incident_id=None,
+                outcome_confirmed_by_user_id=None,
+                outcome_confirmed_at=None,
+                provider_url="https://github.example/deployments/1",
+                service_ids=[],
+                provenance={"source": "test"},
+                last_event_id=None,
+                provider_created_at=now,
+                provider_updated_at=now,
+                finished_at=now,
+                version=1,
+                created_at=now,
+                updated_at=now,
+            )
+        )
+        session.commit()
+
+    missing_evidence = client.post(
+        f"/api/v1/deployments/{deployment_id}/outcome",
+        headers=owner_headers,
+        json={
+            "state": "stable_window_met",
+            "summary": "Traffic remained healthy",
+            "evidence_ids": [],
+            "stable_window_minutes": 30,
+        },
+    )
+    assert missing_evidence.status_code == 422
+
+    recorded = client.post(
+        f"/api/v1/deployments/{deployment_id}/outcome",
+        headers=owner_headers,
+        json={
+            "state": "stable_window_met",
+            "summary": "Traffic remained healthy for the agreed window",
+            "evidence_ids": ["otel-window-001", "otel-window-001"],
+            "stable_window_minutes": 30,
+        },
+    )
+    assert recorded.status_code == 200
+    payload = recorded.json()
+    assert payload["outcome_state"] == "stable_window_met"
+    assert payload["outcome_evidence"]["evidence_ids"] == ["otel-window-001"]
+    assert payload["outcome_confirmed_by_user_id"] == owner_session["user"]["id"]
+    assert payload["outcome_confirmed_at"] is not None
 
 
 def test_incident_lifecycle_timeline_notifications_and_tenant_scope(

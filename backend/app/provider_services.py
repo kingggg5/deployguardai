@@ -16,6 +16,7 @@ from .provider_models import (
     ProviderConnection,
     WebhookDelivery,
 )
+from .verification_models import VerificationReceiptRecord
 from .provider_schemas import (
     ConnectorHealthSummary,
     GitHubConnectionSummary,
@@ -685,21 +686,34 @@ def _publish_github_change_check(
     require_tests = policy.require_tests if policy is not None else True
     require_rollback = policy.require_rollback if policy is not None else True
     max_blast_radius = policy.max_blast_radius if policy is not None else 10
+    receipt = session.scalar(
+        select(VerificationReceiptRecord)
+        .where(VerificationReceiptRecord.change_id == change.id)
+        .order_by(
+            VerificationReceiptRecord.created_at.desc(),
+            VerificationReceiptRecord.id.desc(),
+        )
+    )
+    receipt_decision = receipt.decision if receipt is not None else None
+    receipt_attestation_state = (
+        receipt.attestation_state if receipt is not None else "missing"
+    )
     policy_findings: list[str] = []
+    metadata_advisories: list[str] = []
     if policy_enabled:
         if score >= block_threshold:
-            policy_findings.append(
+            metadata_advisories.append(
                 f"Risk score meets the escalation threshold ({block_threshold})."
             )
         elif score >= warn_threshold:
-            policy_findings.append(
+            metadata_advisories.append(
                 f"Risk score meets the review threshold ({warn_threshold})."
             )
-        if require_tests and (
+        if receipt is None and require_tests and (
             change.test_coverage is None or change.test_coverage <= 0
         ):
             policy_findings.append("Required test coverage evidence is missing.")
-        if require_rollback and change.rollback_ready is not True:
+        if receipt is None and require_rollback and change.rollback_ready is not True:
             policy_findings.append("Required rollback readiness is missing.")
         impacted_services = len(
             [
@@ -708,23 +722,41 @@ def _publish_github_change_check(
                 if int(item.get("impact_score", 0)) > 0
             ]
         )
-        if (
-            impacted_services > max_blast_radius
-        ):
-            policy_findings.append(
+        if impacted_services > max_blast_radius:
+            metadata_advisories.append(
                 "Blast radius exceeds the workspace maximum "
                 f"({impacted_services}/{max_blast_radius} services)."
             )
-    receipt_missing = change.data_mode == "connected"
+        # Provider metadata is useful context, but it is never allowed to
+        # manufacture a PASS/BLOCK once a SHA-bound receipt exists. Before a
+        # receipt arrives these findings remain part of the review gate.
+        if receipt is None:
+            policy_findings.extend(metadata_advisories)
+    receipt_missing = receipt is None
     if receipt_missing:
         policy_findings.insert(
             0,
             "No SHA-matched DeployGuard Evidence Receipt has been ingested; "
             "provider metadata is not executable verification evidence.",
         )
-    conclusion = "neutral" if policy_findings or receipt_missing else "success"
+    if receipt is not None and receipt_attestation_state != "verified":
+        policy_findings.insert(
+            0,
+            "Receipt authentication passed but its attestation is not verified; "
+            "human review is required.",
+        )
+    if receipt_decision == "block":
+        conclusion = "failure"
+    elif receipt_decision == "pass" and not policy_findings:
+        conclusion = "success"
+    else:
+        conclusion = "neutral"
     if receipt_missing:
         title = "Evidence review required - receipt missing"
+    elif receipt_decision == "block":
+        title = "Blocked by verified evidence"
+    elif receipt_decision == "pass" and receipt_attestation_state == "verified":
+        title = f"Verified change - risk {score}/100"
     elif score >= block_threshold and policy_enabled:
         title = f"Escalated review · risk {score}/100"
     elif conclusion == "neutral":
@@ -747,6 +779,15 @@ def _publish_github_change_check(
             if policy_findings
             else []
         ),
+        *(
+            [
+                "",
+                "### Metadata advisories (not a gate)",
+                *[f"- {item}" for item in metadata_advisories],
+            ]
+            if metadata_advisories and receipt is not None
+            else []
+        ),
         "",
         "### Verify next",
         *(
@@ -754,9 +795,11 @@ def _publish_github_change_check(
             or ["- Continue with the normal review path."]
         ),
         "",
+        "Receipt decision: **{}**.".format(receipt_decision or "missing"),
+        "Receipt attestation: **{}**.".format(receipt_attestation_state),
         (
-            "DeployGuard provides decision support only. This check does not "
-            "deploy, roll back, or remediate infrastructure."
+            "DeployGuard provides evidence-backed decision support only. This "
+            "check does not deploy, roll back, or remediate infrastructure."
         ),
     ]
     details_url = (
@@ -909,6 +952,9 @@ def _publish_github_change_check(
         conclusion=conclusion,
         details_url=details_url,
         published_at=published_at,
+        decision=(receipt_decision or "review"),
+        receipt_sha256=receipt.receipt_sha256 if receipt is not None else None,
+        attestation_state=receipt_attestation_state,
     )
 
 

@@ -196,6 +196,16 @@ FORM: Repository operations ledger extending the shared DeployGuard shell.
           <span>{{ copy('Incident control', 'ควบคุม Incident') }}</span>
           <b>{{ incident() ? '1' : '0' }}</b>
         </button>
+        <button
+          type="button"
+          class="index-row"
+          [attr.aria-current]="activeSection() === 'slo' ? 'page' : null"
+          [attr.data-state]="activeSection() === 'slo' ? 'active' : null"
+          (click)="setSection('slo')"
+        >
+          <span>{{ copy('SLO & budget', 'SLO และ budget') }}</span>
+          <b>{{ sloDashboard()?.services?.length ?? '—' }}</b>
+        </button>
 
       </nav>
 
@@ -450,8 +460,28 @@ FORM: Repository operations ledger extending the shared DeployGuard shell.
                 <time [attr.datetime]="deployment.provider_updated_at">{{ deployment.provider_updated_at | date:'MMM d, HH:mm:ss':'UTC' }} UTC</time>
                 <span class="severity-state" [attr.data-severity]="deployment.status">{{ humanize(deployment.status) }}</span>
                 <div class="deployment-copy"><strong>{{ deployment.environment }}</strong><span>{{ deployment.provider }} · {{ deployment.ref || 'detached ref' }}</span></div>
-                <code [title]="deployment.commit_sha">{{ deployment.commit_sha.slice(0, 10) }}</code>
-                <span class="deployment-link">{{ deployment.change_id ? 'Change linked' : 'Awaiting change match' }}</span>
+                <code [title]="deployment.commit_sha || ''">{{ deployment.commit_sha ? deployment.commit_sha.slice(0, 10) : '—' }}</code>
+                <div class="deployment-link"><span>{{ deployment.change_id ? 'Change linked' : 'Awaiting change match' }}</span><span class="outcome-state">Outcome: {{ humanize(deployment.outcome_state) }}</span></div>
+                <div class="deployment-outcome">
+                  @if (deployment.outcome_confirmed_at) {
+                    <span class="outcome-confirmation">Confirmed {{ deployment.outcome_confirmed_at | date:'MMM d, HH:mm':'UTC' }} UTC</span>
+                  } @else {
+                    <span class="outcome-confirmation">No human confirmation yet</span>
+                  }
+                  @if (canRespond()) {
+                    <button type="button" class="text-action" (click)="openOutcomeForm(deployment)">{{ outcomeDeploymentId() === deployment.id ? 'Close' : deployment.outcome_confirmed_at ? 'Update outcome' : 'Record outcome' }}</button>
+                  }
+                </div>
+                @if (outcomeDeploymentId() === deployment.id) {
+                  <form class="deployment-outcome-form" [formGroup]="outcomeForm" (ngSubmit)="recordDeploymentOutcome(deployment)">
+                    <label class="operations-field"><span>Observed outcome</span><select formControlName="state"><option value="unknown">Unknown</option><option value="stable_window_met">Stable window met</option><option value="failed">Failed</option><option value="rolled_back">Rolled back</option><option value="incident_linked">Incident linked</option></select></label>
+                    <label class="operations-field"><span>Summary</span><input type="text" formControlName="summary" placeholder="What happened after this deployment?"></label>
+                    <label class="operations-field"><span>Evidence IDs</span><input type="text" formControlName="evidenceIds" placeholder="ev-123, otel-456"></label>
+                    <label class="operations-field"><span>Incident ID <small>only for incident-linked</small></span><input type="text" formControlName="incidentId"></label>
+                    <label class="operations-field"><span>Stable window (minutes)</span><input type="number" min="1" max="43200" formControlName="stableWindowMinutes"></label>
+                    <footer class="form-command"><button type="button" class="button button--secondary" (click)="closeOutcomeForm()">Cancel</button><button type="submit" class="button button--primary" [disabled]="outcomeForm.invalid || isBusy()">{{ isBusy('record-outcome-' + deployment.id) ? 'Saving…' : 'Save confirmed outcome' }}</button></footer>
+                  </form>
+                }
               </article>
             } @empty {
               <div class="ledger-empty"><strong>No canonical deployments yet</strong><p>Signed GitHub deployment events will appear here after the repository connection is verified.</p></div>
@@ -495,6 +525,31 @@ FORM: Repository operations ledger extending the shared DeployGuard shell.
             </form>
           } @else {
             <div class="ledger-empty"><strong>No policy returned</strong><p>Retry the workspace connection. A risk policy must come from the API before it can be edited.</p></div>
+          }
+        } @else if (activeSection() === 'slo') {
+          <header class="ledger-heading">
+            <div>
+              <p class="system-kicker">Observed reliability</p>
+              <h2>{{ copy('SLO and error budget', 'SLO และ error budget') }}</h2>
+              <p>{{ copy('Only accepted telemetry attributes are used. Unknown means the service has not supplied an objective or budget signal.', 'แสดงเฉพาะ telemetry ที่ระบบรับรองแล้ว หากไม่มี objective หรือ budget จะแสดงเป็น Unknown') }}</p>
+            </div>
+            <span class="policy-version">{{ sloDashboard()?.window_minutes ?? 60 }} min window</span>
+          </header>
+          @if (sloDashboard(); as dashboard) {
+            <section class="slo-ledger" aria-live="polite">
+              @for (service of dashboard.services; track service.service_id) {
+                <article class="slo-row" [attr.data-state]="service.status">
+                  <div class="slo-copy"><strong>{{ service.service_name }}</strong><span>{{ service.objective * 100 | number:'1.2-2' }}% objective · {{ service.window_minutes }} min</span></div>
+                  <span class="severity-state" [attr.data-severity]="service.status">{{ humanize(service.status) }}</span>
+                  <strong class="slo-budget">{{ service.error_budget_remaining === null ? 'Unknown' : (service.error_budget_remaining * 100 | number:'1.1-1') + '%' }}</strong>
+                  <span>{{ service.observed_error_events }} error events</span>
+                </article>
+              } @empty {
+                <div class="ledger-empty"><strong>No SLO signals yet</strong><p>Publish objective and error-budget attributes through the authenticated telemetry intake.</p></div>
+              }
+            </section>
+          } @else {
+            <div class="ledger-empty"><strong>Loading SLO evidence</strong><p>The dashboard is derived from the current workspace and does not invent missing service objectives.</p></div>
           }
         } @else {
           <header class="ledger-heading">

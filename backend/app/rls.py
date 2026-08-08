@@ -37,6 +37,9 @@ DIRECT_TENANT_TABLES = (
     "deployments",
     "postmortem_snapshots",
     "dataset_consent_decisions",
+    "verification_receipts",
+    "dataset_release_registry",
+    "dataset_release_revocations",
 )
 INDIRECT_TENANT_TABLES = ("incident_feedback",)
 

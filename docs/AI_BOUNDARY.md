@@ -31,10 +31,11 @@ That status is not an export authorization. The connected-data exporter is
 hard-disabled. Only repository-owned synthetic fixtures can currently be
 exported into [DeployGuard Bench](../bench/README.md).
 
-The capture and consent gates are implemented; the publication pipeline is not.
-Connected publication still requires deterministic redaction, source license
-and retention inventory, leakage review, immutable release registration,
-revocation propagation, independent approval, and frozen dataset splits.
+The capture and consent gates, conservative redaction/leakage checks, and
+append-only release registry are implemented; the connected exporter remains
+closed. Connected publication still requires source license and retention
+inventory, independent approval, revocation propagation, annotation review,
+and frozen dataset splits.
 
 ## What does not ship
 

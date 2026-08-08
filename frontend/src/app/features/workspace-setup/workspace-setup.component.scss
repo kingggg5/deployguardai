@@ -20,7 +20,7 @@
 .stage-form label, .compact-form label { display: grid; gap: 6px; color: var(--muted-strong); font-size: var(--type-xs); font-weight: 700; }
 .stage-form input, .compact-form input, .compact-form select { min-height: 36px; padding: 0 11px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); }
 .setup-action { min-height: 36px; padding: 0 15px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface-subtle); color: var(--ink-strong); font-weight: 600; }
-.setup-action[data-variant="primary"] { border-color: var(--green); background: var(--green); color: var(--color-on-success); }
+.setup-action[data-variant="primary"] { border-color: var(--cobalt); background: var(--cobalt); color: var(--color-on-accent); }
 .setup-action:disabled { cursor: not-allowed; opacity: .5; }
 .identity-strip { min-height: 48px; margin-bottom: 14px; padding: 0 14px; display: flex; align-items: center; gap: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
 .identity-strip code { color: var(--cobalt-strong); }

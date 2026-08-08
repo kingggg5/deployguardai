@@ -120,9 +120,14 @@ export interface DeploymentRecord {
   provider: string;
   provider_deployment_id: string;
   environment: string;
-  commit_sha: string;
+  commit_sha: string | null;
   ref: string | null;
   status: DeploymentStatus;
+  outcome_state: 'unknown' | 'stable_window_met' | 'failed' | 'rolled_back' | 'incident_linked';
+  outcome_evidence: Record<string, unknown>;
+  outcome_incident_id: string | null;
+  outcome_confirmed_by_user_id: string | null;
+  outcome_confirmed_at: string | null;
   provider_url: string | null;
   service_ids: string[];
   last_event_id: string | null;
@@ -132,6 +137,41 @@ export interface DeploymentRecord {
   version: number;
   created_at: string;
   updated_at: string;
+}
+
+export type DeploymentOutcomeState =
+  | 'unknown'
+  | 'stable_window_met'
+  | 'failed'
+  | 'rolled_back'
+  | 'incident_linked';
+
+export interface DeploymentOutcomeRequest {
+  state: DeploymentOutcomeState;
+  summary: string;
+  evidence_ids: string[];
+  incident_id?: string | null;
+  stable_window_minutes?: number | null;
+}
+
+export type SloServiceStatus = 'healthy' | 'degraded' | 'unknown';
+
+export interface SloServiceSummary {
+  service_id: string;
+  service_name: string;
+  objective: number;
+  status: SloServiceStatus;
+  error_budget_remaining: number | null;
+  observed_error_events: number;
+  window_minutes: number;
+  evidence_ids: string[];
+}
+
+export interface SloDashboard {
+  workspace_id: string;
+  window_minutes: number;
+  data_mode: 'synthetic' | 'connected';
+  services: SloServiceSummary[];
 }
 
 export interface DeploymentFilters {

@@ -1,5 +1,5 @@
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from sqlalchemy import select, update
@@ -33,7 +33,7 @@ from .operations_schemas import (
     ServiceResponse,
     ServiceUpdate,
 )
-from .schemas import TimelineEvent
+from .schemas import SLODashboardResponse, SLOServiceSummary, TimelineEvent
 from .workspace_services import audit, membership_for, new_id, now_utc
 
 
@@ -1063,5 +1063,75 @@ def mark_notification_read(
         )
     if record.read_at is None:
         record.read_at = now_utc()
-        session.commit()
+    session.commit()
     return _notification_response(record)
+
+
+def get_slo_dashboard(
+    session: Session,
+    user: User,
+    workspace_id: str,
+    *,
+    window_minutes: int = 60,
+    data_mode: str = "connected",
+) -> SLODashboardResponse:
+    """Return only observed SLO budget signals; absence is explicitly unknown."""
+
+    membership_for(session, user, workspace_id)
+    cutoff = datetime.now(UTC) - timedelta(minutes=window_minutes)
+    services = session.scalars(
+        select(ServiceCatalogEntry)
+        .where(ServiceCatalogEntry.workspace_id == workspace_id)
+        .order_by(ServiceCatalogEntry.name, ServiceCatalogEntry.id)
+    ).all()
+    result: list[SLOServiceSummary] = []
+    for service in services:
+        events = session.scalars(
+            select(OperationalEvent)
+            .where(
+                OperationalEvent.workspace_id == workspace_id,
+                OperationalEvent.service_id == service.id,
+                OperationalEvent.occurred_at >= cutoff,
+            )
+            .order_by(OperationalEvent.occurred_at.desc(), OperationalEvent.id.desc())
+        ).all()
+        error_events = [
+            event for event in events if event.severity in {"error", "critical"}
+        ]
+        budget: float | None = None
+        objective = 0.999
+        evidence_ids: list[str] = []
+        for event in events:
+            attributes = event.attributes if isinstance(event.attributes, dict) else {}
+            raw_budget = attributes.get("slo_error_budget_remaining")
+            if isinstance(raw_budget, (int, float)) and 0 <= float(raw_budget) <= 1:
+                budget = float(raw_budget)
+                raw_objective = attributes.get("slo_objective")
+                if isinstance(raw_objective, (int, float)) and 0 <= float(raw_objective) <= 1:
+                    objective = float(raw_objective)
+                evidence_ids.append(event.id)
+                break
+        result.append(
+            SLOServiceSummary(
+                service_id=service.id,
+                service_name=service.name,
+                objective=objective,
+                status=(
+                    "unknown"
+                    if budget is None
+                    else "degraded"
+                    if budget <= 0.05
+                    else "healthy"
+                ),
+                error_budget_remaining=budget,
+                observed_error_events=len(error_events),
+                window_minutes=window_minutes,
+                evidence_ids=evidence_ids,
+            )
+        )
+    return SLODashboardResponse(
+        workspace_id=workspace_id,
+        window_minutes=window_minutes,
+        data_mode=data_mode,
+        services=result,
+    )

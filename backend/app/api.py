@@ -13,6 +13,10 @@ from .schemas import (
     ChangeDetail,
     DatasetConsentRequest,
     DatasetConsentSummary,
+    DatasetReleaseCreate,
+    DatasetReleaseRevocationRequest,
+    DatasetReleaseRevocationSummary,
+    DatasetReleaseSummary,
     DatasetReadinessResponse,
     DoraMetricsResponse,
     FeedbackRequest,
@@ -25,6 +29,7 @@ from .schemas import (
     PostmortemSnapshotSummary,
     ScenarioSummary,
     TelemetryIngestRequest,
+    OTLPJsonEventRequest,
 )
 from .services import (
     active_scenario,
@@ -48,6 +53,11 @@ from .services import (
     synthesize_evidence_hypotheses,
     synthesize_llm_hypotheses,
 )
+from .dataset_release_services import (
+    create_dataset_release,
+    list_dataset_releases,
+    revoke_dataset_release,
+)
 from .tenant import (
     TenantScope,
     activate_context_scenario,
@@ -59,6 +69,68 @@ from .workspace_api import request_id
 
 
 router = APIRouter(prefix="/api/v1")
+
+
+@router.get(
+    "/workspaces/{workspace_id}/dataset/releases",
+    response_model=list[DatasetReleaseSummary],
+)
+def dataset_releases(
+    workspace_id: str,
+    session: Session = Depends(get_session),
+    scope: TenantScope = Depends(get_legacy_scope),
+) -> list[DatasetReleaseSummary]:
+    if scope.workspace_id != workspace_id:
+        raise DomainError("Workspace scope mismatch", "workspace_scope_mismatch", 403)
+    return list_dataset_releases(session, scope.user, workspace_id)
+
+
+@router.post(
+    "/workspaces/{workspace_id}/dataset/releases",
+    response_model=DatasetReleaseSummary,
+    status_code=status.HTTP_201_CREATED,
+)
+def dataset_release_create(
+    workspace_id: str,
+    payload: DatasetReleaseCreate,
+    request: Request,
+    session: Session = Depends(get_session),
+    scope: TenantScope = Depends(require_admin_scope),
+) -> DatasetReleaseSummary:
+    if scope.workspace_id != workspace_id:
+        raise DomainError("Workspace scope mismatch", "workspace_scope_mismatch", 403)
+    return create_dataset_release(
+        session,
+        scope.user,
+        workspace_id,
+        payload,
+        request_id=request_id(request),
+    )
+
+
+@router.post(
+    "/workspaces/{workspace_id}/dataset/releases/{release_id}/revoke",
+    response_model=DatasetReleaseRevocationSummary,
+    status_code=status.HTTP_201_CREATED,
+)
+def dataset_release_revoke(
+    workspace_id: str,
+    release_id: str,
+    payload: DatasetReleaseRevocationRequest,
+    request: Request,
+    session: Session = Depends(get_session),
+    scope: TenantScope = Depends(require_admin_scope),
+) -> DatasetReleaseRevocationSummary:
+    if scope.workspace_id != workspace_id:
+        raise DomainError("Workspace scope mismatch", "workspace_scope_mismatch", 403)
+    return revoke_dataset_release(
+        session,
+        scope.user,
+        workspace_id,
+        release_id,
+        payload,
+        request_id=request_id(request),
+    )
 
 
 @router.get("/metrics", include_in_schema=False)
@@ -244,6 +316,31 @@ def telemetry_ingest(
         provider_event_id=provider_event_id or None,
         environment=request.app.state.settings.environment,
     )
+
+
+@router.post("/telemetry/otlp/v1/events", status_code=status.HTTP_201_CREATED)
+def otlp_json_ingest(
+    request: Request,
+    payload: OTLPJsonEventRequest,
+    session: Session = Depends(get_session),
+) -> dict:
+    """Accept a Collector-normalized JSON signal with the same tenant token.
+
+    This is intentionally a narrow bridge for an OTLP Collector transform. A
+    native protobuf receiver can be deployed at the edge later without
+    widening the application storage contract or trusting arbitrary labels.
+    """
+
+    normalized = TelemetryIngestRequest(
+        source="otlp",
+        type=payload.signal_type,
+        service_id=payload.service_name,
+        summary=payload.summary,
+        value=payload.value,
+        attributes=payload.attributes,
+        occurred_at=payload.observed_at,
+    )
+    return telemetry_ingest(request, normalized, session)
 
 
 @router.get("/scenarios", response_model=list[ScenarioSummary])

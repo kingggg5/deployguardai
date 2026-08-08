@@ -59,6 +59,9 @@ erDiagram
 | `workspace_risk_policies` | Versioned thresholds and safety requirements |
 | `operational_events` | Normalized, deduplicated provider/telemetry envelope |
 | `notifications` | Recipient-scoped in-app notification state |
+| `verification_receipts` | Authenticated, immutable receipt bound to repository, change, exact head SHA, and attestation state |
+| `dataset_release_registry` | Immutable release manifest, bundle hash, purpose, and actor provenance |
+| `dataset_release_revocations` | Append-only consent-revocation tombstones for a release |
 
 ## Investigation records
 
@@ -144,6 +147,7 @@ disabled even when all rows exist.
 | `0009` | PostgreSQL tenant RLS |
 | `0010` | Verdict provenance, structured verification, immutable snapshots, consent decisions |
 | `0011` | Nullable connected-change evidence fields so unknown is never stored as fabricated zero/false |
+| `0012` | Authenticated receipts, explicit deployment outcomes, release registry, revocation tombstones, and immutability/RLS guards |
 
 Production rejects a non-empty unversioned database. Migrations run as a schema
 owner before the application role starts; the runtime role must not own tables,
@@ -156,5 +160,5 @@ be superuser, or have `BYPASSRLS`.
   storage remain operator workflows.
 - The audit ledger is append-oriented but not yet replicated to a tamper-proof
   external sink.
-- Connected-data redaction, release registry, and publication do not exist.
+- Connected-data publication remains closed until real corpus consent, redaction review, independent approval, and frozen splits exist.
 - SQLite is not a production concurrency or tenant-isolation target.

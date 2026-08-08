@@ -12,6 +12,8 @@ import signal
 import socket
 from threading import Event
 from typing import Any
+from urllib.error import HTTPError, URLError
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from pydantic import ValidationError
 from opentelemetry import trace
@@ -28,6 +30,8 @@ from .job_contracts import (
     INVITATION_EMAIL_DELIVER_JOB,
     GitHubCheckPublishPayload,
     InvitationEmailDeliverPayload,
+    OPERATIONAL_NOTIFICATION_DELIVER_JOB,
+    OperationalNotificationDeliverPayload,
 )
 from .job_queue import (
     JobContext,
@@ -37,6 +41,8 @@ from .job_queue import (
     run_one_job,
 )
 from .models import ChangeRecord, Invitation, Repository
+from .operations_models import OperationalEvent
+from .dataset_safety import redact_payload
 from .observability import (
     attach_trace_context,
     configure_tracing,
@@ -48,6 +54,119 @@ from .workspace_services import derive_invitation_claim_token, now_utc
 
 
 logger = logging.getLogger("deployguard.worker")
+
+
+class _NoRedirect(HTTPRedirectHandler):
+    """Provider endpoints must not redirect a secret-bearing request."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # type: ignore[no-untyped-def]
+        raise HTTPError(req.full_url, code, "notification redirect rejected", headers, fp)
+
+
+def operational_notification_handler(
+    session: Session,
+    settings: Settings,
+) -> JobHandler:
+    """Deliver one allow-listed provider notification from an event record."""
+
+    def handle(
+        raw_payload: Mapping[str, Any],
+        context: JobContext,
+    ) -> Mapping[str, Any]:
+        try:
+            payload = OperationalNotificationDeliverPayload.model_validate(raw_payload)
+        except ValidationError as error:
+            raise PermanentJobError(
+                "operational.notification.deliver payload failed contract validation"
+            ) from error
+        if context.workspace_id is None:
+            raise PermanentJobError("notification job is missing workspace scope")
+        event = session.get(OperationalEvent, payload.event_id)
+        if event is None or event.workspace_id != context.workspace_id:
+            raise PermanentJobError(
+                "notification references are missing or cross-tenant"
+            )
+        if not settings.notification_provider_configured(payload.provider):
+            raise PermanentJobError(
+                f"{payload.provider} notification provider is not configured"
+            )
+
+        safe_event, _ = redact_payload(
+            {
+                "event_id": event.id,
+                "source": event.source,
+                "event_type": event.event_type,
+                "severity": event.severity,
+                "summary": event.summary,
+            }
+        )
+        assert isinstance(safe_event, dict)
+        text_value = (
+            f"[{safe_event['severity']}] {safe_event['event_type']}: "
+            f"{safe_event['summary']} (event {safe_event['event_id']})"
+        )
+        if payload.provider == "slack":
+            url = settings.slack_webhook_url.strip()
+            body = {"text": text_value}
+        elif payload.provider == "teams":
+            url = settings.teams_webhook_url.strip()
+            body = {"text": text_value}
+        else:
+            url = "https://events.pagerduty.com/v2/enqueue"
+            body = {
+                "routing_key": settings.pagerduty_routing_key.strip(),
+                "event_action": "trigger",
+                "dedup_key": event.id,
+                "payload": {
+                    "summary": text_value,
+                    "source": "deployguard",
+                    "severity": (
+                        "critical"
+                        if event.severity in {"critical", "error"}
+                        else "warning"
+                        if event.severity == "warning"
+                        else "info"
+                    ),
+                    "custom_details": {
+                        "event_id": event.id,
+                        "workspace_id": context.workspace_id,
+                    },
+                },
+            }
+        encoded = json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        request = Request(
+            url,
+            data=encoded,
+            method="POST",
+            headers={
+                "Content-Type": "application/json",
+                "User-Agent": "DeployGuard-Worker/1",
+            },
+        )
+        try:
+            with build_opener(_NoRedirect).open(request, timeout=15) as response:
+                if not 200 <= response.status < 300:
+                    raise RuntimeError(
+                        f"notification provider returned HTTP {response.status}"
+                    )
+                response.read(1 * 1024 * 1024)
+        except HTTPError as error:
+            if error.code in {408, 425, 429} or error.code >= 500:
+                raise RuntimeError(
+                    f"{payload.provider}_notification_http_{error.code}"
+                ) from error
+            raise PermanentJobError(
+                f"{payload.provider}_notification_http_{error.code}"
+            ) from error
+        except (URLError, TimeoutError, OSError) as error:
+            raise RuntimeError(f"{payload.provider}_notification_transport_error") from error
+        return {
+            "provider": payload.provider,
+            "event_id": event.id,
+            "status": "delivered",
+        }
+
+    return handle
 
 
 def github_check_publish_handler(
@@ -183,6 +302,7 @@ def registered_handlers(
 
     github_handler = github_check_publish_handler(session, settings)
     invitation_handler = invitation_email_delivery_handler(session, settings)
+    notification_handler = operational_notification_handler(session, settings)
 
     def traced_github_handler(
         raw_payload: Mapping[str, Any],
@@ -220,9 +340,25 @@ def registered_handlers(
         ):
             return invitation_handler(raw_payload, context)
 
+    def traced_notification_handler(
+        raw_payload: Mapping[str, Any],
+        context: JobContext,
+    ) -> Mapping[str, Any] | None:
+        with trace.get_tracer("deployguard.worker").start_as_current_span(
+            "process background job",
+            kind=SpanKind.CONSUMER,
+            attributes={
+                "messaging.operation.type": "process",
+                "messaging.message.type": OPERATIONAL_NOTIFICATION_DELIVER_JOB,
+                "messaging.message.receive.count": context.attempt,
+            },
+        ):
+            return notification_handler(raw_payload, context)
+
     return {
         GITHUB_CHECK_PUBLISH_JOB: traced_github_handler,
         INVITATION_EMAIL_DELIVER_JOB: traced_invitation_handler,
+        OPERATIONAL_NOTIFICATION_DELIVER_JOB: traced_notification_handler,
     }
 
 

@@ -5,8 +5,16 @@ from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.orm import Session
 
 from .auth.dependencies import get_current_user, get_session
-from .deployment_schemas import DeploymentResponse, DeploymentStatus
-from .deployment_services import get_deployment, list_deployments
+from .deployment_schemas import (
+    DeploymentOutcomeRequest,
+    DeploymentResponse,
+    DeploymentStatus,
+)
+from .deployment_services import (
+    get_deployment,
+    list_deployments,
+    record_deployment_outcome,
+)
 from .models import User
 from .operations_schemas import (
     EventSeverity,
@@ -17,6 +25,8 @@ from .operations_schemas import (
     IngestionStatus,
     ManualOperationalEventCreate,
     NotificationResponse,
+    NotificationDeliveryResponse,
+    NotificationProviderRequest,
     OperationalEventCreate,
     OperationalEventResponse,
     RiskPolicyResponse,
@@ -25,6 +35,7 @@ from .operations_schemas import (
     ServiceResponse,
     ServiceUpdate,
 )
+from .schemas import SLODashboardResponse
 from .operations_services import (
     add_incident_note,
     create_service,
@@ -38,7 +49,9 @@ from .operations_services import (
     update_incident_lifecycle,
     update_risk_policy,
     update_service,
+    get_slo_dashboard,
 )
+from .notification_services import queue_notification_delivery
 from .job_services import list_jobs_requiring_attention, replay_failed_job
 from .schemas import TimelineEvent
 from .tenant import TenantScope, require_responder_scope
@@ -46,6 +59,52 @@ from .workspace_api import request_id
 
 
 router = APIRouter(prefix="/api/v1")
+
+
+@router.post(
+    "/workspaces/{workspace_id}/notification-deliveries",
+    response_model=NotificationDeliveryResponse,
+    status_code=202,
+)
+def notification_delivery(
+    workspace_id: str,
+    payload: NotificationProviderRequest,
+    request: Request,
+    user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_session)],
+) -> NotificationDeliveryResponse:
+    return queue_notification_delivery(
+        session,
+        user,
+        workspace_id,
+        payload,
+        settings=request.app.state.settings,
+        request_id=request_id(request),
+    )
+
+
+@router.get(
+    "/workspaces/{workspace_id}/slo",
+    response_model=SLODashboardResponse,
+)
+def slo_dashboard(
+    workspace_id: str,
+    request: Request,
+    user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_session)],
+    window_minutes: int = Query(default=60, ge=5, le=43_200),
+) -> SLODashboardResponse:
+    return get_slo_dashboard(
+        session,
+        user,
+        workspace_id,
+        window_minutes=window_minutes,
+        data_mode=(
+            "synthetic"
+            if request.app.state.settings.seed_synthetic_data
+            else "connected"
+        ),
+    )
 
 
 @router.get(
@@ -121,6 +180,26 @@ def deployment(
     session: Annotated[Session, Depends(get_session)],
 ) -> DeploymentResponse:
     return get_deployment(session, user, deployment_id)
+
+
+@router.post(
+    "/deployments/{deployment_id}/outcome",
+    response_model=DeploymentResponse,
+)
+def deployment_outcome(
+    deployment_id: str,
+    payload: DeploymentOutcomeRequest,
+    request: Request,
+    user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_session)],
+) -> DeploymentResponse:
+    return record_deployment_outcome(
+        session,
+        user,
+        deployment_id,
+        payload,
+        request_id=request_id(request),
+    )
 
 
 @router.get(

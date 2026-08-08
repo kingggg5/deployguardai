@@ -46,6 +46,48 @@ explicitly supplied. Its GitHub workflow deliberately returns REVIEW until the
 repository's real JUnit path is configured. For production use, pin the root
 composite Action to a released full commit SHA.
 
+### Authenticated connected receipt
+
+Connected workspaces can accept the receipt without an LLM key. Configure a
+32-character `RECEIPT_INGEST_SECRET`, then pass the scoped endpoint to the
+Action. The endpoint verifies the HMAC, canonical receipt hash, exact repository
+head SHA, and any detached artifact attestation before a GitHub Check can use
+the result:
+
+```yaml
+- uses: kingggg5/deployguardai@v0.1.0 # replace with the full release SHA
+  with:
+    base-sha: ${{ github.event.pull_request.base.sha }}
+    head-sha: ${{ github.event.pull_request.head.sha }}
+    junit: artifacts/junit.xml
+    receipt-ingest-url: ${{ vars.DEPLOYGUARD_RECEIPT_URL }}
+    receipt-ingest-secret: ${{ secrets.DEPLOYGUARD_RECEIPT_INGEST_SECRET }}
+```
+
+The URL must include `/api/v1/workspaces/{workspace}/providers/github/repositories/{repository}/receipts`.
+Missing or unverified attestation remains `REVIEW`; it never becomes a green
+check by inference.
+
+For a protected branch, resolve the immutable commit behind the release tag and
+replace the convenience ref in the workflow:
+
+```bash
+git ls-remote https://github.com/kingggg5/deployguardai.git \
+  refs/tags/v0.1.0^{commit}
+```
+
+Keep the returned 40-character SHA in the workflow and review it on every
+release. The tag is for discoverability; the SHA is the production trust anchor.
+
+### Operational notifications
+
+Slack, Teams, and PagerDuty delivery is an explicit, supervised outbox path.
+Configure one fixed provider destination in the deployment secret manager
+(`SLACK_WEBHOOK_URL`, `TEAMS_WEBHOOK_URL`, or `PAGERDUTY_ROUTING_KEY`). The API
+accepts only a workspace-scoped operational event ID; it never accepts a
+destination URL or provider secret. The worker retries transient failures and
+dead-letters permanent failures for an operator to review.
+
 ## Connected mode with Compose
 
 ```bash

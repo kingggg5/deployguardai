@@ -85,6 +85,12 @@ def ensure_context(
     if context is not None:
         return context
 
+    # Synthetic bootstrap is intentionally limited to the dedicated demo
+    # tenant. Bind it before querying memberships so PostgreSQL RLS can reveal
+    # an existing row instead of attempting a duplicate owner insert.
+    if allow_legacy_bootstrap:
+        set_tenant_context(session, LEGACY_WORKSPACE_ID)
+
     membership = session.scalar(
         select(WorkspaceMembership)
         .where(WorkspaceMembership.user_id == user.id)

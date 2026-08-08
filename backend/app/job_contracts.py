@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, field_validator
 
 GITHUB_CHECK_PUBLISH_JOB = "github.check.publish.v1"
 INVITATION_EMAIL_DELIVER_JOB = "invitation.email.deliver.v1"
+OPERATIONAL_NOTIFICATION_DELIVER_JOB = "operational.notification.deliver.v1"
 _TRACEPARENT_RE = re.compile(
     r"^(?P<version>[0-9a-f]{2})-"
     r"(?P<trace_id>[0-9a-f]{32})-"
@@ -112,6 +113,24 @@ class InvitationEmailDeliverPayload(BaseModel):
         normalized = value.strip()
         if not normalized or len(normalized) > 160:
             raise ValueError("invitation_id must contain 1 to 160 characters")
+        return normalized
+
+
+class OperationalNotificationDeliverPayload(BaseModel):
+    """Secret-free intent for one allow-listed incident/event notification."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    schema_version: Literal[1] = 1
+    provider: Literal["slack", "teams", "pagerduty"]
+    event_id: str
+
+    @field_validator("event_id")
+    @classmethod
+    def validate_event_reference(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized or len(normalized) > 160:
+            raise ValueError("event_id must contain 1 to 160 characters")
         return normalized
 
 

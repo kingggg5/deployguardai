@@ -40,6 +40,13 @@ class DeploymentRecord(Base):
             ")",
             name="ck_deployment_status",
         ),
+        CheckConstraint(
+            "outcome_state IN ("
+            "'unknown', 'stable_window_met', 'failed', "
+            "'rolled_back', 'incident_linked'"
+            ")",
+            name="ck_deployment_outcome_state",
+        ),
         CheckConstraint("version >= 1", name="ck_deployment_version"),
         Index(
             "ix_deployments_workspace_created",
@@ -79,6 +86,21 @@ class DeploymentRecord(Base):
     )
     ref: Mapped[str | None] = mapped_column(String(160), nullable=True)
     status: Mapped[str] = mapped_column(String(24), index=True)
+    outcome_state: Mapped[str] = mapped_column(
+        String(24), default="unknown", server_default="unknown", index=True
+    )
+    outcome_evidence: Mapped[dict[str, Any]] = mapped_column(
+        JSON, default=dict, server_default="{}"
+    )
+    outcome_incident_id: Mapped[str | None] = mapped_column(
+        ForeignKey("incidents.id"), nullable=True, index=True
+    )
+    outcome_confirmed_by_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True, index=True
+    )
+    outcome_confirmed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     provider_url: Mapped[str | None] = mapped_column(
         String(2_048), nullable=True
     )

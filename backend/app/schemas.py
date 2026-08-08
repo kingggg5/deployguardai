@@ -1,5 +1,6 @@
+import json
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 
@@ -333,6 +334,60 @@ class DatasetReadinessResponse(APIModel):
     latest_consent: DatasetConsentSummary | None
 
 
+class DatasetReleaseCreate(APIModel):
+    release_version: NonEmptyString = Field(max_length=80)
+    purpose: DatasetPurpose = "evaluation"
+    status: Literal["ready_for_review", "published"] = "ready_for_review"
+    bundle_sha256: str = Field(min_length=64, max_length=64, pattern=r"^[0-9a-fA-F]{64}$")
+    source_snapshot_count: int = Field(ge=1, le=10_000_000)
+    manifest: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("manifest")
+    @classmethod
+    def bound_manifest(cls, value: dict[str, Any]) -> dict[str, Any]:
+        """Keep release registration bounded before redaction and hashing."""
+
+        if len(value) > 100:
+            raise ValueError("dataset manifest cannot exceed 100 top-level keys")
+        try:
+            encoded = json.dumps(
+                value,
+                ensure_ascii=False,
+                allow_nan=False,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        except (TypeError, ValueError) as exc:
+            raise ValueError("dataset manifest must be JSON serializable") from exc
+        if len(encoded) > 1_048_576:
+            raise ValueError("dataset manifest cannot exceed 1 MiB")
+        return value
+
+
+class DatasetReleaseSummary(APIModel):
+    id: str
+    workspace_id: str
+    release_version: str
+    purpose: DatasetPurpose
+    status: Literal["ready_for_review", "published", "revoked"]
+    bundle_sha256: str
+    source_snapshot_count: int
+    manifest: dict[str, Any]
+    created_by: ActorProvenance
+    created_at: datetime
+
+
+class DatasetReleaseRevocationRequest(APIModel):
+    reason: NonEmptyString = Field(max_length=2_000)
+
+
+class DatasetReleaseRevocationSummary(APIModel):
+    release_id: str
+    tombstone_sha256: str
+    reason: str
+    actor: ActorProvenance
+    created_at: datetime
+
+
 class DoraMetricsResponse(APIModel):
     period: str
     deployment_frequency_per_week: float = Field(ge=0)
@@ -342,6 +397,24 @@ class DoraMetricsResponse(APIModel):
     deployment_rework_rate: float = Field(ge=0, le=1)
     total_deployments: int = Field(ge=0)
     total_incidents: int = Field(ge=0)
+
+
+class SLOServiceSummary(APIModel):
+    service_id: str
+    service_name: str
+    objective: float = Field(ge=0, le=1)
+    status: Literal["healthy", "degraded", "unknown"]
+    error_budget_remaining: float | None = Field(default=None, ge=0, le=1)
+    observed_error_events: int = Field(ge=0)
+    window_minutes: int = Field(ge=1)
+    evidence_ids: list[str]
+
+
+class SLODashboardResponse(APIModel):
+    workspace_id: str
+    window_minutes: int = Field(ge=1)
+    data_mode: DataMode
+    services: list[SLOServiceSummary]
 
 
 class GitHubWebhookResponse(APIModel):
@@ -360,6 +433,23 @@ class TelemetryIngestRequest(APIModel):
     value: str | int | float | bool | None = None
     supports_hypothesis_ids: list[str] = Field(default_factory=list)
     contradicts_hypothesis_ids: list[str] = Field(default_factory=list)
+    attributes: dict[str, str | int | float | bool] = Field(default_factory=dict)
+    occurred_at: datetime | None = None
+
+
+class OTLPJsonEventRequest(APIModel):
+    """Small, authenticated JSON bridge for an OTLP Collector transform.
+
+    The gateway accepts normalized signal fields only; it does not persist
+    arbitrary OTLP attributes or execute a collector-provided query.
+    """
+
+    service_name: NonEmptyString = Field(max_length=100)
+    signal_type: Literal["metric", "log", "trace", "alert"]
+    summary: NonEmptyString = Field(max_length=500)
+    value: str | int | float | bool | None = None
+    attributes: dict[str, str | int | float | bool] = Field(default_factory=dict)
+    observed_at: datetime | None = None
 
 
 class EvidenceCitedStatement(APIModel):

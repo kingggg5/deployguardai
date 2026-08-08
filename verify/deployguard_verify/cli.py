@@ -167,7 +167,8 @@ jobs:
       # configured, DeployGuard deliberately returns REVIEW rather than PASS.
 
       - name: Verify change evidence
-        uses: kingggg5/deployguardai@v1
+        # Pin this to a full DeployGuard release commit in production.
+        uses: kingggg5/deployguardai@v0.1.0
         with:
           base-sha: ${{ github.event.pull_request.base.sha }}
           head-sha: ${{ github.event.pull_request.head.sha }}
