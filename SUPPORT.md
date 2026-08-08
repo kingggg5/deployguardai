@@ -4,7 +4,7 @@ DeployGuard AI is an open-source project. Please choose the smallest appropriate
 
 ## Where to ask
 
-- **How-to questions:** read the [README](README.md), [Thai user guide](docs/USER_GUIDE_TH.md), and [operations guide](docs/OPERATIONS.md), then open a GitHub discussion or issue with the question label if the answer is not documented.
+- **How-to questions:** read the [README](README.md), [Thai overview](README_TH.md), [quickstart](docs/QUICKSTART.md), and [operations guide](docs/OPERATIONS.md), then open a GitHub discussion or issue with the question label if the answer is not documented.
 - **Reproducible bugs:** use the [bug report form](https://github.com/kingggg5/deployguardai/issues/new?template=bug.yml). Include the commit SHA, safe logs, expected behavior, and actual behavior.
 - **Feature requests:** use the [feature request form](https://github.com/kingggg5/deployguardai/issues/new?template=feature.yml) and describe the operational problem and measurable outcome.
 - **Security vulnerabilities:** follow [.github/SECURITY.md](.github/SECURITY.md). Do not put credentials, exploit details, personal data, or private infrastructure information in a public issue.

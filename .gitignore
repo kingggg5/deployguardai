@@ -1,6 +1,7 @@
 # Python
 backend/.venv/
 __pycache__/
+*.egg-info/
 *.py[cod]
 /.coverage
 backend/*.egg-info/
@@ -12,9 +13,10 @@ backend/*.db
 backend/*.db-shm
 backend/*.db-wal
 
-# .NET spike/build artifacts
+# .NET build/test artifacts
 **/bin/
 **/obj/
+**/TestResults/
 
 # Angular / Node
 frontend/node_modules/
@@ -25,6 +27,7 @@ frontend/coverage/
 
 # Runtime
 .runtime/
+.deployguard/artifacts/
 logs/
 *.pid
 *.log
@@ -35,6 +38,7 @@ logs/
 !.env.example
 .idea/
 .vscode/
+.impeccable/
 *.user
 *.suo
 

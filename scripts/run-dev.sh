@@ -7,6 +7,7 @@ set -euo pipefail
 
 project_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 backend_root="$project_root/backend"
+control_plane_root="$project_root/control-plane"
 frontend_root="$project_root/frontend"
 runtime_root="$project_root/.runtime"
 venv_root="$backend_root/.venv"
@@ -44,10 +45,11 @@ require_command() {
 require_command "$python_command"
 require_command node
 require_command npm
+require_command dotnet
 
 mkdir -p "$runtime_root"
 
-for name in backend worker frontend; do
+for name in backend python-api api worker frontend; do
   pid_path="$runtime_root/$name.pid"
   [[ -f "$pid_path" ]] || continue
 
@@ -78,7 +80,7 @@ if [[ -z "${DATABASE_URL:-}" ]]; then
 from pathlib import Path
 import sys
 
-print(Path(sys.argv[1]).resolve().as_posix())
+print((Path(sys.argv[1]) / "connected-local.db").resolve().as_posix())
 PY
 )"
   export DATABASE_URL="sqlite:///$local_database_path"
@@ -87,6 +89,7 @@ export SEED_SYNTHETIC_DATA=false
 
 if [[ "$skip_install" == false ]]; then
   "$python_exe" -m pip install --disable-pip-version-check -r "$backend_root/requirements.txt"
+  dotnet restore "$control_plane_root/DeployGuard.ControlPlane.slnx" --nologo
   if [[ ! -d "$frontend_root/node_modules" ]]; then
     npm --prefix "$frontend_root" ci
   fi
@@ -109,26 +112,54 @@ start_process() {
   printf '%s\n' "$!" > "$runtime_root/$name.pid"
 }
 
-api_is_ready() {
-  "$python_exe" - <<'PY'
+endpoint_is_ready() {
+  local endpoint="$1"
+  "$python_exe" - "$endpoint" <<'PY'
 from urllib.error import URLError
 from urllib.request import urlopen
+import sys
 
 try:
-    with urlopen("http://127.0.0.1:8100/api/v1/health/ready", timeout=1) as response:
+    with urlopen(sys.argv[1], timeout=1) as response:
         raise SystemExit(0 if response.status == 200 else 1)
 except (OSError, URLError):
     raise SystemExit(1)
 PY
 }
 
-start_process backend \
+start_process python-api \
   "$backend_root" \
-  "$python_exe" -m uvicorn app.main:app --host 127.0.0.1 --port 8100 --reload
+  "$python_exe" -m uvicorn app.main:app --host 127.0.0.1 --port 8101 --reload
+
+python_api_ready=false
+for _attempt in {1..60}; do
+  if endpoint_is_ready "http://127.0.0.1:8101/api/v1/health/ready"; then
+    python_api_ready=true
+    break
+  fi
+  sleep 0.5
+done
+
+if [[ "$python_api_ready" == false ]]; then
+  printf 'DeployGuard Python service did not become ready. Inspect %s\n' "$runtime_root/python-api.stderr.log" >&2
+  "$project_root/scripts/stop-dev.sh" || true
+  exit 1
+fi
+
+start_process api \
+  "$control_plane_root" \
+  env \
+    ASPNETCORE_URLS=http://127.0.0.1:8100 \
+    Upstream__BaseUrl=http://127.0.0.1:8101 \
+    Database__ProbeEnabled=false \
+    DataMode=connected \
+    dotnet run \
+      --project "$control_plane_root/src/DeployGuard.ControlPlane/DeployGuard.ControlPlane.csproj" \
+      --no-launch-profile --no-restore
 
 api_ready=false
 for _attempt in {1..60}; do
-  if api_is_ready; then
+  if endpoint_is_ready "http://127.0.0.1:8100/api/v1/health/ready"; then
     api_ready=true
     break
   fi
@@ -136,7 +167,7 @@ for _attempt in {1..60}; do
 done
 
 if [[ "$api_ready" == false ]]; then
-  printf 'DeployGuard API did not become ready. Inspect %s\n' "$runtime_root/backend.stderr.log" >&2
+  printf 'DeployGuard .NET control plane did not become ready. Inspect %s\n' "$runtime_root/api.stderr.log" >&2
   "$project_root/scripts/stop-dev.sh" || true
   exit 1
 fi
@@ -151,5 +182,6 @@ start_process frontend \
 printf 'DeployGuard API: http://127.0.0.1:8100/docs\n'
 printf 'DeployGuard UI:  http://127.0.0.1:4300\n'
 printf 'Mode:            connected (synthetic seeding disabled)\n'
+printf 'Control plane:   .NET 10 (Python engine/API on 127.0.0.1:8101)\n'
 printf 'Worker:          PID %s\n' "$(<"$runtime_root/worker.pid")"
 printf 'Logs:            %s\n' "$runtime_root"

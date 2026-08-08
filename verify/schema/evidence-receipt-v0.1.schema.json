@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://deployguard.dev/schemas/evidence-receipt-v0.1.schema.json",
+  "title": "DeployGuard Evidence Receipt v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "engine_version",
+    "generated_at",
+    "repository",
+    "policy",
+    "change",
+    "evidence",
+    "decision",
+    "receipt_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "deployguard-evidence-receipt/v0.1"},
+    "engine_version": {"type": "string"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "base_sha", "head_sha", "merge_base_sha"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "base_sha": {"$ref": "#/$defs/sha"},
+        "head_sha": {"$ref": "#/$defs/sha"},
+        "merge_base_sha": {"$ref": "#/$defs/sha"}
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "source", "sha256", "matched_path_rules"],
+      "properties": {
+        "schema_version": {"const": "deployguard-policy/v0.1"},
+        "source": {"type": "string"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "matched_path_rules": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      }
+    },
+    "change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["files_changed", "lines_added", "lines_deleted", "paths", "flags", "docs_only"],
+      "properties": {
+        "files_changed": {"type": "integer", "minimum": 0},
+        "lines_added": {"type": "integer", "minimum": 0},
+        "lines_deleted": {"type": "integer", "minimum": 0},
+        "paths": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "flags": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "docs_only": {"type": "boolean"}
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "state", "source", "source_sha", "artifact_sha256", "summary", "metrics"],
+        "properties": {
+          "id": {"type": "string"},
+          "kind": {"enum": ["tests", "build", "coverage", "security"]},
+          "state": {"enum": ["pass", "fail", "unknown"]},
+          "source": {"type": "string"},
+          "source_sha": {"oneOf": [{"$ref": "#/$defs/sha"}, {"type": "null"}]},
+          "artifact_sha256": {"oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+          "summary": {"type": "string"},
+          "metrics": {"type": "object"}
+        }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reason_codes", "reasons"],
+      "properties": {
+        "status": {"enum": ["pass", "review", "block", "error"]},
+        "reason_codes": {"type": "array", "items": {"type": "string"}},
+        "reasons": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "receipt_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^[0-9a-f]{40,64}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

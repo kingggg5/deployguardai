@@ -19,6 +19,7 @@ repository ปัจจุบัน ไม่ใช่ใบรับรอง�
 Requirements:
 
 - Python 3.12+
+- .NET SDK 10
 - Node.js 24+ (Docker build stage ใช้ Node 24.18.0)
 - npm
 - PowerShell
@@ -51,8 +52,9 @@ Endpoints:
 - Liveness: `http://127.0.0.1:8100/api/v1/health/live`
 - Readiness: `http://127.0.0.1:8100/api/v1/health/ready`
 - Health (backward-compatible readiness alias): `http://127.0.0.1:8100/api/v1/health`
-- Metrics (private Prometheus scrape): `http://127.0.0.1:8100/api/v1/metrics`
-- Logs: `.runtime/backend.*.log` และ `.runtime/frontend.*.log`
+- Metrics (private Compose network only): `http://python-api:8100/api/v1/metrics`
+- Logs: `.runtime/api.*.log`, `.runtime/python-api.*.log`,
+  `.runtime/worker.*.log` และ `.runtime/frontend.*.log`
 
 หยุด process ที่ script สร้าง:
 
@@ -72,8 +74,9 @@ docker compose up --build
 docker compose ps
 ```
 
-Compose รอ PostgreSQL health ก่อนเริ่ม API และรอ API health ก่อนเริ่ม web
-application Nginx proxy `/api/` ไป FastAPI
+Compose รอ PostgreSQL/migration/runtime grants ก่อนเริ่ม Python application,
+รอ internal readiness ก่อนเริ่ม .NET control plane และรอ public readiness
+ก่อนเริ่ม web application โดย Nginx proxy `/api/` ไปยัง .NET control plane
 
 Compose เริ่ม `worker` หลัง API พร้อมใช้งานเพื่อประมวลผล allow-listed jobs จาก
 `background_jobs` ส่วน migration release job เป็น operations profile และรันแบบ
@@ -104,6 +107,9 @@ docker compose down
 ```dotenv
 ENVIRONMENT=production
 DATABASE_URL=postgresql+psycopg://...
+COMPOSE_DATABASE_URL=postgresql+psycopg://...
+CONTROL_PLANE_DATABASE_CONNECTION_STRING=Host=...;Database=...;Username=...;Password=...;SSL Mode=VerifyFull
+CONTROL_PLANE_TRUSTED_PROXY_CIDR=10.20.0.0/24
 AUTH_PROVIDER=oidc
 OIDC_ISSUER=https://identity.example/
 OIDC_AUDIENCE=deployguard-api
@@ -112,7 +118,22 @@ OIDC_JWKS_URL=https://identity.example/.well-known/jwks.json
 FRONTEND_PUBLIC_URL=https://deployguard.example
 CORS_ORIGINS=https://deployguard.example
 ALLOW_DATABASE_RESET=false
+PYTHON_API_FORWARDED_ALLOW_IPS=10.20.0.0/24
 ```
+
+`COMPOSE_DATABASE_URL` and `CONTROL_PLANE_DATABASE_CONNECTION_STRING` use
+different driver syntaxes (SQLAlchemy and Npgsql), but must identify the same
+PostgreSQL host, database, and non-owner runtime role. Keep migration-owner
+credentials only in `MIGRATION_DATABASE_URL`. The production example enables
+certificate verification for the Npgsql probe; mount the referenced CA file or
+use the equivalent trust configuration from the managed PostgreSQL provider.
+
+`CONTROL_PLANE_TRUSTED_PROXY_CIDR` is the Nginx/proxy network accepted by
+ASP.NET Core, while `PYTHON_API_FORWARDED_ALLOW_IPS` is the control-plane/proxy
+allowlist accepted by Uvicorn. Set both to the deployment's private
+service-network CIDR or specific proxy addresses, never `*`. The Compose
+control-plane port is bound to loopback; expose the web ingress through the
+platform's TLS boundary instead.
 
 Production startup fail-fast หาก `AUTH_PROVIDER` ไม่ใช่ OIDC หรือ OIDC
 configuration ไม่ครบ
@@ -167,8 +188,9 @@ review rather than automatically sending a possible duplicate invitation.
 TELEMETRY_INGEST_TOKEN=<random-root-secret-at-least-32-characters>
 ```
 
-ค่านี้เป็น credential root ฝั่ง server ห้ามส่งจาก production Collector โดยตรง
-ให้ derive bearer ต่อ workspace:
+This value is a server-side credential root. Never send it from a production
+Collector or expose it to the browser. Derive one bearer per workspace in a
+trusted environment:
 
 ```powershell
 Set-Location backend
@@ -176,12 +198,21 @@ $env:DEPLOYGUARD_WORKSPACE_ID = "<workspace-id>"
 python -c "import os; from app.services import derive_telemetry_collector_token as d; print(d(os.environ['TELEMETRY_INGEST_TOKEN'], os.environ['DEPLOYGUARD_WORKSPACE_ID']))"
 ```
 
-Collector ส่ง `Authorization: Bearer dgct_...`,
-`X-DeployGuard-Workspace`, stable `X-DeployGuard-Event-ID` และ
-`X-DeployGuard-Repository` เมื่อระบุ repository ได้ `/telemetry/events` รับ
-normalized JSON เข้า tenant operational-event ledger ไม่ใช่ OTLP Production
-ปฏิเสธ raw root token ควรวาง Collector/gateway หลัง TLS เพื่อทำ redaction,
-body/rate limits และ rotation
+The supported production path is:
+
+```text
+application -> OTLP Collector -> normalization/redaction gateway
+            -> DeployGuard normalized event API
+```
+
+The gateway must authenticate its upstream Collector, allowlist and redact
+resource attributes, map each signal into the bounded API contract, use the
+workspace-derived `dgct_...` bearer, preserve a stable source event ID, and
+enforce request-body, cardinality, and rate limits. It sends
+`X-DeployGuard-Workspace`, stable `X-DeployGuard-Event-ID`, and optional
+`X-DeployGuard-Repository` headers. Production rejects the raw root token.
+Rotate the root through the deployment secret manager and redistribute derived
+credentials to the affected gateways.
 
 ## Request protection and access logs
 
@@ -305,6 +336,14 @@ attributes ก่อน export ห้ามเปิด Collector receivers ต�
 Repository ยังไม่มี dashboard, SLO recording rules หรือ alert policy แบบผูกกับ
 องค์กร รายการเหล่านี้ยังต้องกำหนดใน monitoring platform ของแต่ละทีม
 
+The Collector scrapes Prometheus metrics from `python-api:8100` on the private
+Compose network because the public .NET boundary intentionally does not expose
+`/api/v1/metrics`. Set `DEPLOYGUARD_API_METRICS_TARGET` to the equivalent
+internal Python service address outside local Compose. Set
+`CONTROL_PLANE_OTLP_ENDPOINT=http://otel-collector:4317` only when the
+observability profile (or an equivalent trusted Collector) is running; leave it
+empty otherwise.
+
 ## Failure playbooks
 
 ### API ไม่เริ่มหลัง release
@@ -404,7 +443,7 @@ target database:
 ```powershell
 python scripts/restore_check.py `
   --backup .runtime/backups/deployguard-20260803.db `
-  --format sqlite --expected-head 0009
+  --format sqlite --expected-head 0011
 ```
 
 ทดสอบ restore SQLite บน writable disposable copy:
@@ -412,7 +451,7 @@ python scripts/restore_check.py `
 ```powershell
 python scripts/restore_rehearsal.py `
   --backup .runtime/backups/deployguard-20260803.db `
-  --format sqlite --expected-head 0009 `
+  --format sqlite --expected-head 0011 `
   --report .runtime/restore-rehearsal-20260803.json
 ```
 
@@ -427,7 +466,7 @@ python scripts/restore_rehearsal.py `
   --application-database-url $env:RESTORE_APPLICATION_DATABASE_URL `
   --target-database deployguard_restore_release_20260803 `
   --confirm CREATE-AND-DROP-ISOLATED-DATABASE `
-  --expected-head 0009
+  --expected-head 0011
 ```
 
 ตรวจ retention candidates แบบ read-only ก่อน:
@@ -471,6 +510,23 @@ Production owner ต้องกำหนด:
 ห้ามอ้าง retention เช่น 7/30/90 วันจนมี job, configuration และ deletion audit
 ทำงานจริง
 
+## Performance evidence
+
+Generate an environment-scoped baseline instead of committing a universal
+performance claim:
+
+```powershell
+python scripts/performance_baseline.py --profile quick --output .runtime/performance-results.json
+python scripts/performance_baseline.py --profile standard --output .runtime/performance-results.json
+```
+
+The artifact records the workload, runtime and hardware metadata, engine
+versions, latency percentiles, throughput, startup, lease recovery, and graph
+sizes. The local profile uses SQLite and in-process work; it does not establish
+PostgreSQL capacity, multi-instance throughput, provider latency, total process
+RSS, or a production SLO. Runtime-migration claims require the same HTTP,
+PostgreSQL, worker, and failure-injection workload on both implementations.
+
 ## Verification commands
 
 Backend:
@@ -499,7 +555,7 @@ docker compose config
 Backup validation (read-only):
 
 ```powershell
-python scripts/restore_check.py --backup .runtime/backups/deployguard.db --format sqlite --expected-head 0009
+python scripts/restore_check.py --backup .runtime/backups/deployguard.db --format sqlite --expected-head 0011
 ```
 
 Migration smoke:
@@ -520,6 +576,12 @@ alembic current
 ```powershell
 python scripts/production_readiness.py --json
 ```
+
+After the changelog, version metadata, checks, and release evidence are final,
+create and push an annotated `vX.Y.Z` tag. The tag-driven release workflow
+builds the published images and release notes. Deployments must pin immutable
+image digests; rollback redeploys the previous known-good digest and follows
+the migration rollback policy above.
 
 - [ ] Release commit และ image digest ถูก pin
 - [ ] Backend/frontend tests และ build ผ่านจาก clean environment

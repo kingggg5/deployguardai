@@ -30,6 +30,8 @@ jobs:
       matrix:
         include:
           - name: api
+            context: ./control-plane
+          - name: engine
             context: ./backend
           - name: web
             context: ./frontend

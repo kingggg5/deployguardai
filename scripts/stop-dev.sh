@@ -25,7 +25,7 @@ stop_process_tree() {
   kill -TERM "$process_id" 2>/dev/null || true
 }
 
-for name in backend worker frontend; do
+for name in backend python-api api worker frontend; do
   pid_path="$runtime_root/$name.pid"
   [[ -f "$pid_path" ]] || continue
 

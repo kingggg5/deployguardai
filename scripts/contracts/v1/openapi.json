@@ -112,16 +112,30 @@
             "type": "integer"
           },
           "observability_score": {
-            "maximum": 1.0,
-            "minimum": 0.0,
-            "title": "Observability Score",
-            "type": "number"
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observability Score"
           },
           "previous_failures": {
-            "maximum": 10000.0,
-            "minimum": 0.0,
-            "title": "Previous Failures",
-            "type": "integer"
+            "anyOf": [
+              {
+                "maximum": 10000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Failures"
           },
           "repository": {
             "maxLength": 240,
@@ -130,14 +144,28 @@
             "type": "string"
           },
           "rollback_ready": {
-            "title": "Rollback Ready",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rollback Ready"
           },
           "test_coverage": {
-            "maximum": 1.0,
-            "minimum": 0.0,
-            "title": "Test Coverage",
-            "type": "number"
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Test Coverage"
           },
           "title": {
             "maxLength": 240,
@@ -153,11 +181,7 @@
           "files_changed",
           "lines_added",
           "lines_deleted",
-          "changed_services",
-          "test_coverage",
-          "rollback_ready",
-          "observability_score",
-          "previous_failures"
+          "changed_services"
         ],
         "title": "AnalyzeChangeRequest",
         "type": "object"

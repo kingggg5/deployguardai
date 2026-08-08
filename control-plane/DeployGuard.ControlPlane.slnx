@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/DeployGuard.ControlPlane/DeployGuard.ControlPlane.csproj" />
+  <Project Path="tests/DeployGuard.ControlPlane.Tests/DeployGuard.ControlPlane.Tests.csproj" />
+</Solution>

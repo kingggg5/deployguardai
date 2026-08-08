@@ -58,7 +58,9 @@ class FakeGitHubClient:
         assert payload["installation_id"] == "12345"
         assert payload["repository_full_name"] == "acme/checkout"
         assert len(payload["head_sha"]) >= 7
-        assert payload["conclusion"] in {"neutral", "success"}
+        assert payload["conclusion"] == "neutral"
+        assert "No SHA-matched DeployGuard Evidence Receipt" in payload["summary"]
+        assert "Metadata-derived risk prior" in payload["summary"]
         assert "decision support only" in payload["summary"]
         return {
             "id": 4_242,
@@ -197,6 +199,7 @@ def test_github_install_discovery_and_sync(
             "pull_request": {
                 "title": "Reduce checkout retry pressure",
                 "user": {"login": "octocat"},
+                "head": {"sha": "b" * 40, "ref": "reduce-retries"},
                 "changed_files": 4,
                 "additions": 82,
                 "deletions": 17,
@@ -321,6 +324,7 @@ def test_github_install_discovery_and_sync(
     assert published.json()["provider_check_id"] == "4242"
     assert published.json()["change_id"] == analyzed.json()["change_id"]
     assert published.json()["status"] == "completed"
+    assert published.json()["conclusion"] == "neutral"
 
     workflow_body = json.dumps(
         {

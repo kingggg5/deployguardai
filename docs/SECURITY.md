@@ -14,6 +14,15 @@ backup storage, alerts, restore exercises, and on-call ownership.
 
 ## Implemented controls
 
+- DeployGuard Verify calls no LLM and makes no network request. It accepts only
+  fixed Git operations and existing JUnit, Cobertura/LCOV, SARIF, and explicit
+  build status; it never runs repository-defined verifier commands.
+- Receipt policy comes from the protected base commit by default. Artifacts are
+  repository-contained, regular files with count/size limits; XML entities are
+  rejected and raw logs/messages are not copied into receipts.
+- Evidence must declare the exact producing SHA. Missing or mismatched evidence
+  is REVIEW/UNKNOWN; objective test/build or configured security failures are
+  BLOCK. The Skill and `AGENTS.md` cannot override these outcomes.
 - Production requires OIDC; JWT signature, JWKS, issuer, audience, expiry,
   issued-at, and verified email are checked.
 - Development identity and database reset are unavailable in production.
@@ -29,6 +38,9 @@ backup storage, alerts, restore exercises, and on-call ownership.
   provenance after workspace/resource validation.
 - Request IDs, bounded bodies, structured logs, low-cardinality metrics, and
   optional redacting OpenTelemetry export are available.
+- The Compose control plane binds to loopback, Nginx replaces untrusted
+  `X-Forwarded-For` input, and Uvicorn accepts forwarded identity only from a
+  configurable private proxy allowlist.
 - Backup, read-only validation, isolated restore rehearsal, retention legal
   holds, and append-only deletion audit helpers exist.
 - Evidence synthesis is deterministic and citation-gated, with no external
@@ -57,10 +69,11 @@ redaction, legal review, or publication approval.
 
 ```mermaid
 flowchart LR
-    Browser["Browser\nuntrusted client"] --> API["FastAPI trust boundary"]
-    OIDC["OIDC issuer"] --> API
-    GitHub["GitHub App and signed webhook"] --> API
-    Collector["Telemetry gateway"] --> API
+    Browser["Browser\nuntrusted client"] --> Edge["ASP.NET Core public boundary"]
+    OIDC["OIDC issuer"] --> Edge
+    GitHub["GitHub App and signed webhook"] --> Edge
+    Collector["Telemetry gateway"] --> Edge
+    Edge --> API["Internal FastAPI policy boundary"]
     API --> Tenant["Membership, RBAC, RLS"]
     Tenant --> Core["Deterministic engines"]
     Core --> DB[("Workspace data")]
@@ -84,6 +97,8 @@ passwords, telemetry root credentials, or future model-provider keys.
 | Dataset exfiltration/consent bypass | Connected exporter disabled; exact-snapshot consent gate; immutable records | Redaction, publication service, release registry, revocation propagation |
 | Prompt injection | No model/tool runtime; deterministic candidates and citation validation | Adversarial corpus before any provider activation |
 | Unsafe remediation | No deployment, rollback, shell, or infrastructure execution path | Preserve the architecture boundary |
+| PR weakens its verifier | Protected-base policy, fixed CLI engine, no commands read from PR policy | Pin the Action by full SHA; use organization required workflows for stronger enforcement |
+| Forged CI artifact | Artifact hash and producing-SHA binding; unknown fails closed | Add GitHub artifact attestations and authenticated connected ingestion |
 
 ## Data minimization and retention
 
@@ -104,6 +119,13 @@ passwords, database credentials, telemetry credentials, or future model keys.
 Production must inject them from a managed secret provider and support rotation
 without rebuilding the image.
 
+`TELEMETRY_INGEST_TOKEN` is a server-side credential root. Never distribute the
+raw root to a Collector or browser. Derive a workspace-specific `dgct_...`
+bearer in a trusted environment, rotate the root through the deployment secret
+manager, and redistribute only the affected derived credentials. The telemetry
+gateway must redact and allowlist attributes before they cross the API trust
+boundary.
+
 Minimum deployment controls:
 
 - HTTPS, secure headers, WAF/body limits, and distributed rate limiting;
@@ -112,6 +134,13 @@ Minimum deployment controls:
 - worker supervision and dead-letter alerts;
 - scheduled retention, managed backups, and tested RPO/RTO;
 - dependency/image scanning, penetration testing, and incident-response drills.
+
+Use separate connection-string formats for the two runtimes without creating
+separate trust domains: `COMPOSE_DATABASE_URL` (SQLAlchemy) and
+`CONTROL_PLANE_DATABASE_CONNECTION_STRING` (Npgsql) must resolve to the same
+managed PostgreSQL database and least-privileged runtime role. Require TLS
+certificate verification for both. Never put the schema-owner credential in
+either long-lived service.
 
 Run `python scripts/production_readiness.py` as a fail-closed configuration
 check. It does not provision or print secrets.

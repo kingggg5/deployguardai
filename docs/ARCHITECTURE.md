@@ -44,7 +44,8 @@ rollback, รัน shell หรือเข้าถึง cluster
 flowchart LR
     User["Platform engineer / SRE"]
     UI["Angular web application"]
-    API["FastAPI API"]
+    Edge["ASP.NET Core 10 control plane"]
+    API["Internal FastAPI compatibility service"]
     Core["Deterministic analysis core"]
     DB["SQLite local / PostgreSQL configured"]
     Seed["Repository-bundled synthetic fixtures"]
@@ -57,16 +58,16 @@ flowchart LR
     Bench["DeployGuard Bench"]
     LLM["Bounded LLM summarizer<br/>deferred"]
 
-    User --> UI --> API --> Core
+    User --> UI --> Edge --> API --> Core
     Core --> DB
     Seed --> API
     UI --> OIDC
     API --> OIDC
-    GH --> API
+    GH --> Edge
     API --> GH
     API --> SMTP
     Collector -->|"OTLP"| Gateway
-    Gateway -->|"normalized event + workspace bearer"| API
+    Gateway -->|"normalized event + workspace bearer"| Edge
     Seed -->|"synthetic only"| Exporter
     Core --> Exporter
     Exporter --> Bench
@@ -85,7 +86,13 @@ connection state ตามจริงเสมอ
 flowchart TB
     Browser["Angular 22 standalone application"]
 
-    subgraph Backend["FastAPI application"]
+    subgraph ControlPlane["ASP.NET Core 10 public control plane"]
+        NativeHealth["Native liveness/readiness"]
+        RequestContext["Request ID + fail-closed routing"]
+        Proxy["YARP compatibility route"]
+    end
+
+    subgraph Backend["Internal Python application and engines"]
         Routes["Typed HTTP routes<br/>/api/v1"]
         Auth["Development auth / OIDC verifier"]
         Tenant["Workspace context + RBAC"]
@@ -104,7 +111,10 @@ flowchart TB
         Postgres["PostgreSQL configured"]
     end
 
-    Browser --> Routes
+    Browser --> RequestContext
+    RequestContext --> NativeHealth
+    RequestContext --> Proxy --> Routes
+    NativeHealth --> Postgres
     Routes --> Auth
     Routes --> Tenant
     Tenant --> Workspace
@@ -126,7 +136,8 @@ flowchart TB
 | Component | รับผิดชอบ | ไม่รับผิดชอบ |
 |---|---|---|
 | Angular UI | Navigation, forms, connected/synthetic labels, loading/error/empty states และ responsive presentation | คำนวณคะแนนหรือบังคับ authorization |
-| FastAPI routes | HTTP validation, dependency injection, typed response และ domain-error mapping | ฝัง scoring weights หรือ query ข้าม workspace |
+| ASP.NET Core control plane | Public request ID, native health/readiness และ fail-closed compatibility routing | เปลี่ยน contract หรือถือ business rules ที่ยังไม่ผ่าน parity |
+| FastAPI application routes | Internal HTTP validation, dependency injection, typed response และ domain-error mapping | ฝัง scoring weights หรือ query ข้าม workspace |
 | Tenant/RBAC layer | Resolve principal, workspace context และ minimum role | ใช้ UI hiding เป็น security control |
 | Operations services | Service catalog, policy versioning, event dedupe, incident lifecycle, notes และ notification fan-out | ส่ง deployment command หรือ arbitrary outgoing webhook |
 | Deterministic engines | Risk, graph traversal, evidence weighting และ hypothesis ranking | สร้าง evidence ที่ไม่มี provenance |
@@ -171,20 +182,23 @@ sequenceDiagram
     autonumber
     actor User
     participant UI as Angular UI
+    participant Edge as .NET control plane
     participant API as FastAPI
     participant Risk as Risk engine
     participant Graph as Graph engine
     participant DB as SQLAlchemy
 
     User->>UI: Submit change metadata
-    UI->>API: POST /api/v1/changes/analyze
+    UI->>Edge: POST /api/v1/changes/analyze
+    Edge->>API: Forward unchanged request + request ID
     API->>API: Resolve workspace/repository context
     API->>Risk: Calculate explicit dimensions
     Risk-->>API: Score, level, reasons, evidence IDs
     API->>Graph: Traverse changed services
     Graph-->>API: Nodes, edges and hop distance
     API->>DB: Persist analysis snapshot
-    API-->>UI: ChangeDetail
+    API-->>Edge: ChangeDetail
+    Edge-->>UI: Preserve status, headers and body
 ```
 
 Risk, blast radius และ ranked hypotheses เป็น deterministic snapshots ที่เก็บ
@@ -264,6 +278,11 @@ sequenceDiagram
 Operational event เป็น durable normalized record ไม่ใช่ raw OTLP storage
 การรับ event ใช้ tenant context จาก authenticated request หรือ workspace-derived
 collector credential และตรวจ foreign key ทุกตัวให้อยู่ใน workspace เดียวกัน
+ห้ามชี้ OTLP exporter มาที่ `/api/v1/telemetry/events` โดยตรง Production path
+ต้องผ่าน trusted gateway ที่ authenticate upstream Collector, allowlist และ
+redact attributes, แปลงหนึ่ง signal เป็น bounded normalized contract, ใช้
+workspace-derived `dgct_...` bearer, ส่ง stable event ID และบังคับ body,
+cardinality กับ rate limits ก่อนเข้า API
 Replay ที่ canonical payload/origin เดิมไม่สร้าง row, audit หรือ notification ซ้ำ
 แต่ identity เดิมที่ content/origin ต่างกันคืน `409` Member provenance ถูก discard
 และ Server สร้าง trust statement ใหม่พร้อม reserved `_ingestion` เพื่อแยก
@@ -292,6 +311,24 @@ compare-and-swap ด้วย version และ event dedupe พึ่ง unique
 - capability endpoint บอก UI ตาม runtime configuration ว่า provider ใดพร้อมใช้
 
 ## Architecture decisions
+
+### ADR-000 - Keyless verification before hosted intelligence
+
+`deployguard verify` is a standalone deterministic boundary. It reads a fixed
+set of Git metadata and existing JUnit, Cobertura/LCOV, SARIF, and build-status
+inputs. It does not execute repository-defined commands, call an LLM, upload
+source, or require the control plane.
+
+Policy is loaded from the protected base commit by default. The receipt binds
+base, head, merge base, policy hash, artifact hashes, normalized evidence, and
+decision reasons. Stable exit codes let the same engine run locally, through an
+agent Skill, or as a required GitHub Action. Skill and `AGENTS.md` content are
+UX/policy guidance and never an enforcement or grading boundary.
+
+The connected control plane will later ingest authenticated/attested receipts
+and link the exact head SHA to deployment outcomes. Until that provenance path
+exists, provider-webhook metadata remains explicitly unknown and the GitHub App
+Check cannot claim verified success.
 
 ### ADR-001 — Deterministic first
 
@@ -331,6 +368,20 @@ processing ได้
 
 ไม่มี deployment token, cluster credential, shell execution, rollback API หรือ
 arbitrary outgoing webhook ใน process ของ DeployGuard
+
+### ADR-007 — Measured .NET strangler migration
+
+ASP.NET Core 10 เป็น public entry point และเป็นเจ้าของ native liveness,
+readiness, request context กับ fail-closed routing ส่วน FastAPI เป็น internal
+compatibility/application service ระหว่างย้าย domain route ทีละ vertical slice
+Python ยังเป็นเจ้าของ deterministic risk/evidence engine และ Alembic เป็น
+schema migration authority เพียงตัวเดียว PostgreSQL เป็น production source of
+truth
+
+การย้ายแต่ละ slice ต้องผ่าน HTTP contract, auth/RBAC, PostgreSQL RLS,
+connection-pool isolation, idempotency และ failure-mode parity ก่อนรับ traffic
+จริง การวัด engine workload เดิมไม่พบ performance benefit จาก C# จึงไม่ duplicate
+engine โดยไม่มี end-to-end HTTP/PostgreSQL evidence และ rollback plan
 
 ## Reliability boundary
 

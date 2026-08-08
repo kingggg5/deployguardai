@@ -143,6 +143,7 @@ disabled even when all rows exist.
 | `0008` | Analysis snapshot version provenance |
 | `0009` | PostgreSQL tenant RLS |
 | `0010` | Verdict provenance, structured verification, immutable snapshots, consent decisions |
+| `0011` | Nullable connected-change evidence fields so unknown is never stored as fabricated zero/false |
 
 Production rejects a non-empty unversioned database. Migrations run as a schema
 owner before the application role starts; the runtime role must not own tables,

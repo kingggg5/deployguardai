@@ -236,10 +236,10 @@ class AnalyzeChangeRequest(APIModel):
     lines_deleted: int = Field(ge=0, le=10_000_000)
     changed_services: list[NonEmptyString] = Field(min_length=1, max_length=100)
     flags: list[NonEmptyString] = Field(default_factory=list, max_length=100)
-    test_coverage: float = Field(ge=0, le=1)
-    rollback_ready: bool
-    observability_score: float = Field(ge=0, le=1)
-    previous_failures: int = Field(ge=0, le=10_000)
+    test_coverage: float | None = Field(default=None, ge=0, le=1)
+    rollback_ready: bool | None = None
+    observability_score: float | None = Field(default=None, ge=0, le=1)
+    previous_failures: int | None = Field(default=None, ge=0, le=10_000)
 
     @field_validator("changed_services", "flags")
     @classmethod

@@ -1,6 +1,10 @@
 # DeployGuard AI quickstart
 
-This guide has two paths:
+This guide has three paths:
+
+- **Verify-only mode** creates a deterministic evidence receipt in an existing
+  repository. It needs Python and Git, but no LLM key, database, or DeployGuard
+  server.
 
 - **Connected mode** is the real application path. It starts with an empty
   workspace and waits for a GitHub App, OIDC provider, or telemetry collector.
@@ -11,9 +15,36 @@ This guide has two paths:
 
 - Docker Engine and Compose v2 (recommended), or Docker Desktop
 - Git
-- For the source workflow: Python 3.12+, Node.js 24+, and npm
+- For the source workflow: .NET SDK 10, Python 3.12+, Node.js 24+, and npm
 - PowerShell 7 on Windows, or Bash on macOS/Linux. GNU Make is optional on
   macOS/Linux for the short commands below.
+
+## Verify-only mode
+
+```bash
+python -m pip install ./verify
+deployguard verify --base origin/main --head HEAD \
+  --evidence-sha "$(git rev-parse HEAD)" \
+  --junit artifacts/junit.xml
+```
+
+Add `--coverage` for Cobertura XML or LCOV and `--sarif` for SARIF 2.1.0. Every
+input supports repeatable glob arguments. DeployGuard records normalized counts
+and hashes, not test logs, source snippets, SARIF messages, credentials, or
+prompts.
+
+By default `.deployguard/policy.yml` is read from the protected base commit.
+This prevents a pull request from weakening its own gate. The built-in policy
+is used during first installation when the base does not contain a policy.
+
+```bash
+deployguard init --github --agent codex
+```
+
+The initializer never overwrites an existing policy unless `--force` is
+explicitly supplied. Its GitHub workflow deliberately returns REVIEW until the
+repository's real JUnit path is configured. For production use, pin the root
+composite Action to a released full commit SHA.
 
 ## Connected mode with Compose
 
@@ -36,6 +67,8 @@ The default development identity is local-only and must not be used for a
 shared environment. For real provider data, configure OIDC and a GitHub App in
 `.env` or an external secret manager, then restart the API. The full provider
 setup is documented in [OPERATIONS.md](OPERATIONS.md) and [SECURITY.md](SECURITY.md).
+The public control-plane port is loopback-bound by default; the Python engine
+and Prometheus endpoint remain reachable only on the private Compose network.
 
 ## Isolated demo mode
 
@@ -110,6 +143,8 @@ stops it without removing its database volume.
 Run the test suites independently when iterating:
 
 ```powershell
+dotnet test control-plane/DeployGuard.ControlPlane.slnx
+
 Push-Location backend
 python -m pytest
 Pop-Location
@@ -122,7 +157,9 @@ npm run build
 Pop-Location
 ```
 
-The backend coverage command is `python -m pytest -p pytest_cov --cov=app
+The .NET process is the public API on port `8100`; the source helper keeps the
+internal Python service on loopback port `8101`. The backend coverage command is
+`python -m pytest -p pytest_cov --cov=app
 --cov-report=term-missing --cov-fail-under=80`. Angular coverage is reported
 under `frontend/coverage/`. The CI workflow keeps those reports as artifacts
 and fails only when the documented baseline thresholds regress.

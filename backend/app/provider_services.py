@@ -695,9 +695,11 @@ def _publish_github_change_check(
             policy_findings.append(
                 f"Risk score meets the review threshold ({warn_threshold})."
             )
-        if require_tests and change.test_coverage <= 0:
+        if require_tests and (
+            change.test_coverage is None or change.test_coverage <= 0
+        ):
             policy_findings.append("Required test coverage evidence is missing.")
-        if require_rollback and not change.rollback_ready:
+        if require_rollback and change.rollback_ready is not True:
             policy_findings.append("Required rollback readiness is missing.")
         impacted_services = len(
             [
@@ -713,15 +715,28 @@ def _publish_github_change_check(
                 "Blast radius exceeds the workspace maximum "
                 f"({impacted_services}/{max_blast_radius} services)."
             )
-    conclusion = "neutral" if policy_findings else "success"
-    if score >= block_threshold and policy_enabled:
+    receipt_missing = change.data_mode == "connected"
+    if receipt_missing:
+        policy_findings.insert(
+            0,
+            "No SHA-matched DeployGuard Evidence Receipt has been ingested; "
+            "provider metadata is not executable verification evidence.",
+        )
+    conclusion = "neutral" if policy_findings or receipt_missing else "success"
+    if receipt_missing:
+        title = "Evidence review required - receipt missing"
+    elif score >= block_threshold and policy_enabled:
         title = f"Escalated review · risk {score}/100"
     elif conclusion == "neutral":
         title = f"Review recommended · risk {score}/100"
     else:
         title = f"Normal review · risk {score}/100"
     summary_lines = [
-        f"Deterministic change risk: **{score}/100 ({level})**.",
+        (
+            f"Metadata-derived risk prior: **{score}/100 ({level})**."
+            if receipt_missing
+            else f"Deterministic change risk: **{score}/100 ({level})**."
+        ),
         f"Evidence quality: **{quality:.0%}**.",
         (
             f"Workspace policy: **v{policy_version} "

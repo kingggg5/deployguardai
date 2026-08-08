@@ -75,6 +75,57 @@ dataset drifts from the ranker, scenarios, schema, or manifest hashes. `make
 bench` runs the engine benchmark and dataset drift check on systems with GNU
 Make.
 
+## Engineering regression suite
+
+DeployGuard keeps two intentionally different synthetic assets:
+
+- the operational-example bundle in this directory exercises the public
+  dataset contract and publication boundary;
+- `scripts/evaluation/manifest-v2.json` is a smaller five-case RCA ranking
+  regression suite executed by the production ranker.
+
+Run the engine suite and contract drift checks with:
+
+```bash
+python scripts/evaluate_benchmarks.py --output .runtime/evaluation-results.json
+python scripts/capture_contracts.py --check
+```
+
+The evaluation artifact records dataset and engine versions, input SHA-256,
+per-episode rankings, failure slices, Top-1/Top-3, MRR, citation coverage, and
+evidence-reference integrity. `unsupported_claims_rate` remains unreported
+until a blinded human protocol measures semantic groundedness. These authored
+fixtures are regression evidence, not public or production incident accuracy.
+
+The golden corpus under `scripts/evaluation/` freezes risk, graph, and RCA
+boundary behavior with canonical output hashes. Seeded property tests cover
+determinism, score bounds, monotonicity, bounded cycle-safe traversal, stable
+ranking, valid evidence references, and counter-evidence penalties. Intentional
+behavior changes require a contract-version increment and reviewed golden diff.
+
+## Evaluation policy
+
+- Keep an incident indivisible across splits; split by scenario family,
+  service topology, source, and time rather than individual events.
+- Use only information available at the decision timestamp. Root-cause labels
+  and recovery events cannot leak into risk features.
+- Freeze evidence bundles for explanation evaluation and version a changed test
+  split instead of editing results in place.
+- Report sample counts, label source, prevalence, failure slices, environment,
+  commit, dataset checksum, and confidence intervals where sample size permits.
+- Compare against simple task-appropriate baselines and report Top-K/MRR,
+  calibration, citation integrity, counter-evidence sensitivity, latency, and
+  cost only when the corresponding task and labels support them.
+- Keep public test examples out of prompt development and training, and run
+  deduplication, contamination, license, privacy, and revocation checks before
+  any connected-data release.
+
+An evaluation run pins the code and dataset versions, starts from a clean
+environment, runs contract and determinism checks, evaluates frozen splits,
+stores machine-readable results, and reviews semantic claims on a blinded
+sample. Failed cases stay visible; a synthetic score is never generalized to a
+production accuracy claim.
+
 ## Ground-truth policy
 
 A record may enter evaluation only when its label source is explicit:
