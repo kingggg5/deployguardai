@@ -48,7 +48,7 @@ every production environment is configured or independently certified.
    as tombstones to every derived bundle.
 4. Add deduplication, contamination, and train/test leakage checks before any
    record can leave `ready_for_review`.
-5. Verify migration `0010`, RLS, and immutability triggers on a real PostgreSQL
+5. Verify migration `0011`, RLS, and immutability triggers on a real PostgreSQL
    16 non-owner role in CI and a reference environment.
 
 ## P2 — Make connected operations easier

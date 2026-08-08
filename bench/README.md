@@ -8,6 +8,8 @@ to evidence, verification, and a human decision.
 Operational data -> Evidence graph -> Human review -> Dataset governance -> Consumers
 ```
 
+![DeployGuard dataset promotion gate](../docs/assets/dataset-promotion-gate-desktop.png)
+
 AI is a consumer of this contract. It does not own evidence, scores, ground
 truth, or human verdicts.
 

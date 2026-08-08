@@ -71,6 +71,12 @@ release notes from `main` and will use semantic versioning for tagged releases.
 
 ### Changed
 
+- Readiness-path validation now uses cross-platform rooted-relative URI
+  semantics, preventing Linux from treating `/api/...` as a `file:` URI and
+  crash-looping the .NET control plane.
+- English and Thai READMEs now lead with a working pre-release install path,
+  concise product lanes, explicit decision semantics, and honest connected and
+  dataset maturity boundaries.
 - Connected GitHub pull-request metadata now records test, rollback,
   observability, and failure-history evidence as unknown instead of fabricated
   zero/false sentinels. Metadata-only GitHub App Checks remain neutral until an
@@ -97,12 +103,3 @@ release notes from `main` and will use semantic versioning for tagged releases.
   show a recoverable unavailable state instead of stale cross-workspace data.
 - Analysis identity now includes its version bundle, so an engine or policy
   release creates a new immutable result instead of reusing a stale snapshot.
-
-### Still required for production
-
-- Configure real OIDC, GitHub App, SMTP, HTTPS/WAF, managed secrets, distributed
-  rate limits, durable telemetry, encrypted backup storage, alerts, and on-call.
-- Schedule retention and backup jobs, export audits to immutable storage, and
-  complete a recorded restore rehearsal against the target environment/RPO/RTO.
-- Notifications, invitations, and normalized event ingestion remain
-  synchronous until each producer receives a provider-specific reliability review.

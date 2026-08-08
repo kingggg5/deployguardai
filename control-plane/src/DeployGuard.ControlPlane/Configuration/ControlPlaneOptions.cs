@@ -57,8 +57,10 @@ public sealed class UpstreamOptions
 		var path = ReadinessPath.Trim();
 		return path.StartsWith("/", StringComparison.Ordinal)
 			&& !path.StartsWith("//", StringComparison.Ordinal)
+			&& !path.Contains('\\')
 			&& !path.Contains('#')
-			&& !Uri.TryCreate(path, UriKind.Absolute, out _);
+			&& !path.Any(char.IsControl)
+			&& Uri.TryCreate(path, UriKind.Relative, out _);
 	}
 }
 

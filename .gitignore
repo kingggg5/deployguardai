@@ -17,6 +17,7 @@ backend/*.db-wal
 **/bin/
 **/obj/
 **/TestResults/
+**/TestResults-*/
 
 # Angular / Node
 frontend/node_modules/

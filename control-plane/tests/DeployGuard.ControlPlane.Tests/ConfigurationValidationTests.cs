@@ -9,6 +9,8 @@ public sealed class ConfigurationValidationTests
 	[InlineData("//example.test/api/v1/health/ready")]
 	[InlineData("api/v1/health/ready")]
 	[InlineData("/api/v1/health/ready#fragment")]
+	[InlineData("/\\example.test/api/v1/health/ready")]
+	[InlineData("/api/v1/health/ready\r\nX-Injected: value")]
 	public void Readiness_path_rejects_cross_origin_or_ambiguous_values(string path)
 	{
 		var options = new UpstreamOptions
@@ -19,6 +21,24 @@ public sealed class ConfigurationValidationTests
 
 		Assert.False(options.HasValidReadinessPath());
 		Assert.Null(options.ReadinessUri());
+	}
+
+	[Theory]
+	[InlineData("/api/v1/health/ready")]
+	[InlineData("/api/v1/health/ready?source=control-plane")]
+	public void Readiness_path_accepts_rooted_same_origin_values(string path)
+	{
+		var options = new UpstreamOptions
+		{
+			BaseUrl = "https://python-api.test:8443",
+			ReadinessPath = path
+		};
+
+		Assert.True(options.HasValidReadinessPath());
+		var readinessUri = options.ReadinessUri();
+		Assert.NotNull(readinessUri);
+		Assert.Equal("python-api.test", readinessUri.Host);
+		Assert.Equal(8443, readinessUri.Port);
 	}
 
 	[Fact]
