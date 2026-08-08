@@ -42,8 +42,23 @@ updates:
         update-types:
           - version-update:semver-major
 
+  - package-ecosystem: nuget
+    directory: /control-plane
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      dotnet-control-plane:
+        patterns:
+          - '*'
+
   - package-ecosystem: docker
     directory: /backend
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker
+    directory: /control-plane
     schedule:
       interval: weekly
 

@@ -1,0 +1,105 @@
+name: DeployGuard Verify
+description: Create a deterministic, keyless evidence receipt for a Git change.
+author: DeployGuardAI contributors
+
+branding:
+  icon: shield
+  color: blue
+
+inputs:
+  base-sha:
+    description: Protected base commit SHA.
+    required: true
+  head-sha:
+    description: Change head commit SHA.
+    required: true
+  evidence-sha:
+    description: Commit SHA that produced the supplied evidence; defaults to head-sha.
+    required: false
+  junit:
+    description: Newline-separated JUnit XML paths or glob patterns.
+    required: false
+  coverage:
+    description: Newline-separated Cobertura XML or LCOV paths or glob patterns.
+    required: false
+  sarif:
+    description: Newline-separated SARIF 2.1.0 paths or glob patterns.
+    required: false
+  build-status:
+    description: "Observed build status: success, failure, or unknown."
+    required: false
+    default: unknown
+  policy-path:
+    description: Repository-relative policy path read from the protected base commit.
+    required: false
+    default: .deployguard/policy.yml
+  output:
+    description: Repository-relative evidence receipt path.
+    required: false
+    default: .deployguard/artifacts/evidence-receipt.json
+
+outputs:
+  decision:
+    description: Deterministic pass, review, or block decision.
+    value: ${{ steps.verify.outputs.decision }}
+  receipt-sha256:
+    description: SHA-256 of the canonical evidence receipt body.
+    value: ${{ steps.verify.outputs.receipt_sha256 }}
+  receipt-path:
+    description: Repository-relative receipt path.
+    value: ${{ steps.verify.outputs.receipt_path }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v7
+      with:
+        python-version: "3.12"
+
+    - name: Install DeployGuard Verify
+      shell: bash
+      run: >-
+        python -m pip install --disable-pip-version-check
+        "${GITHUB_ACTION_PATH}/verify"
+
+    - name: Create evidence receipt
+      id: verify
+      shell: bash
+      env:
+        INPUT_BASE_SHA: ${{ inputs.base-sha }}
+        INPUT_HEAD_SHA: ${{ inputs.head-sha }}
+        INPUT_EVIDENCE_SHA: ${{ inputs.evidence-sha }}
+        INPUT_JUNIT: ${{ inputs.junit }}
+        INPUT_COVERAGE: ${{ inputs.coverage }}
+        INPUT_SARIF: ${{ inputs.sarif }}
+        INPUT_BUILD_STATUS: ${{ inputs.build-status }}
+        INPUT_POLICY_PATH: ${{ inputs.policy-path }}
+        INPUT_OUTPUT: ${{ inputs.output }}
+      run: |
+        set -euo pipefail
+        evidence_sha="${INPUT_EVIDENCE_SHA:-$INPUT_HEAD_SHA}"
+        args=(
+          verify
+          --repository-root "${GITHUB_WORKSPACE}"
+          --repository "${GITHUB_REPOSITORY}"
+          --base "${INPUT_BASE_SHA}"
+          --head "${INPUT_HEAD_SHA}"
+          --evidence-sha "${evidence_sha}"
+          --policy "${INPUT_POLICY_PATH}"
+          --policy-source base
+          --build-status "${INPUT_BUILD_STATUS}"
+          --output "${INPUT_OUTPUT}"
+          --github-summary "${GITHUB_STEP_SUMMARY}"
+          --github-output "${GITHUB_OUTPUT}"
+        )
+        while IFS= read -r pattern; do
+          [[ -n "${pattern}" ]] && args+=(--junit "${pattern}")
+        done <<< "${INPUT_JUNIT}"
+        while IFS= read -r pattern; do
+          [[ -n "${pattern}" ]] && args+=(--coverage "${pattern}")
+        done <<< "${INPUT_COVERAGE}"
+        while IFS= read -r pattern; do
+          [[ -n "${pattern}" ]] && args+=(--sarif "${pattern}")
+        done <<< "${INPUT_SARIF}"
+        python -m deployguard_verify.cli "${args[@]}"

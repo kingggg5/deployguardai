@@ -8,6 +8,8 @@ every production environment is configured or independently certified.
 
 | Capability | Status | Current truth |
 | --- | --- | --- |
+| DeployGuard Verify | Implemented | Keyless CLI/Action, protected-base policy, exact-SHA JUnit/Coverage/SARIF evidence, canonical receipt, stable decisions |
+| Connected receipt ingestion | Planned | GitHub App Check remains neutral until an authenticated/attested receipt path exists |
 | Deterministic change risk and blast radius | Implemented | Explicit scoring dimensions, versioned policy, cycle-safe traversal |
 | Incident evidence, RCA, and lifecycle | Implemented | Timeline, evidence/counter-evidence, hypotheses, assignments, notes, notifications |
 | Human verdict governance | Implemented | Server-owned actor provenance and structured verification outcome |
@@ -24,9 +26,20 @@ every production environment is configured or independently certified.
 | Native OTLP gateway | Planned | Requires authenticated Collector mapping, quotas, and normalization policy |
 | Slack/Teams/PagerDuty | Planned | No arbitrary outbound webhook path is currently bundled |
 | Hosted public demo | Planned | Requires isolated tenancy, abuse protection, cost limits, and resettable synthetic data |
-| .NET 10 read-only parity spike | Environment-gated | Read-only parity exists; no measured reason to replace the production authority yet |
+| .NET 10 public control plane | Implemented | Native fail-closed health/readiness and full compatibility routing; domain slices migrate only after parity gates |
 
-## P0 — Close the connected-data safety loop
+## P0 — Close the change outcome loop
+
+1. Ship and self-dogfood the versioned `DeployGuard Verify` Action, publish a
+   pinned release, and prove 10/10 byte-identical receipt replay.
+2. Ingest authenticated/attested receipts without accepting arbitrary commands
+   or trusting policy from the pull-request head.
+3. Publish PASS/REVIEW/BLOCK through the GitHub App only from an accepted
+   receipt; keep metadata-only analysis neutral.
+4. Link exact deployed SHA to explicit outcomes: `stable_window_met`, `failed`,
+   `rolled_back`, `incident_linked`, or `unknown`, with human confirmation.
+
+## P1 — Close the connected-data safety loop
 
 1. Build deterministic secret, PII, customer-data, and tenant-identifier
    redaction with inspectable review artifacts.
@@ -35,10 +48,10 @@ every production environment is configured or independently certified.
    as tombstones to every derived bundle.
 4. Add deduplication, contamination, and train/test leakage checks before any
    record can leave `ready_for_review`.
-5. Verify migration `0010`, RLS, and immutability triggers on a real PostgreSQL
+5. Verify migration `0011`, RLS, and immutability triggers on a real PostgreSQL
    16 non-owner role in CI and a reference environment.
 
-## P1 — Make connected operations easier
+## P2 — Make connected operations easier
 
 1. Native OTLP gateway with authenticated Collector mapping, allow-listed
    attributes, cardinality limits, and redaction before persistence.
@@ -51,9 +64,9 @@ every production environment is configured or independently certified.
 5. Scheduled retention, backup storage ownership, restore alerts, and
    multi-replica rate limiting.
 
-## P2 — Build a credible benchmark
+## P3 — Build a credible benchmark
 
-1. Collect the first consented operational corpus under the P0 publication
+1. Collect the first consented operational corpus under the P1 publication
    controls; current connected count is zero.
 2. Add annotation, adjudication, inter-rater agreement, and quality sampling.
 3. Freeze train, validation, public-test, and hidden-test splits with leakage
@@ -74,12 +87,19 @@ frozen evaluation split, prompt-injection tests, cost/latency limits, and blinde
 comparison show a measurable improvement over the deterministic baseline. AI
 remains a consumer of the evidence graph, never the owner of ground truth.
 
-## Runtime decision
+## Runtime migration
 
-FastAPI remains the production authority. The .NET 10 spike is a read-only
-parity and operational measurement track. A migration should occur only if full
-OpenAPI, security/RLS, golden-corpus, performance, and operational parity are
-proven and the measured benefit exceeds the migration and split-runtime cost.
+ASP.NET Core 10 is the public control-plane entry point. FastAPI is an internal
+compatibility/application service and Python remains the deterministic risk and
+evidence engine. PostgreSQL is the production source of truth; Alembic stays the
+only schema migration authority during coexistence.
+
+Domain routes move to native .NET vertical slices only after real HTTP contract,
+authentication/RBAC, PostgreSQL RLS, pooled-connection isolation, idempotency,
+failure-mode, and observability parity. Measure HTTP/PostgreSQL throughput,
+tail latency, memory, and error rate before each cutover. The old engine-only
+microbenchmark did not show a C# performance benefit, so duplicating the Python
+engine is explicitly out of scope.
 
 ## Definition of done
 

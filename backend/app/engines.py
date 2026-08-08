@@ -62,17 +62,25 @@ def calculate_change_risk(
     lines_deleted: int,
     changed_services: Sequence[str],
     flags: Sequence[str],
-    test_coverage: float,
-    rollback_ready: bool,
-    observability_score: float,
-    previous_failures: int,
+    test_coverage: float | None,
+    rollback_ready: bool | None,
+    observability_score: float | None,
+    previous_failures: int | None,
     service_tiers: Mapping[str, object] | None = None,
     evidence_prefix: str = "analysis",
 ) -> dict[str, Any]:
     """Return a bounded, explainable risk ledger with fixed public weights."""
 
-    coverage = clamp(test_coverage, 0.0, 1.0)
-    observability = clamp(observability_score, 0.0, 1.0)
+    coverage = (
+        clamp(test_coverage, 0.0, 1.0)
+        if test_coverage is not None
+        else None
+    )
+    observability = (
+        clamp(observability_score, 0.0, 1.0)
+        if observability_score is not None
+        else None
+    )
     total_lines = max(0, lines_added) + max(0, lines_deleted)
     size_score = round(clamp(max(0, files_changed) * 3 + total_lines / 12, 0, 100))
 
@@ -105,11 +113,26 @@ def calculate_change_risk(
             100,
         )
     )
-    test_score = round((1.0 - coverage) * 100)
-    history_score = round(clamp(max(0, previous_failures) * 25, 0, 100))
+    test_score = round((1.0 - coverage) * 100) if coverage is not None else 50
+    history_score = (
+        round(clamp(max(0, previous_failures) * 25, 0, 100))
+        if previous_failures is not None
+        else 25
+    )
     safety_score = round(
         clamp(
-            (0 if rollback_ready else 65) + (1.0 - observability) * 35,
+            (
+                0
+                if rollback_ready is True
+                else 65
+                if rollback_ready is False
+                else 32.5
+            )
+            + (
+                (1.0 - observability) * 35
+                if observability is not None
+                else 17.5
+            ),
             0,
             100,
         )
@@ -143,13 +166,31 @@ def calculate_change_risk(
             + (", ".join(normalized_flags) if normalized_flags else "no elevated flags")
             + "."
         ),
-        "test_confidence": f"Reported test coverage is {coverage:.0%}.",
+        "test_confidence": (
+            f"Reported test coverage is {coverage:.0%}."
+            if coverage is not None
+            else "No test coverage evidence was supplied."
+        ),
         "operational_history": (
             f"{max(0, previous_failures)} related previous failures were reported."
+            if previous_failures is not None
+            else "No related failure history was supplied."
         ),
         "safety_readiness": (
-            f"Rollback readiness is {'available' if rollback_ready else 'missing'}; "
-            f"observability is {observability:.0%}."
+            "Rollback readiness is "
+            + (
+                "available"
+                if rollback_ready is True
+                else "missing"
+                if rollback_ready is False
+                else "unknown"
+            )
+            + "; observability is "
+            + (
+                f"{observability:.0%}."
+                if observability is not None
+                else "unknown."
+            )
         ),
     }
     evidence_suffixes = {
@@ -196,7 +237,11 @@ def calculate_change_risk(
         recommendations.append(
             "Require an owner review for the elevated change type before deployment."
         )
-    if test_score >= 35:
+    if coverage is None:
+        recommendations.append(
+            "Attach SHA-matched test evidence before treating this change as verified."
+        )
+    elif test_score >= 35:
         recommendations.append(
             "Add targeted tests for the changed paths before promoting the deployment."
         )
@@ -204,11 +249,11 @@ def calculate_change_risk(
         recommendations.append(
             "Use a staged rollout and watch directly dependent services."
         )
-    if not rollback_ready:
+    if rollback_ready is not True:
         recommendations.append(
             "Prepare and verify a rollback procedure before deployment."
         )
-    if observability < 0.7:
+    if observability is None or observability < 0.7:
         recommendations.append(
             "Add telemetry for the changed services before rollout."
         )
@@ -219,9 +264,15 @@ def calculate_change_risk(
 
     data_quality = round(
         clamp(
-            0.55
-            + observability * 0.20
-            + coverage * 0.15
+            0.35
+            + (
+                observability * 0.20
+                if observability is not None
+                else 0.0
+            )
+            + (coverage * 0.15 if coverage is not None else 0.0)
+            + (0.10 if rollback_ready is not None else 0.0)
+            + (0.10 if previous_failures is not None else 0.0)
             + (0.10 if changed_services else 0.0),
             0,
             1,

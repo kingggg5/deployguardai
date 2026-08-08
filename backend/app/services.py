@@ -1160,11 +1160,11 @@ def process_github_webhook(
                         lines_added=int(pr_data.get("additions") or 0),
                         lines_deleted=int(pr_data.get("deletions") or 0),
                         changed_services=[repository.full_name],
-                        flags=labels[:100],
-                        test_coverage=0.0,
-                        rollback_ready=False,
-                        observability_score=0.0,
-                        previous_failures=0,
+                        flags=[*labels[:99], "provider-metadata-only"],
+                        test_coverage=None,
+                        rollback_ready=None,
+                        observability_score=None,
+                        previous_failures=None,
                     ),
                     workspace_id=connection.workspace_id,
                     repository_id=repository.id,
@@ -1220,8 +1220,9 @@ def process_github_webhook(
                 delivery_id=delivery_id,
                 change_id=detail.id,
                 detail=(
-                    "Verified pull request evidence was analyzed in its "
-                    "connected repository context."
+                    "Pull request metadata was analyzed in its connected "
+                    "repository context. Verification evidence remains "
+                    "unknown until a SHA-matched DeployGuard receipt exists."
                     + (
                         " GitHub Check publication was durably queued."
                         if queued_check is not None

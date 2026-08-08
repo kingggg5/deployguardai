@@ -1,0 +1,26 @@
+schema_version: deployguard-policy/v0.1
+requirements:
+  tests:
+    required: true
+    skip_for_docs_only: true
+  build:
+    required: false
+  coverage:
+    required: false
+    minimum_line_rate: 0.0
+  security:
+    required: false
+    block_severities:
+      - critical
+      - high
+path_rules:
+  - id: security-sensitive-change
+    patterns:
+      - .github/workflows/**
+      - "**/auth/**"
+      - "**/security/**"
+      - "**/migrations/**"
+      - "**/Dockerfile"
+      - Dockerfile
+    required_evidence:
+      - security

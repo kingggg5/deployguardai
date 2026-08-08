@@ -4,6 +4,17 @@ DeployGuard exposes typed JSON under `/api/v1`. The generated OpenAPI document
 at `/openapi.json` and interactive UI at `/docs` are the field-level source of
 truth. This document records the stable behavioral and authorization contract.
 
+Clients use the ASP.NET Core 10 public control plane. During the measured
+migration, native health routes terminate there and versioned application
+routes are forwarded to the internal FastAPI compatibility service without
+changing method, path, query, body, status, headers, or the `{detail, code}`
+domain-error envelope. The captured v1 document remains the compatibility gate
+until a native .NET slice proves semantic parity.
+
+The standalone `deployguard verify` CLI is not an HTTP endpoint. Its versioned
+JSON contract is `verify/schema/evidence-receipt-v0.1.schema.json`; it performs
+no network request and can run without this API or an LLM key.
+
 ## Authentication and tenant scope
 
 - Production uses OIDC bearer tokens validated by issuer, audience, signature,
@@ -64,6 +75,12 @@ All paths below are relative to `/api/v1`.
 `/synthesize-llm` is a deprecated compatibility alias for `/synthesize`; it
 does not call a model.
 
+`POST /changes/analyze` accepts nullable test coverage, rollback readiness,
+observability, and previous-failure evidence. `null` means unknown and is kept
+distinct from observed zero/false. GitHub webhook metadata uses this unknown
+lane; its App Check is neutral until a separately authenticated, SHA-matched
+Evidence Receipt ingestion contract is implemented.
+
 ### Operations
 
 | Method | Path | Minimum role |
@@ -88,7 +105,34 @@ does not call a model.
 | `POST` | `/reset-database` | Explicit synthetic-mode flag only |
 
 The telemetry endpoint accepts DeployGuard's normalized metric/log/trace/alert
-contract. It is not a native OTLP receiver.
+contract. It is not a native OTLP receiver; do not point an `otlphttp` exporter
+at this route. A trusted normalization/redaction gateway must send:
+
+```http
+POST /api/v1/telemetry/events
+Authorization: Bearer dgct_<workspace-hmac>
+Content-Type: application/json
+X-DeployGuard-Workspace: <workspace-id>
+X-DeployGuard-Repository: <optional-repository-id>
+X-DeployGuard-Event-ID: <stable-source-event-id>
+```
+
+```json
+{
+  "source": "otel-gateway",
+  "type": "metric",
+  "service_id": "checkout-api",
+  "summary": "Checkout p95 latency exceeded the review threshold",
+  "value": 2.7,
+  "supports_hypothesis_ids": [],
+  "contradicts_hypothesis_ids": []
+}
+```
+
+`service_id` may be a service UUID or its workspace-unique slug; connected
+workspaces require a registered service. The API records server-owned
+`telemetry` provenance and retains the submitted source only as provider
+metadata. Stable event IDs make retries idempotent.
 
 ## Human verdict contract
 

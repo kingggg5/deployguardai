@@ -64,6 +64,27 @@ def test_risk_is_deterministic_and_safer_inputs_score_lower() -> None:
     assert safe["overall_score"] < risky["overall_score"]
 
 
+def test_unknown_change_evidence_stays_explicit_and_conservative() -> None:
+    result = calculate_change_risk(
+        files_changed=3,
+        lines_added=20,
+        lines_deleted=4,
+        changed_services=["checkout-api"],
+        flags=["provider-metadata-only"],
+        test_coverage=None,
+        rollback_ready=None,
+        observability_score=None,
+        previous_failures=None,
+    )
+
+    dimensions = {item["key"]: item for item in result["dimensions"]}
+    assert dimensions["test_confidence"]["score"] == 50
+    assert "No test coverage evidence" in dimensions["test_confidence"]["reason"]
+    assert "unknown" in dimensions["safety_readiness"]["reason"]
+    assert result["data_quality"] < 0.5
+    assert any("SHA-matched test evidence" in item for item in result["recommendations"])
+
+
 def test_blast_radius_uses_bfs_decay_and_handles_cycles() -> None:
     nodes = [
         {

@@ -18,9 +18,19 @@ services:
       retries: 12
     restart: unless-stopped
 
-  api:
+  python-api:
     build:
       context: ./backend
+    command:
+      - uvicorn
+      - app.main:app
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8100"
+      - --proxy-headers
+      - --forwarded-allow-ips
+      - ${PYTHON_API_FORWARDED_ALLOW_IPS:-172.16.0.0/12}
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-container}
       DATABASE_URL: ${COMPOSE_DATABASE_URL:-postgresql+psycopg://${POSTGRES_APP_USER:-deployguard}:${POSTGRES_APP_PASSWORD:-deployguard-app-dev-only}@postgres:5432/${POSTGRES_DB:-deployguard}}
@@ -62,8 +72,6 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-}
       SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
-    ports:
-      - "8100:8100"
     depends_on:
       postgres:
         condition: service_healthy
@@ -75,6 +83,36 @@ services:
         - python
         - -c
         - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8100/api/v1/health/ready')"
+      interval: 10s
+      timeout: 4s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./control-plane
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      Upstream__BaseUrl: http://python-api:8100
+      Database__ProbeEnabled: "true"
+      ConnectionStrings__DeployGuard: ${CONTROL_PLANE_DATABASE_CONNECTION_STRING:-Host=postgres;Port=5432;Database=${POSTGRES_DB:-deployguard};Username=${POSTGRES_APP_USER:-deployguard};Password=${POSTGRES_APP_PASSWORD:-deployguard-app-dev-only};Pooling=true;Maximum Pool Size=64;Timeout=5;Command Timeout=5}
+      ForwardedHeaders__TrustedProxyCidrs__0: ${CONTROL_PLANE_TRUSTED_PROXY_CIDR:-172.16.0.0/12}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${CONTROL_PLANE_OTLP_ENDPOINT:-}
+      DataMode: ${DEPLOYGUARD_DATA_MODE:-connected}
+    ports:
+      - "127.0.0.1:8100:8080"
+    depends_on:
+      python-api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --quiet
+        - --tries=1
+        - --spider
+        - http://127.0.0.1:8080/api/v1/health/ready
       interval: 10s
       timeout: 4s
       retries: 10
@@ -112,7 +150,7 @@ services:
       OTEL_SERVICE_NAME: deployguard-worker
       OTEL_EXPORT_TIMEOUT_SECONDS: ${OTEL_EXPORT_TIMEOUT_SECONDS:-5}
     depends_on:
-      api:
+      python-api:
         condition: service_healthy
     healthcheck:
       test:

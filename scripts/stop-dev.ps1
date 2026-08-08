@@ -37,7 +37,7 @@ function Stop-ProjectProcessTree {
     return $true
 }
 
-foreach ($name in @('backend', 'worker', 'frontend')) {
+foreach ($name in @('backend', 'python-api', 'api', 'worker', 'frontend')) {
     $pidPath = Join-Path $runtimeRoot "$name.pid"
     if (-not (Test-Path -LiteralPath $pidPath)) {
         continue

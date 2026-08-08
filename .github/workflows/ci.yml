@@ -16,6 +16,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  deployguard-verify:
+    name: DeployGuard Verify package
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: verify/pyproject.toml
+
+      - name: Install Verify test dependencies
+        run: python -m pip install --disable-pip-version-check -e "./verify[test]"
+
+      - name: Compile and test Verify
+        run: |
+          python -m compileall -q verify/deployguard_verify
+          python -m pytest verify/tests
+
   backend:
     name: Backend tests and migrations
     runs-on: ubuntu-latest
@@ -176,7 +201,7 @@ jobs:
         env:
           OBSERVABILITY_OTLP_ENDPOINT: https://telemetry.example
           OBSERVABILITY_OTLP_TOKEN: ci-placeholder
-          DEPLOYGUARD_API_METRICS_TARGET: api:8100
+          DEPLOYGUARD_API_METRICS_TARGET: python-api:8100
         run: >-
           docker run --rm
           --env OBSERVABILITY_OTLP_ENDPOINT
@@ -230,8 +255,8 @@ jobs:
             bench/datasets/synthetic-v0.1/manifest.json
           if-no-files-found: error
 
-  dotnet-spike:
-    name: .NET 10 read-only parity spike
+  control-plane:
+    name: .NET 10 control plane
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -241,34 +266,33 @@ jobs:
           persist-credentials: false
 
       - name: Set up .NET 10
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
 
-      - name: Build read-only spike
+      - name: Restore control-plane dependencies
         run: >-
-          dotnet build spikes/dotnet-readonly/DeployGuard.ReadOnlySpike.csproj
-          --configuration Release --nologo
+          dotnet restore control-plane/DeployGuard.ControlPlane.slnx
 
-      - name: Verify golden and read-contract parity
+      - name: Build control plane
         run: >-
-          dotnet run --project spikes/dotnet-readonly/DeployGuard.ReadOnlySpike.csproj
-          --configuration Release --no-build -- --verify --output dotnet-spike-report.json
+          dotnet build control-plane/DeployGuard.ControlPlane.slnx
+          --configuration Release --no-restore --nologo
 
-      - name: Compare same-workload engine benchmark
+      - name: Test control plane
         run: >-
-          python scripts/compare_runtime_benchmarks.py
-          --iterations 1000 --repetitions 3
-          --output runtime-benchmark-comparison.json
+          dotnet test control-plane/DeployGuard.ControlPlane.slnx
+          --configuration Release --no-build --nologo
+          --collect:"XPlat Code Coverage"
+          --results-directory control-plane/TestResults
 
-      - name: Upload .NET spike evidence
+      - name: Upload control-plane coverage
+        if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: deployguard-dotnet-spike
-          path: |
-            dotnet-spike-report.json
-            runtime-benchmark-comparison.json
-          if-no-files-found: error
+          name: deployguard-control-plane-coverage
+          path: control-plane/TestResults/**/coverage.cobertura.xml
+          if-no-files-found: warn
 
   containers:
     name: Build application containers
@@ -280,8 +304,11 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Build API image
-        run: docker build --tag deployguard-ai-api:ci ./backend
+      - name: Build control-plane API image
+        run: docker build --tag deployguard-ai-api:ci ./control-plane
+
+      - name: Build Python engine image
+        run: docker build --tag deployguard-ai-engine:ci ./backend
 
       - name: Build web image
         run: docker build --tag deployguard-ai-web:ci ./frontend
@@ -289,15 +316,18 @@ jobs:
       - name: Start the production-shaped Compose runtime
         run: >-
           docker compose up --build --wait --wait-timeout 180
-          postgres migrate grant-runtime api worker web
+          postgres migrate grant-runtime python-api api worker web
 
-      - name: Smoke test API, web, worker, and runtime RLS role
+      - name: Smoke test control plane, engine, web, worker, and runtime RLS role
         run: |
           curl --fail --retry 30 --retry-delay 2 --retry-connrefused \
             http://127.0.0.1:8100/api/v1/health/ready
           curl --fail --retry 30 --retry-delay 2 --retry-connrefused \
+            http://127.0.0.1:8100/api/v1/capabilities
+          curl --fail --retry 30 --retry-delay 2 --retry-connrefused \
             http://127.0.0.1:4300/
-          docker compose exec -T api python -c "import os; assert os.geteuid() != 0"
+          docker compose exec -T api sh -c 'test "$(id -u)" -ne 0'
+          docker compose exec -T python-api python -c "import os; assert os.geteuid() != 0"
           docker compose exec -T worker python -c "import os; assert os.geteuid() != 0"
           test "$(docker compose exec -T -e PGPASSWORD=deployguard-app-dev-only postgres \
             psql -U deployguard -d deployguard -Atc \

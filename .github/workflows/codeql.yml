@@ -24,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [python, javascript-typescript]
+        language: [python, javascript-typescript, csharp]
     steps:
       - name: Check out source
         uses: actions/checkout@v7
@@ -61,8 +61,14 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      - name: Set up .NET for CodeQL
+        if: matrix.language == 'csharp'
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
       - name: Autobuild analyzed code
-        if: matrix.language == 'javascript-typescript'
+        if: matrix.language == 'javascript-typescript' || matrix.language == 'csharp'
         uses: github/codeql-action/autobuild@v4.37.4
 
       - name: Upload CodeQL results

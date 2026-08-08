@@ -1,0 +1,4 @@
+interface:
+  display_name: "DeployGuard Change Safety"
+  short_description: "Verify changes with deterministic evidence receipts"
+  default_prompt: "Use $deployguard-change-safety to verify this change and cite its evidence receipt."

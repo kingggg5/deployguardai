@@ -1,157 +1,125 @@
 # DeployGuard AI
 
-**Evidence-first change risk, incident investigation, and operational dataset governance for production teams.**
+**Deterministic change evidence before merge. Accountable production evidence after deploy. No LLM key required.**
 
 [![CI](https://github.com/kingggg5/deployguardai/actions/workflows/ci.yml/badge.svg)](https://github.com/kingggg5/deployguardai/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/kingggg5/deployguardai/actions/workflows/codeql.yml/badge.svg)](https://github.com/kingggg5/deployguardai/actions/workflows/codeql.yml)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/kingggg5/deployguardai/badge)](https://securityscorecards.dev/viewer/?uri=github.com/kingggg5/deployguardai)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 
-[English](README.md) · [ภาษาไทย](README_TH.md) · [Quickstart](docs/QUICKSTART.md) · [Documentation](docs/ARCHITECTURE.md)
+[English](README.md) · [ภาษาไทย](README_TH.md) · [Quickstart](docs/QUICKSTART.md) · [API contract](docs/API_CONTRACT.md) · [Roadmap](docs/ROADMAP.md)
 
 ![DeployGuard AI investigation workspace](docs/assets/dashboard-runtime-desktop.png)
 
-DeployGuard connects changes, deployments, service topology, runtime signals,
-and human decisions in one evidence ledger. It helps an engineer answer two
-questions: **why is this change risky?** and **which incident hypothesis is best
-supported by evidence?** It never deploys, rolls back, or changes infrastructure.
+DeployGuard AI is an open-source change-safety platform for GitHub, DevOps,
+and SRE teams. It turns existing CI artifacts into reproducible receipts tied
+to an exact commit, then preserves deployment, incident, evidence, and human
+decision history in one auditable system.
 
-## Why teams use it
+DeployGuard does not upload source code to an LLM, execute repository-defined
+commands, deploy, roll back, or modify production infrastructure.
 
-- **Explain risk before production.** See weighted signals, missing evidence,
-  rollback readiness, service criticality, and dependency blast radius.
-- **Investigate with evidence and counter-evidence.** Rank hypotheses without
-  hiding uncertainty, then preserve the next verification step.
-- **Keep human decisions accountable.** Verdicts carry server-owned actor
-  provenance and structured verification outcomes with cited evidence IDs.
-- **Turn incidents into reproducible memory.** Content-addressed postmortem
-  snapshots preserve exactly what reviewers approved at a point in time.
-- **Prepare operational data safely.** Connected records can only become dataset
-  candidates after resolution, immutable snapshotting, and audited,
-  purpose-specific consent. Passing the gate still does not export data.
+## Why DeployGuard
 
-## What is included
+- **Prove what ran.** Bind JUnit, Cobertura/LCOV, SARIF, and build evidence to
+  the exact base and head SHAs.
+- **Keep unknown honest.** Missing, stale, or mismatched evidence becomes
+  `REVIEW`, never a fabricated zero or successful check.
+- **Investigate with evidence.** Preserve supporting evidence,
+  counter-evidence, uncertainty, verification steps, and accountable verdicts.
+- **Build operational memory safely.** Govern postmortem snapshots and dataset
+  eligibility with actor provenance, consent, privacy, and license gates.
 
-| Area | Capabilities |
-| --- | --- |
-| Change risk | Deterministic scoring, versioned policies, missing-evidence signals, rollback readiness, and blast radius |
-| Incident investigation | Timeline, evidence ledger, counter-evidence, ranked hypotheses, assignments, notifications, and human verdicts |
-| Dataset governance | Actor provenance, structured verification, immutable postmortem snapshots, append-only consent decisions, and readiness gates |
-| GitHub integration | GitHub App installation, repository sync, signed PR/deployment webhooks, and optional Check Runs |
-| Team workspaces | OIDC/development auth, role-based access, invitations, audit events, and tenant isolation |
-| Operations | Service catalog, normalized telemetry, durable jobs, retries, dead letters, traces, metrics, backup, and restore tooling |
-| Evaluation | DeployGuard Bench schema, versioned synthetic examples, SHA-256 manifests, golden/property tests, and CI artifacts |
-
-## Operational data, evidence graph, dataset
-
-DeployGuard treats AI as a **consumer** of verified operational data—not as the
-source of evidence or ground truth.
+## How it works
 
 ```mermaid
 flowchart LR
-    Data["Operational data\nGitHub · deployments · telemetry"] --> Graph["Evidence graph\nprovenance · counter-evidence"]
-    Graph --> Review["Human review\nverdict · verification · postmortem"]
-    Review --> Gate["Dataset promotion gate\nconsent · privacy · license"]
-    Gate -. "connected export remains disabled" .-> Bench["DeployGuard Bench"]
-    Bench --> Consumer["Evaluation and future LLM consumers"]
+    PR["Pull request"] --> CI["Existing CI artifacts"]
+    CI --> Verify["DeployGuard Verify"]
+    Verify --> Receipt["SHA-bound evidence receipt"]
+    Receipt --> Check["PASS · REVIEW · BLOCK"]
+    Deploy["Deployment and telemetry"] --> Graph["Evidence graph"]
+    Graph --> Verdict["Human verdict and postmortem"]
+    Verdict --> Gate["Governed dataset gate"]
+    Receipt -. "connected receipt ingestion: planned" .-> Deploy
 ```
 
-![Dataset promotion gate](docs/assets/dataset-promotion-gate-desktop.png)
+The CLI is the decision authority. The optional Skill and `AGENTS.md` improve
+agent workflow, but agent prose cannot change a receipt or bypass policy.
 
-### Dataset maturity
+## Try Verify locally
 
-| Layer | Status |
-| --- | --- |
-| Synthetic schema, export, and evaluation foundation | **Implemented.** DeployGuard Bench v0.1 has 3 synthetic examples: 2 evaluation-eligible, 1 unverified, 0 training-approved. |
-| Connected incident capture governance | **Implemented.** Actor provenance, structured verification, immutable snapshots, and audited consent are enforced and recorded. |
-| Connected export and publication pipeline | **Not implemented.** The connected-data exporter is intentionally closed; redaction, release review, and revocation propagation remain required. |
-| Production LLM dataset or public benchmark | **Not complete.** There is no real consented corpus, frozen hidden test set, public leaderboard, or external model integration. |
-
-The target of 1,000 deployment scenarios and 500 incident investigations is a
-roadmap goal, not a current dataset-size claim. See [DeployGuard Bench](bench/README.md)
-and the [AI boundary](docs/AI_BOUNDARY.md).
-
-## Quick start
-
-Requirements: Docker Engine or Docker Desktop with Compose v2.
+DeployGuard Verify is pre-release and currently installs from a checkout:
 
 ```bash
 git clone https://github.com/kingggg5/deployguardai.git
 cd deployguardai
+python -m pip install ./verify
+
+deployguard verify --base origin/main --head HEAD \
+  --evidence-sha "$(git rev-parse HEAD)" \
+  --junit artifacts/junit.xml \
+  --coverage artifacts/coverage.xml \
+  --sarif artifacts/results.sarif
+```
+
+The command writes `.deployguard/artifacts/evidence-receipt.json`.
+
+| Decision | Exit | Meaning |
+| --- | ---: | --- |
+| `PASS` | `0` | Every required artifact is present, fresh, SHA-matched, and compliant. |
+| `REVIEW` | `2` | Evidence is missing, stale, mismatched, or requires a human decision. |
+| `BLOCK` | `3` | Observed evidence violates an objective policy rule. |
+| `ERROR` | `4` | Verification could not complete; the gate fails closed. |
+
+Run `deployguard init --github --agent codex` to create a protected-base policy,
+a fail-closed workflow, and concise repository guidance. The composite
+[GitHub Action](action.yml) is available at the repository root; publish and
+pin a full release SHA before depending on it in a protected production branch.
+
+## Run the connected platform
+
+Requirements: Docker Engine or Docker Desktop with Compose v2.
+
+```bash
 docker compose up --build
 ```
 
-Open the app at <http://127.0.0.1:4300> and OpenAPI at
-<http://127.0.0.1:8100/docs>. Connected mode starts empty. For the isolated,
-deterministic product tour:
+Open the web app at <http://127.0.0.1:4300> and the public API through the .NET
+control plane at <http://127.0.0.1:8100/docs>. Connected mode starts empty. See
+the [Quickstart](docs/QUICKSTART.md) for GitHub App, OIDC, synthetic demo, and
+local development setup.
 
-```bash
-docker compose -p deployguard-demo \
-  -f docker-compose.yml -f docker-compose.demo.yml up --build
-```
+## What is available today
 
-Synthetic records are visibly labelled and never pass the connected-data gate.
-Provider setup, local development, and cleanup are in the
-[quickstart](docs/QUICKSTART.md).
+| Product lane | Status |
+| --- | --- |
+| Keyless verification | Deterministic CLI, protected-base policy, canonical receipt, stable exit codes, and composite Action are implemented. |
+| Connected operations | Workspaces, GitHub events, change risk, deployments, telemetry, incidents, evidence graphs, verdict provenance, jobs, and PostgreSQL RLS are implemented. |
+| Outcome closure | Authenticated receipt ingestion and explicit stable/failed/rolled-back outcome closure remain P0. |
+| Dataset and evaluation | Synthetic schema, manifests, governed promotion gates, and evaluation tooling exist; no real public production corpus or leaderboard is claimed. |
 
 ## Architecture
 
-```mermaid
-flowchart LR
-    User["Engineer or SRE"] --> Web["Angular web app"]
-    Web --> API["FastAPI control plane"]
-    GitHub["GitHub App"] -->|"signed events"| API
-    OIDC["OIDC"] --> API
-    Telemetry["Normalized telemetry"] --> API
-    API --> Engines["Deterministic risk and evidence engines"]
-    API --> Jobs["Durable job/outbox"]
-    Jobs --> Worker["Supervised worker"]
-    API --> DB[("PostgreSQL or SQLite")]
-    Engines --> DB
-```
+Angular is the web client. ASP.NET Core 10 and YARP form the public,
+fail-closed control plane. FastAPI owns the internal application services, and
+Python remains the deterministic risk/evidence engine. PostgreSQL 16 is the
+production source of truth with row-level tenant isolation; SQLite supports
+local development. See the [detailed architecture (Thai)](docs/ARCHITECTURE.md)
+and the [API contract](docs/API_CONTRACT.md).
 
-PostgreSQL is the production source of truth and enforces row-level tenant
-isolation. SQLite supports local development. A separate [.NET 10 read-only
-spike](spikes/dotnet-readonly/README.md) measures parity without replacing the
-production authority.
+## Project status
 
-## Technology and verification
+DeployGuard is pre-1.0. The core evidence and governance contracts are tested,
+but the standalone Action has not been released as `v1`, connected receipt
+ingestion is not complete, and DeployGuard Bench contains synthetic—not
+production—examples. Track these boundaries in the [Roadmap](docs/ROADMAP.md),
+[AI boundary](docs/AI_BOUNDARY.md), and [dataset card](bench/README.md).
 
-- **Web:** Angular 22, TypeScript 6, RxJS, SCSS design tokens
-- **API:** Python 3.12, FastAPI, Pydantic 2, SQLAlchemy 2, Alembic
-- **Data:** PostgreSQL 16 with RLS; SQLite for local development
-- **Operations:** Docker Compose, OpenTelemetry, Prometheus, Nginx, GHCR
-- **Quality:** Pytest, Vitest, golden/property/contract tests, CodeQL,
-  dependency review, OpenSSF Scorecard, SBOM, and build provenance
+## Community
 
-```bash
-cd backend && python -m pytest && cd ..
-cd frontend && npm test -- --watch=false && npm run build && cd ..
-docker compose config --quiet
-python scripts/evaluate_benchmarks.py --output .runtime/evaluation-results.json
-python scripts/export_operational_dataset.py --check --output-dir bench/datasets/synthetic-v0.1
-python scripts/capture_contracts.py --check
-```
+- [Contributing](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Governance](GOVERNANCE.md)
+- [Security policy](.github/SECURITY.md) · [Threat model](docs/SECURITY.md) · [Support](SUPPORT.md)
+- [Operations](docs/OPERATIONS.md) · [Data model](docs/DATA_MODEL.md) · [Changelog](CHANGELOG.md)
 
-## Documentation and community
-
-[Quickstart](docs/QUICKSTART.md) · [Architecture](docs/ARCHITECTURE.md) ·
-[API](docs/API_CONTRACT.md) · [Security](docs/SECURITY.md) ·
-[Operations](docs/OPERATIONS.md) · [Evaluation](docs/EVALUATION.md) ·
-[Roadmap](docs/ROADMAP.md) · [Contributing](CONTRIBUTING.md)
-
-Vulnerabilities must be reported privately through
-[`.github/SECURITY.md`](.github/SECURITY.md). DeployGuard is licensed under
-[Apache-2.0](LICENSE).
-
-## Current limitations
-
-- No external LLM provider or public, real-world RCA benchmark is integrated.
-- Connected export, deterministic secret/PII redaction, publication review,
-  release registry, and revocation propagation are not implemented.
-- Telemetry uses DeployGuard's normalized contract; there is no native OTLP
-  evidence receiver yet.
-- Slack, Teams, PagerDuty, autonomous remediation, and production execution are
-  intentionally not bundled.
-- Managed secrets, multi-replica rate limiting, alert routing, backup storage,
-  and disaster-recovery ownership remain operator responsibilities.
+DeployGuard AI is licensed under [Apache-2.0](LICENSE).
