@@ -30,9 +30,8 @@ every production environment is configured or independently certified.
 
 ## P0 — Close the change outcome loop
 
-1. The tag-driven Verify Action release workflow, package smoke tests, and
-   immutable local `v0.1.0` release candidate are ready. Push the tag and
-   self-dogfood it on a protected branch before calling the release public.
+1. Self-dogfood the released `DeployGuard Verify` Action at tag `2` on a
+   protected branch and prove 10/10 byte-identical receipt replay.
 2. Keep authenticated/attested receipt ingestion fail-closed; cryptographic
    attestation verification remains an operator/provider integration concern.
 3. Publish PASS/REVIEW/BLOCK only from an accepted receipt; metadata-only

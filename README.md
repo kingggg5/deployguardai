@@ -1,112 +1,126 @@
 # DeployGuard AI
 
-**Prove what was checked before a change ships—and record what happened next—without sending source code to an LLM.**
+**Prove what was checked before a change ships—and record what happened after—without sending source code to an LLM.**
 
 [![CI](https://github.com/kingggg5/deployguardai/actions/workflows/ci.yml/badge.svg)](https://github.com/kingggg5/deployguardai/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/kingggg5/deployguardai/actions/workflows/codeql.yml/badge.svg)](https://github.com/kingggg5/deployguardai/actions/workflows/codeql.yml)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/kingggg5/deployguardai/badge)](https://securityscorecards.dev/viewer/?uri=github.com/kingggg5/deployguardai)
-[![Release](https://img.shields.io/github/v/release/kingggg5/deployguardai?display_name=tag)](https://github.com/kingggg5/deployguardai/releases)
+[![GitHub Action](https://img.shields.io/badge/GitHub_Action-@2-2088ff?logo=githubactions&logoColor=white)](https://github.com/marketplace/actions/deployguard-verify)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
-
-> **Status:** self-hosted alpha. DeployGuard Verify is released as `v0.1.0`.
-> Connected deployments still require operator-managed infrastructure and credentials.
 
 [ภาษาไทย](README_TH.md) · [Quickstart](docs/QUICKSTART.md) · [Architecture](docs/ARCHITECTURE.md) · [Roadmap](docs/ROADMAP.md) · [Security](docs/SECURITY.md)
 
 ![DeployGuard operations surface](docs/assets/operations-surface-desktop.png)
 
-DeployGuard is an open-source change-safety and production-evaluation platform
-for GitHub, platform engineering, DevOps, and SRE teams. It converts the
-artifacts your CI already produces into a canonical receipt bound to the exact
-base and head commits. Connected mode can then associate that revision with a
-deployment, incident, rollback, stability window, and accountable human verdict.
+DeployGuard AI is an open-source change-safety platform for GitHub, platform
+engineering, DevOps, and SRE teams. It converts artifacts your CI already
+produces into a canonical receipt bound to the exact base and head commits.
+Connected mode then links that revision to deployment outcomes, incidents,
+rollbacks, stability windows, and accountable human decisions.
 
-## Why DeployGuard
+No LLM key is required for verification. Agent Skills improve the workflow;
+the deterministic receipt—not agent prose—owns the decision.
+
+## Why teams use it
 
 | Problem | DeployGuard response |
 | --- | --- |
-| Green CI does not show what was actually checked | Canonical receipt with evidence IDs, hashes, source SHA, freshness, and unknown lanes |
-| Pull-request metadata is not verification | PASS, REVIEW, BLOCK, and ERROR come from parsed artifacts and protected-base policy |
-| Deployment and incident history live in separate tools | Exact-SHA outcome records connect change, deployment, incident, rollback, and human confirmation |
-| Operational data is difficult to reuse safely | Consent, redaction, immutable release records, revocation tombstones, and leakage checks |
-| Agent prose can sound more certain than the evidence | The CLI is authoritative; Skills can orchestrate it but cannot change its decision |
+| Green CI does not explain what was checked | One content-addressed receipt records evidence IDs, hashes, source SHA, and policy results. |
+| Missing evidence is easy to overlook | Missing, stale, or SHA-mismatched input becomes `REVIEW`, never an inferred pass. |
+| Agent reviews can sound more certain than their sources | The Skill must cite the receipt and cannot manufacture evidence or override its decision. |
+| Change, deployment, and incident history live in separate tools | Exact-SHA records connect verification, outcome, incident, rollback, and human confirmation. |
+| Operational data is difficult to reuse safely | Consent, redaction, immutable release records, revocation tombstones, and leakage checks govern export. |
+| Every repository invents a different review ritual | The same Action, CLI, policy, and Skill contract can be reused across teams and languages. |
 
-DeployGuard does **not** upload source code to an LLM, execute repository
-commands, merge pull requests, deploy, roll back, or modify infrastructure.
+DeployGuard does **not** execute repository-defined commands, merge pull
+requests, deploy, roll back, remediate infrastructure, or accept model output as
+verification evidence.
 
-## Verify a pull request
+## Choose your entry point
 
-Use the composite Action after your build and test steps. Start with the release
-tag, then replace it with the tag's full commit SHA before protecting the check.
+| Entry point | Best for | What it provides |
+| --- | --- | --- |
+| **GitHub Action** | Required checks on pull requests | Keyless, deterministic `PASS` / `REVIEW` / `BLOCK` / `ERROR` from existing CI artifacts. |
+| **Codex Plugin + Skill** | Developers reviewing changes with an agent | A repeatable evidence workflow, honest missing-evidence handling, and receipt citations. |
+| **CLI** | Local development and any CI system | The same verifier contract without GitHub-specific orchestration. |
+| **Connected platform** | Platform and SRE teams | GitHub ingestion, deployments, telemetry, incidents, evidence graphs, human verdicts, RLS, and operations UI. |
+
+## Install the GitHub Action
+
+The Marketplace release is available at major tag `2`:
 
 ```yaml
-name: DeployGuard Verify
-on: pull_request
-
-permissions:
-  contents: read
-
-jobs:
-  evidence:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 0
-          persist-credentials: false
-
-      # Run your build, tests, coverage, and security tools here.
-
-      - uses: kingggg5/deployguardai@v0.1.0
-        with:
-          base-sha: ${{ github.event.pull_request.base.sha }}
-          head-sha: ${{ github.event.pull_request.head.sha }}
-          evidence-sha: ${{ github.event.pull_request.head.sha }}
-          build-status: success
-          junit: artifacts/junit.xml
-          coverage: artifacts/coverage.xml
-          sarif: artifacts/results.sarif
+- name: DeployGuard Verify
+  uses: kingggg5/deployguardai@2
+  with:
+    base-sha: ${{ github.event.pull_request.base.sha }}
+    head-sha: ${{ github.event.pull_request.head.sha }}
+    evidence-sha: ${{ github.event.pull_request.head.sha }}
+    build-status: success
+    junit: artifacts/junit.xml
+    coverage: artifacts/coverage.xml
+    sarif: artifacts/results.sarif
 ```
 
-Resolve the immutable release pin with:
+For a protected production branch, pin the reviewed release commit instead of
+the movable convenience tag:
 
-```bash
-git ls-remote https://github.com/kingggg5/deployguardai.git 'refs/tags/v0.1.0^{}'
+```yaml
+uses: kingggg5/deployguardai@4cf9957da315bd384326c772bdaecbecf15c725b
 ```
 
-The Action writes `.deployguard/artifacts/evidence-receipt.json`. Missing,
-stale, or SHA-mismatched evidence stays REVIEW; it never becomes PASS by
-inference.
+Run your build, tests, coverage, and security tools before this step. DeployGuard
+imports their outputs; it does not run arbitrary project commands. The Action
+writes `.deployguard/artifacts/evidence-receipt.json`.
+
+Release `@2` creates the local receipt only; it does not publish that receipt to
+a connected DeployGuard instance. The [Quickstart](docs/QUICKSTART.md) documents
+the explicit authenticated publisher and the source/release boundary.
 
 | Decision | Exit | Meaning |
 | --- | ---: | --- |
-| PASS | 0 | Required evidence is present, exact-SHA matched, and compliant. |
-| REVIEW | 2 | Evidence is missing, stale, mismatched, or needs a human decision. |
-| BLOCK | 3 | Observed evidence violates an objective policy rule. |
-| ERROR | 4 | Verification could not complete; the gate failed closed. |
+| `PASS` | `0` | Required evidence is present, exact-SHA matched, and compliant. |
+| `REVIEW` | `2` | Evidence is missing, stale, mismatched, or needs a human decision. |
+| `BLOCK` | `3` | Observed evidence violates an objective policy rule. |
+| `ERROR` | `4` | Verification could not complete; the gate failed closed. |
 
-## Use it as a Codex plugin
+See the [full Action and connected-receipt setup](docs/QUICKSTART.md).
 
-DeployGuard ships one focused Agent Skill. It helps an agent collect the
-authorized artifacts, invoke the verifier, and cite the resulting receipt. It
-cannot manufacture evidence, weaken protected-base policy, or override a gate.
+## Install the Codex Plugin
+
+The repository includes one focused Skill: `deployguard-change-safety`. Add the
+Git marketplace, restart Codex, then install **DeployGuard AI** from Plugins:
 
 ```bash
 codex plugin marketplace add kingggg5/deployguardai --ref main
 ```
 
-Restart Codex, open **Plugins**, and install **DeployGuard AI**. Then ask:
+Ask the agent:
 
 ```text
-Use $deployguard-change-safety to verify this pull request and cite its evidence receipt.
+Use $deployguard-change-safety to verify this pull request. Cite the receipt,
+separate observed evidence from unknowns, and tell me exactly what still needs review.
 ```
 
-`main` is the preview channel. Pin a reviewed release tag when the plugin is
-included in the next tagged release.
+### What the Skill improves
 
-The plugin is an interaction layer; install the deterministic verifier in the
-repository where it will run:
+- **Faster review setup:** finds the protected base/head revisions and the
+  authorized JUnit, coverage, SARIF, and build artifacts.
+- **Consistent decisions:** invokes the same CLI contract locally and in CI,
+  reducing one-off agent instructions between repositories.
+- **Honest uncertainty:** treats missing or mismatched artifacts as unknown
+  instead of allowing the agent to fill gaps with plausible text.
+- **Evidence-first handoff:** returns the receipt path, digest, decision,
+  reasons, and evidence identifiers a human reviewer can audit.
+- **Lower credential exposure:** verification needs no OpenAI, Anthropic, or
+  other model-provider API key; the host agent uses its existing account.
+- **Portable policy:** keeps enforcement in versioned repository files and
+  reads protected-base policy rather than trusting a pull-request-head change.
+- **Safer agent collaboration:** an agent can explain findings and propose the
+  next check, but cannot convert `REVIEW` or `BLOCK` into `PASS`.
+
+The plugin is an interaction layer and intentionally does not install or hide
+the evidence engine. Install the CLI in the repository where it runs:
 
 ```bash
 git clone https://github.com/kingggg5/deployguardai.git
@@ -114,9 +128,6 @@ cd deployguardai
 python -m pip install ./verify
 deployguard init --github --agent codex
 ```
-
-No LLM provider key is required. The host agent may use its existing account,
-but model output is never accepted as verification evidence.
 
 ## How it works
 
@@ -126,14 +137,12 @@ flowchart LR
     Policy["Policy from\nprotected base"] --> Verify["DeployGuard Verify\ndeterministic and keyless"]
     CI --> Verify
     Verify --> Receipt["Canonical evidence receipt\nPASS · REVIEW · BLOCK · ERROR"]
+    Skill["Codex Plugin + Skill"] -. "orchestrates and cites" .-> Verify
     Receipt --> Check["Required GitHub check"]
-    Receipt -. optional authenticated ingestion .-> Platform["Connected DeployGuard"]
+    Receipt -. "optional authenticated ingestion" .-> Platform["Connected DeployGuard"]
     Platform --> Outcome["Deployment outcome\nstable · failed · rollback · incident"]
     Outcome --> Verdict["Human confirmation\nactor provenance + audit history"]
 ```
-
-The trusted path is deterministic. Risk scoring and agent explanations remain
-advisory and cannot replace the receipt.
 
 ## Run the connected platform
 
@@ -146,32 +155,35 @@ docker compose up --build
 
 - Web: <http://127.0.0.1:4300>
 - Public control plane and OpenAPI: <http://127.0.0.1:8100/docs>
-- Demo data: use the isolated, visibly labelled profile in the [Quickstart](docs/QUICKSTART.md)
+- Demo data: isolated and visibly labelled; see the [Quickstart](docs/QUICKSTART.md)
 
-Connected mode starts empty. The ASP.NET Core 10/YARP control plane is the
-public boundary; FastAPI and the worker remain private. PostgreSQL 16 is the
-production source of truth with tenant RLS. Angular provides the web client,
-and Python owns the deterministic evidence and evaluation engines.
+The ASP.NET Core 10/YARP control plane is the public boundary. FastAPI and the
+worker stay private, PostgreSQL 16 is the production source of truth with tenant
+RLS, Angular provides the web client, and Python owns deterministic evidence and
+evaluation engines.
 
 ## Project truth
 
-- **Implemented:** deterministic receipts, authenticated receipt ingestion,
-  evidence-backed GitHub Checks, explicit deployment outcomes, OTLP-normalized
-  intake, notification outbox jobs, SLO summaries, PostgreSQL RLS, and governed
-  dataset release/revocation records.
-- **Operator configured:** GitHub App credentials, production attestation keys,
-  OIDC, non-owner PostgreSQL roles, the OTLP Collector, and Slack/Teams/PagerDuty
-  destinations.
-- **Dataset status:** schemas and governance exist, but the public repository
-  contains synthetic examples only. DeployGuard Bench is not a production
-  benchmark until a consented real corpus, reviewed redaction, adjudicated
-  annotations, frozen splits, contamination checks, and baseline evaluations exist.
+- **Implemented:** keyless receipts, Marketplace Action `@2`, authenticated
+  receipt ingestion, evidence-backed GitHub Checks, explicit deployment
+  outcomes, OTLP-normalized intake, notification outbox jobs, SLO summaries,
+  PostgreSQL RLS, and governed dataset release/revocation records.
+- **Operator configured:** GitHub App credentials, production attestation
+  verification, OIDC, non-owner PostgreSQL roles, OTLP Collector, and
+  Slack/Teams/PagerDuty destinations.
+- **Dataset status:** the repository contains synthetic examples only.
+  DeployGuard Bench is not a production benchmark until it has a consented real
+  corpus, reviewed redaction, adjudicated labels, frozen splits, contamination
+  checks, and published baselines.
+- **Plugin status:** the repository-distributed Codex plugin is pre-1.0. Skills
+  orchestrate existing evidence; they do not execute autonomous remediation.
 
 ## Documentation
 
-- [Quickstart](docs/QUICKSTART.md) · [Architecture](docs/ARCHITECTURE.md) · [Operations](docs/OPERATIONS.md)
-- [Security model](docs/SECURITY.md) · [API contract](docs/API_CONTRACT.md) · [AI boundary](docs/AI_BOUNDARY.md)
-- [DeployGuard Bench dataset card](bench/README.md) · [Roadmap](docs/ROADMAP.md)
+[Quickstart](docs/QUICKSTART.md) · [Architecture](docs/ARCHITECTURE.md) ·
+[Operations](docs/OPERATIONS.md) · [Security model](docs/SECURITY.md) ·
+[API contract](docs/API_CONTRACT.md) · [AI boundary](docs/AI_BOUNDARY.md) ·
+[Dataset card](bench/README.md) · [Roadmap](docs/ROADMAP.md)
 
 ## Community
 

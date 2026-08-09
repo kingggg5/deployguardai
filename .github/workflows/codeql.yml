@@ -32,7 +32,7 @@ jobs:
           persist-credentials: false
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@ea14db8afdef5d462e69d78c4ca45002d4522418 # v4.37.4
+        uses: github/codeql-action/init@9e3211c9a3b9311dfe05da2ed48eea3386f042dd # v4.37.6
         with:
           languages: ${{ matrix.language }}
           queries: security-extended
@@ -69,9 +69,9 @@ jobs:
 
       - name: Autobuild analyzed code
         if: matrix.language == 'javascript-typescript' || matrix.language == 'csharp'
-        uses: github/codeql-action/autobuild@ea14db8afdef5d462e69d78c4ca45002d4522418 # v4.37.4
+        uses: github/codeql-action/autobuild@9e3211c9a3b9311dfe05da2ed48eea3386f042dd # v4.37.6
 
       - name: Upload CodeQL results
-        uses: github/codeql-action/analyze@ea14db8afdef5d462e69d78c4ca45002d4522418 # v4.37.4
+        uses: github/codeql-action/analyze@9e3211c9a3b9311dfe05da2ed48eea3386f042dd # v4.37.6
         with:
           category: /language:${{ matrix.language }}

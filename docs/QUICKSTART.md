@@ -49,20 +49,27 @@ composite Action to a released full commit SHA.
 ### Authenticated connected receipt
 
 Connected workspaces can accept the receipt without an LLM key. Configure a
-32-character `RECEIPT_INGEST_SECRET`, then pass the scoped endpoint to the
-Action. The endpoint verifies the HMAC, canonical receipt hash, exact repository
-head SHA, and any detached artifact attestation before a GitHub Check can use
-the result:
+32-character `RECEIPT_INGEST_SECRET`. The endpoint verifies the HMAC, canonical
+receipt hash, exact repository head SHA, and any detached artifact attestation
+before a GitHub Check can use the result.
 
-```yaml
-- uses: kingggg5/deployguardai@v0.1.0 # replace with the full release SHA
-  with:
-    base-sha: ${{ github.event.pull_request.base.sha }}
-    head-sha: ${{ github.event.pull_request.head.sha }}
-    junit: artifacts/junit.xml
-    receipt-ingest-url: ${{ vars.DEPLOYGUARD_RECEIPT_URL }}
-    receipt-ingest-secret: ${{ secrets.DEPLOYGUARD_RECEIPT_INGEST_SECRET }}
+Marketplace release `@2` creates the local receipt but does not bundle the
+connected publisher step. After the Action finishes, publish explicitly from a
+reviewed checkout that contains `deployguard_verify.publish_receipt`:
+
+```bash
+python -m deployguard_verify.publish_receipt \
+  --url "$DEPLOYGUARD_RECEIPT_URL" \
+  --secret "$DEPLOYGUARD_RECEIPT_INGEST_SECRET" \
+  --receipt .deployguard/artifacts/evidence-receipt.json \
+  --attestation artifacts/receipt-attestation.json
 ```
+
+Omit `--attestation` only when the workspace policy allows a human `REVIEW`;
+missing or unverified attestation cannot produce a green evidence-backed Check.
+Do not pass `receipt-ingest-*` inputs to release `@2`; GitHub will treat them as
+unsupported inputs. A future Action release can expose the same publisher only
+after its release commit is reviewed and tagged.
 
 The URL must include `/api/v1/workspaces/{workspace}/providers/github/repositories/{repository}/receipts`.
 Missing or unverified attestation remains `REVIEW`; it never becomes a green
@@ -73,7 +80,7 @@ replace the convenience ref in the workflow:
 
 ```bash
 git ls-remote https://github.com/kingggg5/deployguardai.git \
-  refs/tags/v0.1.0^{commit}
+  refs/tags/2
 ```
 
 Keep the returned 40-character SHA in the workflow and review it on every

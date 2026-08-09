@@ -33,6 +33,12 @@ release notes from `main` and will use semantic versioning for tagged releases.
   contract, evidence-bundle hash, uncertainty, validation, and audit metadata.
 - Cross-platform local development commands, a `make demo` entry point, and CI
   coverage reports/floors for backend and frontend suites.
+
+### Documentation
+
+- Reworked the English and Thai READMEs around the released Marketplace Action
+  `@2`, its immutable production SHA, Action/CLI/Plugin/connected entry points,
+  and concrete Skill benefits without overstating the `@2` publisher boundary.
 - An explicit AI-boundary document and a dependency-ordered public roadmap.
 - Three-minute connected and isolated demo quickstarts, a polished English/Thai
   project overview, and a real dashboard screenshot for repository discovery.
