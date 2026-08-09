@@ -30,6 +30,20 @@ deployguard init --github --agent codex
 
 สำหรับ workflow จริง ให้ใช้ tag v0.1.0 เพื่อเริ่มต้น แล้ว pin เป็น full commit SHA ก่อนใช้กับ protected branch ดูตัวอย่างและความหมายของแต่ละผลลัพธ์ใน [Quickstart](docs/QUICKSTART.md)
 
+## ใช้เป็น Codex plugin
+
+```bash
+codex plugin marketplace add kingggg5/deployguardai --ref main
+```
+
+เปิด Codex ใหม่ ไปที่ **Plugins** แล้วติดตั้ง **DeployGuard AI** จากนั้นเรียกใช้ด้วยข้อความ:
+
+```text
+Use $deployguard-change-safety to verify this pull request and cite its evidence receipt.
+```
+
+Skill ช่วยจัดขั้นตอนและอธิบาย receipt เท่านั้น ไม่สามารถสร้างหลักฐาน เปลี่ยน policy หรือ override ผลจาก verifier ได้ และไม่ต้องใช้ LLM provider key
+
 ## Connected platform
 
 ~~~bash

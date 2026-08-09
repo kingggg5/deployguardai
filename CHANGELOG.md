@@ -7,6 +7,9 @@ release notes from `main` and will use semantic versioning for tagged releases.
 
 ### Added
 
+- A repository-distributed `deployguardai` Codex plugin with one focused
+  `deployguard-change-safety` Skill, Git marketplace metadata, manifest/version
+  contract tests, and explicit no-LLM-key/no-decision-override boundaries.
 - DeployGuard Verify v0.1: a standalone, zero-LLM-key CLI and composite GitHub
   Action that imports JUnit, Cobertura/LCOV, SARIF, and build status into a
   protected-base-policy, exact-SHA, canonical evidence receipt with stable

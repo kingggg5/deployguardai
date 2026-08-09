@@ -1,0 +1,42 @@
+{
+  "name": "deployguardai",
+  "version": "0.1.0",
+  "description": "Keyless change-safety guidance for producing and reviewing deterministic DeployGuard evidence receipts.",
+  "author": {
+    "name": "kingggg5",
+    "url": "https://github.com/kingggg5"
+  },
+  "homepage": "https://github.com/kingggg5/deployguardai#readme",
+  "repository": "https://github.com/kingggg5/deployguardai",
+  "license": "Apache-2.0",
+  "keywords": [
+    "agent-skills",
+    "codex-plugin",
+    "devops",
+    "evidence",
+    "github-actions",
+    "sre"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "DeployGuard AI",
+    "shortDescription": "Verify changes with exact-SHA evidence receipts.",
+    "longDescription": "A focused change-safety Skill for collecting CI artifacts, running the keyless DeployGuard verifier, and explaining PASS, REVIEW, BLOCK, or ERROR without trusting model output. The Skill cannot create evidence, weaken policy, merge, deploy, or override a receipt.",
+    "developerName": "kingggg5",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Exact-SHA verification",
+      "CI evidence review",
+      "Policy-bound decisions",
+      "Unknown-lane diagnosis",
+      "Merge-readiness guidance"
+    ],
+    "websiteURL": "https://github.com/kingggg5/deployguardai",
+    "defaultPrompt": [
+      "Verify this pull request and cite its evidence receipt.",
+      "Explain why this DeployGuard decision is not PASS.",
+      "Check whether these CI artifacts match the exact head SHA."
+    ],
+    "brandColor": "#0969DA"
+  }
+}
