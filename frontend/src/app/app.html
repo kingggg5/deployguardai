@@ -1,9 +1,9 @@
 <!--
-THESIS: A repository-native evidence room where change risk, propagation, proof, and human verdict stay traceable without becoming a generic analytics dashboard.
-OWN-WORLD: Familiar repository chrome, flat ruled ledgers, underlined navigation, compact metadata labels, and DeployGuard's own evidence-first shield identity.
-STORY: Confirm workspace and repository scope, inspect a change, follow blast radius and runtime evidence, compare hypotheses, coordinate the incident, and record the human decision.
-FIRST VIEWPORT: Global product controls, explicit repository and data-origin context, horizontal product navigation, then the active investigation or operations ledger.
-FORM: GitHub/Primer-inspired repository workspace; interaction grammar is familiar while branding, domain language, and product assets remain original.
+THESIS: One calm evidence desk where operators can understand a change, its proof, and its production outcome without fighting dashboard noise.
+OWN-WORLD: A mist-blue application frame, quiet paper workspace, slim rules, generous breathing room, and DeployGuard's evidence-first shield identity.
+STORY: Choose scope, verify a change, follow its evidence into production, compare counter-evidence, and leave an accountable human verdict.
+FIRST VIEWPORT: Persistent product navigation, explicit repository and data-origin context, then one focused work surface with the current decision first.
+FORM: A desktop operations companion with a compact side rail and a single spacious workspace; restrained controls keep evidence—not chrome—visually dominant.
 -->
 
 <a class="skip-link" href="#workspace-content">{{ t('skip_to_content') }}</a>
@@ -75,6 +75,86 @@ FORM: GitHub/Primer-inspired repository workspace; interaction grammar is famili
           (actionSelected)="handlePaletteAction($event)"
         />
       </div>
+
+      <nav class="rail-navigation" [attr.aria-label]="t('main_navigation')">
+        <button
+          type="button"
+          class="icon-button rail-close"
+          [attr.aria-label]="t('close_navigation')"
+          (click)="toggleSidebar()"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.3 4.9 12.8 12.8-1.4 1.4L4.9 6.3l1.4-1.4Zm11.4 0 1.4 1.4L6.3 19.1l-1.4-1.4L17.7 4.9Z"/></svg>
+        </button>
+        <p class="rail-section-label">{{ t('main_navigation') }}</p>
+        <button
+          type="button"
+          [class.is-active]="activeTab() === 'investigation'"
+          [attr.aria-current]="activeTab() === 'investigation' ? 'page' : null"
+          (click)="setActiveTab('investigation')"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.8 3a7.8 7.8 0 1 0 4.8 13.9l4.5 4.5 1.4-1.4-4.5-4.5A7.8 7.8 0 0 0 10.8 3Zm0 2a5.8 5.8 0 1 1 0 11.6 5.8 5.8 0 0 1 0-11.6Z"/></svg>
+          <span>{{ t('tab_investigation') }}</span>
+        </button>
+        <button
+          type="button"
+          [class.is-active]="activeTab() === 'change_risk'"
+          [attr.aria-current]="activeTab() === 'change_risk' ? 'page' : null"
+          (click)="setActiveTab('change_risk')"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19h16v2H4v-2Zm1-4h3v3H5v-3Zm5-6h3v9h-3V9Zm5 3h3v6h-3v-6ZM5 8l4-4 4 3 5-5 1.4 1.4-6.2 6.2-4-3-2.8 2.8L5 8Z"/></svg>
+          <span>{{ t('tab_change_risk') }}</span>
+        </button>
+        <button
+          type="button"
+          [class.is-active]="activeTab() === 'dora'"
+          [attr.aria-current]="activeTab() === 'dora' ? 'page' : null"
+          (click)="setActiveTab('dora')"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4V4Zm2 2v12h12V6H6Zm2 8h2v2H8v-2Zm0-6h2v4H8V8Zm4 3h2v5h-2v-5Zm4-3h2v8h-2V8Z"/></svg>
+          <span>{{ t('tab_dora') }}</span>
+        </button>
+        <button
+          type="button"
+          [class.is-active]="activeTab() === 'scenarios'"
+          [attr.aria-current]="activeTab() === 'scenarios' ? 'page' : null"
+          (click)="setActiveTab('scenarios')"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 9 5-9 5-9-5 9-5Zm-7.1 9L12 15l7.1-4 1.9 1-9 5-9-5 1.9-1Zm0 5L12 20l7.1-4 1.9 1-9 5-9-5 1.9-1Z"/></svg>
+          <span>{{ t('tab_scenarios') }}</span>
+        </button>
+        <button
+          type="button"
+          [class.is-active]="activeTab() === 'operations'"
+          [attr.aria-current]="activeTab() === 'operations' ? 'page' : null"
+          (click)="setActiveTab('operations')"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h16v5H4V3Zm2 2v1h12V5H6ZM4 10h16v5H4v-5Zm2 2v1h12v-1H6ZM4 17h10v4H4v-4Zm2 2h6v-1H6v1Zm11-2h3v4h-3v-4Z"/></svg>
+          <span>{{ t('tab_operations') }}</span>
+        </button>
+        <button
+          type="button"
+          [class.is-active]="activeTab() === 'workspace'"
+          [attr.aria-current]="activeTab() === 'workspace' ? 'page' : null"
+          (click)="setActiveTab('workspace')"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm12.5 0a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7Zm0 2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"/></svg>
+          <span>{{ t('tab_workspace') }}</span>
+        </button>
+        @if (activeTab() === 'investigation') {
+          <button
+            type="button"
+            class="control-button xray-control"
+            role="switch"
+            [attr.aria-checked]="isEvidenceXray()"
+            [class.is-active]="isEvidenceXray()"
+            (click)="toggleEvidenceXray()"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 3 3 3-2 2-3-3 2-2Zm14 0 2 2-3 3-2-2 3-3ZM8.7 9.3l6 6-1.4 1.4-6-6 1.4-1.4Zm6.6 0 1.4 1.4-6 6-1.4-1.4 6-6ZM3 19l3-3 2 2-3 3-2-2Zm13-1 2-2 3 3-2 2-3-3Z"/></svg>
+            <span>{{ t('evidence_xray') }}</span>
+            <i class="switch-dot" aria-hidden="true"></i>
+          </button>
+        }
+      </nav>
 
       <div class="command-actions">
         <div class="language-control" [attr.aria-label]="t('language_selector')">
@@ -154,85 +234,6 @@ FORM: GitHub/Primer-inspired repository workspace; interaction grammar is famili
         </div>
       </section>
 
-      <nav class="rail-navigation" [attr.aria-label]="t('main_navigation')">
-        <button
-          type="button"
-          class="icon-button rail-close"
-          [attr.aria-label]="t('close_navigation')"
-          (click)="toggleSidebar()"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.3 4.9 12.8 12.8-1.4 1.4L4.9 6.3l1.4-1.4Zm11.4 0 1.4 1.4L6.3 19.1l-1.4-1.4L17.7 4.9Z"/></svg>
-        </button>
-        <button
-          type="button"
-          [class.is-active]="activeTab() === 'investigation'"
-          [attr.aria-current]="activeTab() === 'investigation' ? 'page' : null"
-          (click)="setActiveTab('investigation')"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.8 3a7.8 7.8 0 1 0 4.8 13.9l4.5 4.5 1.4-1.4-4.5-4.5A7.8 7.8 0 0 0 10.8 3Zm0 2a5.8 5.8 0 1 1 0 11.6 5.8 5.8 0 0 1 0-11.6Z"/></svg>
-          <span>{{ t('tab_investigation') }}</span>
-        </button>
-        <button
-          type="button"
-          [class.is-active]="activeTab() === 'change_risk'"
-          [attr.aria-current]="activeTab() === 'change_risk' ? 'page' : null"
-          (click)="setActiveTab('change_risk')"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19h16v2H4v-2Zm1-4h3v3H5v-3Zm5-6h3v9h-3V9Zm5 3h3v6h-3v-6ZM5 8l4-4 4 3 5-5 1.4 1.4-6.2 6.2-4-3-2.8 2.8L5 8Z"/></svg>
-          <span>{{ t('tab_change_risk') }}</span>
-        </button>
-        <button
-          type="button"
-          [class.is-active]="activeTab() === 'dora'"
-          [attr.aria-current]="activeTab() === 'dora' ? 'page' : null"
-          (click)="setActiveTab('dora')"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4V4Zm2 2v12h12V6H6Zm2 8h2v2H8v-2Zm0-6h2v4H8V8Zm4 3h2v5h-2v-5Zm4-3h2v8h-2V8Z"/></svg>
-          <span>{{ t('tab_dora') }}</span>
-        </button>
-        <button
-          type="button"
-          [class.is-active]="activeTab() === 'scenarios'"
-          [attr.aria-current]="activeTab() === 'scenarios' ? 'page' : null"
-          (click)="setActiveTab('scenarios')"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 9 5-9 5-9-5 9-5Zm-7.1 9L12 15l7.1-4 1.9 1-9 5-9-5 1.9-1Zm0 5L12 20l7.1-4 1.9 1-9 5-9-5 1.9-1Z"/></svg>
-          <span>{{ t('tab_scenarios') }}</span>
-        </button>
-        <button
-          type="button"
-          [class.is-active]="activeTab() === 'operations'"
-          [attr.aria-current]="activeTab() === 'operations' ? 'page' : null"
-          (click)="setActiveTab('operations')"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h16v5H4V3Zm2 2v1h12V5H6ZM4 10h16v5H4v-5Zm2 2v1h12v-1H6ZM4 17h10v4H4v-4Zm2 2h6v-1H6v1Zm11-2h3v4h-3v-4Z"/></svg>
-          <span>{{ t('tab_operations') }}</span>
-        </button>
-        <button
-          type="button"
-          [class.is-active]="activeTab() === 'workspace'"
-          [attr.aria-current]="activeTab() === 'workspace' ? 'page' : null"
-          (click)="setActiveTab('workspace')"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm12.5 0a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7Zm0 2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"/></svg>
-          <span>{{ t('tab_workspace') }}</span>
-        </button>
-        @if (activeTab() === 'investigation') {
-          <button
-            type="button"
-            class="control-button xray-control"
-            role="switch"
-            [attr.aria-checked]="isEvidenceXray()"
-            [class.is-active]="isEvidenceXray()"
-            (click)="toggleEvidenceXray()"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 3 3 3-2 2-3-3 2-2Zm14 0 2 2-3 3-2-2 3-3ZM8.7 9.3l6 6-1.4 1.4-6-6 1.4-1.4Zm6.6 0 1.4 1.4-6 6-1.4-1.4 6-6ZM3 19l3-3 2 2-3 3-2-2Zm13-1 2-2 3 3-2 2-3-3Z"/></svg>
-            <span>{{ t('evidence_xray') }}</span>
-            <i class="switch-dot" aria-hidden="true"></i>
-          </button>
-        }
-      </nav>
-
       @if (loadError()) {
         <div class="notice notice--error" role="alert">
           <span aria-hidden="true">!</span>
@@ -241,7 +242,7 @@ FORM: GitHub/Primer-inspired repository workspace; interaction grammar is famili
         </div>
       }
 
-      @if (awaitingConnectedEvidence()) {
+      @if (awaitingConnectedEvidence() && activeTab() === 'workspace') {
         <section class="connected-readiness" role="status" aria-live="polite">
           <div>
             <p class="system-kicker">{{ t('connected_evidence_kicker') }}</p>
@@ -299,20 +300,32 @@ FORM: GitHub/Primer-inspired repository workspace; interaction grammar is famili
                 }
               </div>
             </section>
-          } @else {
+          } @else if (activeChange(); as change) {
             <section class="incident-command" aria-labelledby="connected-change-title">
               <div class="incident-command__status">
-                <span class="severity-mark">connected</span>
+                <span class="severity-mark severity-mark--connected">connected</span>
                 <span class="status-mark"><i aria-hidden="true"></i>Awaiting signals</span>
               </div>
               <div class="incident-command__copy">
                 <p class="system-kicker">Connected change evidence</p>
-                <h1 id="connected-change-title">{{ activeChange()?.title }}</h1>
+                <h1 id="connected-change-title">{{ change.title }}</h1>
                 <p>No incident has been correlated with this change. Risk and topology evidence remain available without manufacturing an incident record.</p>
+              </div>
+            </section>
+          } @else {
+            <section class="instrument-panel investigation-empty-state">
+              <div class="empty-state">
+                <span aria-hidden="true">∅</span>
+                <strong>{{ t('connected_evidence_title') }}</strong>
+                <p>{{ t('connected_evidence_body') }}</p>
+                <button type="button" class="button button--primary" (click)="setActiveTab('workspace')">
+                  {{ t('open_workspace_setup') }}
+                </button>
               </div>
             </section>
           }
 
+          @if (activeChange()) {
           <div class="investigation-stage">
             @if (activeChange(); as change) {
               <section class="instrument-panel topology-panel">
@@ -463,6 +476,7 @@ FORM: GitHub/Primer-inspired repository workspace; interaction grammar is famili
               </div>
             </section>
           </div>
+          }
 
           @if (activeIncident(); as incident) {
             <section class="instrument-panel replay-panel">
@@ -1114,6 +1128,24 @@ FORM: GitHub/Primer-inspired repository workspace; interaction grammar is famili
                 </section>
               </div>
             </div>
+          } @else {
+            <header class="workspace-title">
+              <div>
+                <p class="system-kicker">{{ t('change_risk_tag') }}</p>
+                <h1>{{ t('change_risk_workspace') }}</h1>
+                <p>{{ t('change_risk_intro') }}</p>
+              </div>
+            </header>
+            <section class="instrument-panel risk-empty-state">
+              <div class="empty-state">
+                <span aria-hidden="true">∅</span>
+                <strong>{{ t('connected_evidence_title') }}</strong>
+                <p>{{ t('connected_evidence_body') }}</p>
+                <button type="button" class="button button--primary" (click)="setActiveTab('workspace')">
+                  {{ t('open_workspace_setup') }}
+                </button>
+              </div>
+            </section>
           }
         } @else if (activeTab() === 'dora') {
           <app-dora-dashboard

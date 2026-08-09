@@ -89,4 +89,12 @@
       <span class="skeleton metric-skeleton"></span>
     }
   </div>
+} @else {
+  <section class="instrument-panel dora-empty-state">
+    <div class="empty-state">
+      <span aria-hidden="true">∅</span>
+      <strong>{{ t('connected_evidence_title') }}</strong>
+      <p>{{ t('connected_evidence_body') }}</p>
+    </div>
+  </section>
 }

@@ -31,6 +31,7 @@ import {
   EventIngestionStatus,
   EventSeverity,
   DeploymentRecord,
+  DeploymentOutcomeState,
   DeploymentStatus,
   IncidentLifecycle,
   IncidentLifecycleStatus,
@@ -42,7 +43,8 @@ import {
   ServiceCreateRequest,
   ServiceLifecycle,
   ServiceRecord,
-  ServiceTier
+  ServiceTier,
+  SloDashboard
 } from '../../core/models/operations.models';
 import {
   ProductCapabilities,
@@ -52,7 +54,7 @@ import {
   WorkspaceSummary
 } from '../../core/models/workspace.models';
 
-type OperationsSection = 'catalog' | 'events' | 'deployments' | 'policy' | 'incident';
+type OperationsSection = 'catalog' | 'events' | 'deployments' | 'policy' | 'slo' | 'incident';
 
 function thresholdOrderValidator(
   control: AbstractControl
@@ -93,6 +95,7 @@ export class OperationsCenterComponent implements OnInit {
   readonly riskPolicy = signal<RiskPolicy | null>(null);
   readonly events = signal<OperationalEvent[]>([]);
   readonly deployments = signal<DeploymentRecord[]>([]);
+  readonly sloDashboard = signal<SloDashboard | null>(null);
   readonly notifications = signal<OperatorNotification[]>([]);
   readonly lifecycle = signal<IncidentLifecycle | null>(null);
   readonly pendingTimeline = signal<IncidentTimelineEvent[]>([]);
@@ -104,6 +107,7 @@ export class OperationsCenterComponent implements OnInit {
   readonly notice = signal('');
   readonly showServiceForm = signal(false);
   readonly showEventForm = signal(false);
+  readonly outcomeDeploymentId = signal<string | null>(null);
   readonly unreadOnly = signal(false);
   readonly deploymentStatus = signal<DeploymentStatus | 'all'>('all');
   readonly visibleDeployments = computed(() => {
@@ -255,6 +259,14 @@ export class OperationsCenterComponent implements OnInit {
     note: ['', [Validators.required, Validators.maxLength(2000)]]
   });
 
+  readonly outcomeForm = this.fb.nonNullable.group({
+    state: ['unknown' as DeploymentOutcomeState, [Validators.required]],
+    summary: ['', [Validators.required, Validators.maxLength(2000)]],
+    evidenceIds: ['', [Validators.required, Validators.maxLength(4000)]],
+    incidentId: ['', [Validators.maxLength(80)]],
+    stableWindowMinutes: [60, [Validators.min(1), Validators.max(43200)]]
+  });
+
   private incidentKey: string | null = null;
   private incidentSnapshot: IncidentDetail | null = null;
   private workspaceRequestId = 0;
@@ -280,6 +292,7 @@ export class OperationsCenterComponent implements OnInit {
     this.activeSection.set(section);
     this.error.set('');
     this.notice.set('');
+    if (section === 'slo') this.loadSloDashboard();
   }
 
   selectWorkspaceId(workspaceId: string): void {
@@ -299,6 +312,114 @@ export class OperationsCenterComponent implements OnInit {
 
   setDeploymentStatus(status: DeploymentStatus | 'all'): void {
     this.deploymentStatus.set(status);
+  }
+
+  openOutcomeForm(deployment: DeploymentRecord): void {
+    if (!this.canRespond()) return;
+    if (this.outcomeDeploymentId() === deployment.id) {
+      this.closeOutcomeForm();
+      return;
+    }
+    const rawEvidence = deployment.outcome_evidence?.['evidence_ids'];
+    const evidenceIds = Array.isArray(rawEvidence)
+      ? rawEvidence.filter(
+          (value): value is string => typeof value === 'string'
+        )
+      : [];
+    const rawWindow = deployment.outcome_evidence?.['stable_window_minutes'];
+    this.outcomeDeploymentId.set(deployment.id);
+    this.outcomeForm.reset({
+      state: deployment.outcome_state,
+      summary:
+        typeof deployment.outcome_evidence?.['summary'] === 'string'
+          ? String(deployment.outcome_evidence['summary'])
+          : '',
+      evidenceIds: evidenceIds.join(', '),
+      incidentId: deployment.outcome_incident_id ?? '',
+      stableWindowMinutes:
+        typeof rawWindow === 'number' && rawWindow > 0 ? rawWindow : 60
+    });
+    this.error.set('');
+    this.notice.set('');
+  }
+
+  closeOutcomeForm(): void {
+    this.outcomeDeploymentId.set(null);
+    this.outcomeForm.reset({
+      state: 'unknown',
+      summary: '',
+      evidenceIds: '',
+      incidentId: '',
+      stableWindowMinutes: 60
+    });
+  }
+
+  recordDeploymentOutcome(deployment: DeploymentRecord): void {
+    const workspace = this.currentWorkspace();
+    if (
+      !workspace ||
+      !this.canRespond() ||
+      this.outcomeDeploymentId() !== deployment.id ||
+      this.outcomeForm.invalid ||
+      this.isBusy()
+    ) {
+      this.outcomeForm.markAllAsTouched();
+      return;
+    }
+    const value = this.outcomeForm.getRawValue();
+    const incidentId = value.incidentId.trim() || null;
+    const stableWindowMinutes = Number(value.stableWindowMinutes);
+    if (value.state === 'incident_linked' && !incidentId) {
+      this.error.set('An incident ID is required for an incident-linked outcome.');
+      return;
+    }
+    if (
+      value.state === 'stable_window_met' &&
+      !Number.isFinite(stableWindowMinutes)
+    ) {
+      this.error.set('A stable-window duration is required for this outcome.');
+      return;
+    }
+    const evidenceIds = [
+      ...new Set(
+        value.evidenceIds
+          .split(/[\s,]+/)
+          .map((item) => item.trim())
+          .filter(Boolean)
+      )
+    ];
+    if (!evidenceIds.length) {
+      this.error.set('Add at least one evidence ID that a reviewer can replay.');
+      return;
+    }
+    this.begin(`record-outcome-${deployment.id}`);
+    this.api
+      .recordDeploymentOutcome(deployment.id, {
+        state: value.state,
+        summary: value.summary.trim(),
+        evidence_ids: evidenceIds,
+        incident_id: incidentId,
+        stable_window_minutes:
+          value.state === 'stable_window_met' ? stableWindowMinutes : null
+      })
+      .pipe(finalize(() => this.busyAction.set('')))
+      .subscribe({
+        next: (updated) => {
+          if (!this.isCurrentWorkspace(workspace.id)) return;
+          this.deployments.update((items) =>
+            items.map((item) => (item.id === updated.id ? updated : item))
+          );
+          this.closeOutcomeForm();
+          this.notice.set(
+            `Deployment outcome recorded as ${this.humanize(updated.outcome_state)}.`
+          );
+        },
+        error: (error) => {
+          if (this.isCurrentWorkspace(workspace.id)) {
+            this.fail(error, 'The deployment outcome could not be recorded.');
+          }
+        }
+      });
   }
 
   selectService(service: ServiceRecord): void {
@@ -821,9 +942,26 @@ export class OperationsCenterComponent implements OnInit {
     this.riskPolicy.set(null);
     this.events.set([]);
     this.deployments.set([]);
+    this.sloDashboard.set(null);
     this.notifications.set([]);
     this.showServiceForm.set(false);
     this.showEventForm.set(false);
+    this.closeOutcomeForm();
+  }
+
+  private loadSloDashboard(): void {
+    const workspace = this.currentWorkspace();
+    if (!workspace) return;
+    this.api.sloDashboard(workspace.id).subscribe({
+      next: (dashboard) => {
+        if (this.isCurrentWorkspace(workspace.id)) this.sloDashboard.set(dashboard);
+      },
+      error: (error) => {
+        if (this.isCurrentWorkspace(workspace.id)) {
+          this.fail(error, 'The SLO dashboard could not be loaded.');
+        }
+      }
+    });
   }
 
   private patchPolicy(policy: RiskPolicy): void {

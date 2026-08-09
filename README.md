@@ -1,125 +1,194 @@
 # DeployGuard AI
 
-**Deterministic change evidence before merge. Accountable production evidence after deploy. No LLM key required.**
+**Prove what was checked before a change ships—and record what happened after—without sending source code to an LLM.**
 
 [![CI](https://github.com/kingggg5/deployguardai/actions/workflows/ci.yml/badge.svg)](https://github.com/kingggg5/deployguardai/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/kingggg5/deployguardai/actions/workflows/codeql.yml/badge.svg)](https://github.com/kingggg5/deployguardai/actions/workflows/codeql.yml)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/kingggg5/deployguardai/badge)](https://securityscorecards.dev/viewer/?uri=github.com/kingggg5/deployguardai)
+[![GitHub Action](https://img.shields.io/badge/GitHub_Action-@2-2088ff?logo=githubactions&logoColor=white)](https://github.com/marketplace/actions/deployguard-verify)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 
-[English](README.md) · [ภาษาไทย](README_TH.md) · [Quickstart](docs/QUICKSTART.md) · [API contract](docs/API_CONTRACT.md) · [Roadmap](docs/ROADMAP.md)
+[ภาษาไทย](README_TH.md) · [Quickstart](docs/QUICKSTART.md) · [Architecture](docs/ARCHITECTURE.md) · [Roadmap](docs/ROADMAP.md) · [Security](docs/SECURITY.md)
 
-![DeployGuard AI investigation workspace](docs/assets/dashboard-runtime-desktop.png)
+![DeployGuard operations surface](docs/assets/operations-surface-desktop.png)
 
-DeployGuard AI is an open-source change-safety platform for GitHub, DevOps,
-and SRE teams. It turns existing CI artifacts into reproducible receipts tied
-to an exact commit, then preserves deployment, incident, evidence, and human
-decision history in one auditable system.
+DeployGuard AI is an open-source change-safety platform for GitHub, platform
+engineering, DevOps, and SRE teams. It converts artifacts your CI already
+produces into a canonical receipt bound to the exact base and head commits.
+Connected mode then links that revision to deployment outcomes, incidents,
+rollbacks, stability windows, and accountable human decisions.
 
-DeployGuard does not upload source code to an LLM, execute repository-defined
-commands, deploy, roll back, or modify production infrastructure.
+No LLM key is required for verification. Agent Skills improve the workflow;
+the deterministic receipt—not agent prose—owns the decision.
 
-## Why DeployGuard
+## Why teams use it
 
-- **Prove what ran.** Bind JUnit, Cobertura/LCOV, SARIF, and build evidence to
-  the exact base and head SHAs.
-- **Keep unknown honest.** Missing, stale, or mismatched evidence becomes
-  `REVIEW`, never a fabricated zero or successful check.
-- **Investigate with evidence.** Preserve supporting evidence,
-  counter-evidence, uncertainty, verification steps, and accountable verdicts.
-- **Build operational memory safely.** Govern postmortem snapshots and dataset
-  eligibility with actor provenance, consent, privacy, and license gates.
+| Problem | DeployGuard response |
+| --- | --- |
+| Green CI does not explain what was checked | One content-addressed receipt records evidence IDs, hashes, source SHA, and policy results. |
+| Missing evidence is easy to overlook | Missing, stale, or SHA-mismatched input becomes `REVIEW`, never an inferred pass. |
+| Agent reviews can sound more certain than their sources | The Skill must cite the receipt and cannot manufacture evidence or override its decision. |
+| Change, deployment, and incident history live in separate tools | Exact-SHA records connect verification, outcome, incident, rollback, and human confirmation. |
+| Operational data is difficult to reuse safely | Consent, redaction, immutable release records, revocation tombstones, and leakage checks govern export. |
+| Every repository invents a different review ritual | The same Action, CLI, policy, and Skill contract can be reused across teams and languages. |
 
-## How it works
+DeployGuard does **not** execute repository-defined commands, merge pull
+requests, deploy, roll back, remediate infrastructure, or accept model output as
+verification evidence.
 
-```mermaid
-flowchart LR
-    PR["Pull request"] --> CI["Existing CI artifacts"]
-    CI --> Verify["DeployGuard Verify"]
-    Verify --> Receipt["SHA-bound evidence receipt"]
-    Receipt --> Check["PASS · REVIEW · BLOCK"]
-    Deploy["Deployment and telemetry"] --> Graph["Evidence graph"]
-    Graph --> Verdict["Human verdict and postmortem"]
-    Verdict --> Gate["Governed dataset gate"]
-    Receipt -. "connected receipt ingestion: planned" .-> Deploy
+## Choose your entry point
+
+| Entry point | Best for | What it provides |
+| --- | --- | --- |
+| **GitHub Action** | Required checks on pull requests | Keyless, deterministic `PASS` / `REVIEW` / `BLOCK` / `ERROR` from existing CI artifacts. |
+| **Codex Plugin + Skill** | Developers reviewing changes with an agent | A repeatable evidence workflow, honest missing-evidence handling, and receipt citations. |
+| **CLI** | Local development and any CI system | The same verifier contract without GitHub-specific orchestration. |
+| **Connected platform** | Platform and SRE teams | GitHub ingestion, deployments, telemetry, incidents, evidence graphs, human verdicts, RLS, and operations UI. |
+
+## Install the GitHub Action
+
+The Marketplace release is available at major tag `2`:
+
+```yaml
+- name: DeployGuard Verify
+  uses: kingggg5/deployguardai@2
+  with:
+    base-sha: ${{ github.event.pull_request.base.sha }}
+    head-sha: ${{ github.event.pull_request.head.sha }}
+    evidence-sha: ${{ github.event.pull_request.head.sha }}
+    build-status: success
+    junit: artifacts/junit.xml
+    coverage: artifacts/coverage.xml
+    sarif: artifacts/results.sarif
 ```
 
-The CLI is the decision authority. The optional Skill and `AGENTS.md` improve
-agent workflow, but agent prose cannot change a receipt or bypass policy.
+For a protected production branch, pin the reviewed release commit instead of
+the movable convenience tag:
 
-## Try Verify locally
+```yaml
+uses: kingggg5/deployguardai@4cf9957da315bd384326c772bdaecbecf15c725b
+```
 
-DeployGuard Verify is pre-release and currently installs from a checkout:
+Run your build, tests, coverage, and security tools before this step. DeployGuard
+imports their outputs; it does not run arbitrary project commands. The Action
+writes `.deployguard/artifacts/evidence-receipt.json`.
+
+Release `@2` creates the local receipt only; it does not publish that receipt to
+a connected DeployGuard instance. The [Quickstart](docs/QUICKSTART.md) documents
+the explicit authenticated publisher and the source/release boundary.
+
+| Decision | Exit | Meaning |
+| --- | ---: | --- |
+| `PASS` | `0` | Required evidence is present, exact-SHA matched, and compliant. |
+| `REVIEW` | `2` | Evidence is missing, stale, mismatched, or needs a human decision. |
+| `BLOCK` | `3` | Observed evidence violates an objective policy rule. |
+| `ERROR` | `4` | Verification could not complete; the gate failed closed. |
+
+See the [full Action and connected-receipt setup](docs/QUICKSTART.md).
+
+## Install the Codex Plugin
+
+The repository includes one focused Skill: `deployguard-change-safety`. Add the
+Git marketplace, restart Codex, then install **DeployGuard AI** from Plugins:
+
+```bash
+codex plugin marketplace add kingggg5/deployguardai --ref main
+```
+
+Ask the agent:
+
+```text
+Use $deployguard-change-safety to verify this pull request. Cite the receipt,
+separate observed evidence from unknowns, and tell me exactly what still needs review.
+```
+
+### What the Skill improves
+
+- **Faster review setup:** finds the protected base/head revisions and the
+  authorized JUnit, coverage, SARIF, and build artifacts.
+- **Consistent decisions:** invokes the same CLI contract locally and in CI,
+  reducing one-off agent instructions between repositories.
+- **Honest uncertainty:** treats missing or mismatched artifacts as unknown
+  instead of allowing the agent to fill gaps with plausible text.
+- **Evidence-first handoff:** returns the receipt path, digest, decision,
+  reasons, and evidence identifiers a human reviewer can audit.
+- **Lower credential exposure:** verification needs no OpenAI, Anthropic, or
+  other model-provider API key; the host agent uses its existing account.
+- **Portable policy:** keeps enforcement in versioned repository files and
+  reads protected-base policy rather than trusting a pull-request-head change.
+- **Safer agent collaboration:** an agent can explain findings and propose the
+  next check, but cannot convert `REVIEW` or `BLOCK` into `PASS`.
+
+The plugin is an interaction layer and intentionally does not install or hide
+the evidence engine. Install the CLI in the repository where it runs:
 
 ```bash
 git clone https://github.com/kingggg5/deployguardai.git
 cd deployguardai
 python -m pip install ./verify
-
-deployguard verify --base origin/main --head HEAD \
-  --evidence-sha "$(git rev-parse HEAD)" \
-  --junit artifacts/junit.xml \
-  --coverage artifacts/coverage.xml \
-  --sarif artifacts/results.sarif
+deployguard init --github --agent codex
 ```
 
-The command writes `.deployguard/artifacts/evidence-receipt.json`.
+## How it works
 
-| Decision | Exit | Meaning |
-| --- | ---: | --- |
-| `PASS` | `0` | Every required artifact is present, fresh, SHA-matched, and compliant. |
-| `REVIEW` | `2` | Evidence is missing, stale, mismatched, or requires a human decision. |
-| `BLOCK` | `3` | Observed evidence violates an objective policy rule. |
-| `ERROR` | `4` | Verification could not complete; the gate fails closed. |
-
-Run `deployguard init --github --agent codex` to create a protected-base policy,
-a fail-closed workflow, and concise repository guidance. The composite
-[GitHub Action](action.yml) is available at the repository root; publish and
-pin a full release SHA before depending on it in a protected production branch.
+```mermaid
+flowchart LR
+    Change["Pull request\nbase SHA + head SHA"] --> CI["Existing CI\nJUnit · coverage · SARIF · build"]
+    Policy["Policy from\nprotected base"] --> Verify["DeployGuard Verify\ndeterministic and keyless"]
+    CI --> Verify
+    Verify --> Receipt["Canonical evidence receipt\nPASS · REVIEW · BLOCK · ERROR"]
+    Skill["Codex Plugin + Skill"] -. "orchestrates and cites" .-> Verify
+    Receipt --> Check["Required GitHub check"]
+    Receipt -. "optional authenticated ingestion" .-> Platform["Connected DeployGuard"]
+    Platform --> Outcome["Deployment outcome\nstable · failed · rollback · incident"]
+    Outcome --> Verdict["Human confirmation\nactor provenance + audit history"]
+```
 
 ## Run the connected platform
 
-Requirements: Docker Engine or Docker Desktop with Compose v2.
-
 ```bash
+git clone https://github.com/kingggg5/deployguardai.git
+cd deployguardai
+cp .env.example .env
 docker compose up --build
 ```
 
-Open the web app at <http://127.0.0.1:4300> and the public API through the .NET
-control plane at <http://127.0.0.1:8100/docs>. Connected mode starts empty. See
-the [Quickstart](docs/QUICKSTART.md) for GitHub App, OIDC, synthetic demo, and
-local development setup.
+- Web: <http://127.0.0.1:4300>
+- Public control plane and OpenAPI: <http://127.0.0.1:8100/docs>
+- Demo data: isolated and visibly labelled; see the [Quickstart](docs/QUICKSTART.md)
 
-## What is available today
+The ASP.NET Core 10/YARP control plane is the public boundary. FastAPI and the
+worker stay private, PostgreSQL 16 is the production source of truth with tenant
+RLS, Angular provides the web client, and Python owns deterministic evidence and
+evaluation engines.
 
-| Product lane | Status |
-| --- | --- |
-| Keyless verification | Deterministic CLI, protected-base policy, canonical receipt, stable exit codes, and composite Action are implemented. |
-| Connected operations | Workspaces, GitHub events, change risk, deployments, telemetry, incidents, evidence graphs, verdict provenance, jobs, and PostgreSQL RLS are implemented. |
-| Outcome closure | Authenticated receipt ingestion and explicit stable/failed/rolled-back outcome closure remain P0. |
-| Dataset and evaluation | Synthetic schema, manifests, governed promotion gates, and evaluation tooling exist; no real public production corpus or leaderboard is claimed. |
+## Project truth
 
-## Architecture
+- **Implemented:** keyless receipts, Marketplace Action `@2`, authenticated
+  receipt ingestion, evidence-backed GitHub Checks, explicit deployment
+  outcomes, OTLP-normalized intake, notification outbox jobs, SLO summaries,
+  PostgreSQL RLS, and governed dataset release/revocation records.
+- **Operator configured:** GitHub App credentials, production attestation
+  verification, OIDC, non-owner PostgreSQL roles, OTLP Collector, and
+  Slack/Teams/PagerDuty destinations.
+- **Dataset status:** the repository contains synthetic examples only.
+  DeployGuard Bench is not a production benchmark until it has a consented real
+  corpus, reviewed redaction, adjudicated labels, frozen splits, contamination
+  checks, and published baselines.
+- **Plugin status:** the repository-distributed Codex plugin is pre-1.0. Skills
+  orchestrate existing evidence; they do not execute autonomous remediation.
 
-Angular is the web client. ASP.NET Core 10 and YARP form the public,
-fail-closed control plane. FastAPI owns the internal application services, and
-Python remains the deterministic risk/evidence engine. PostgreSQL 16 is the
-production source of truth with row-level tenant isolation; SQLite supports
-local development. See the [detailed architecture (Thai)](docs/ARCHITECTURE.md)
-and the [API contract](docs/API_CONTRACT.md).
+## Documentation
 
-## Project status
-
-DeployGuard is pre-1.0. The core evidence and governance contracts are tested,
-but the standalone Action has not been released as `v1`, connected receipt
-ingestion is not complete, and DeployGuard Bench contains synthetic—not
-production—examples. Track these boundaries in the [Roadmap](docs/ROADMAP.md),
-[AI boundary](docs/AI_BOUNDARY.md), and [dataset card](bench/README.md).
+[Quickstart](docs/QUICKSTART.md) · [Architecture](docs/ARCHITECTURE.md) ·
+[Operations](docs/OPERATIONS.md) · [Security model](docs/SECURITY.md) ·
+[API contract](docs/API_CONTRACT.md) · [AI boundary](docs/AI_BOUNDARY.md) ·
+[Dataset card](bench/README.md) · [Roadmap](docs/ROADMAP.md)
 
 ## Community
 
-- [Contributing](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Governance](GOVERNANCE.md)
-- [Security policy](.github/SECURITY.md) · [Threat model](docs/SECURITY.md) · [Support](SUPPORT.md)
-- [Operations](docs/OPERATIONS.md) · [Data model](docs/DATA_MODEL.md) · [Changelog](CHANGELOG.md)
+[Contributing](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) ·
+[Governance](GOVERNANCE.md) · [Support](SUPPORT.md) ·
+[Security reporting](.github/SECURITY.md) · [Changelog](CHANGELOG.md)
 
 DeployGuard AI is licensed under [Apache-2.0](LICENSE).

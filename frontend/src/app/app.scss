@@ -1,46 +1,50 @@
 :host {
   display: block;
   min-height: 100vh;
-}
-
-.cockpit-shell {
-  min-height: 100vh;
+  padding: 18px;
   background: var(--canvas);
 }
 
-.command-rail {
-  position: sticky;
-  z-index: 70;
-  top: 0;
-  right: auto;
-  bottom: auto;
-  left: auto;
+.cockpit-shell {
   display: grid;
-  grid-template-columns: auto minmax(240px, 540px) auto;
-  align-items: center;
-  gap: 20px;
-  min-height: 64px;
-  width: 100%;
-  padding: 12px max(16px, calc((100vw - 1280px) / 2));
-  border-bottom: 1px solid var(--color-header-border);
-  border-right: 0;
-  background: var(--color-header);
-  color: #f0f6fc;
+  grid-template-columns: var(--rail-width) minmax(0, 1fr);
+  width: min(1500px, 100%);
+  min-height: calc(100vh - 36px);
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--rail-surface);
+  box-shadow: var(--shadow-shell);
+}
+
+.command-rail {
+  position: relative;
+  z-index: 70;
+  display: flex;
+  min-width: 0;
+  min-height: 100%;
+  padding: 18px 12px 14px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  border-right: 1px solid var(--line);
+  background: var(--rail-surface);
+  color: var(--ink);
   backdrop-filter: none;
-  transform: none;
 }
 
 :host-context(body.dark-theme) .command-rail {
-  background: var(--color-header-deep);
+  background: var(--rail-surface);
 }
 
 .rail-brand {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-width: max-content;
-  min-height: 0;
-  padding: 0;
+  min-width: 0;
+  min-height: 42px;
+  padding: 0 6px;
 }
 
 .brand-mark {
@@ -69,40 +73,42 @@
 }
 
 .rail-brand strong {
-  color: #f0f6fc;
+  color: var(--ink-strong);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 650;
   letter-spacing: -0.01em;
 }
 
 .rail-brand span {
-  color: #b1bac4;
-  font-size: 12px;
+  color: var(--muted);
+  font-size: 11px;
 }
 
 .global-search {
   width: 100%;
   min-width: 0;
-  justify-self: center;
 }
 
 .command-actions {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 8px;
+  margin-top: auto;
+  padding: 12px 4px 0;
+  border-top: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
 }
 
 .command-rail .icon-button,
 .command-rail .language-control {
-  border-color: var(--color-header-control);
-  background: transparent;
-  color: #f0f6fc;
+  border-color: var(--line);
+  background: color-mix(in srgb, var(--surface) 58%, transparent);
+  color: var(--muted-strong);
 }
 
 .command-rail .icon-button:hover {
-  border-color: var(--color-header-muted);
-  background: #32383f;
+  border-color: var(--line-strong);
+  background: var(--surface);
 }
 
 .command-rail .language-control {
@@ -110,34 +116,38 @@
 }
 
 .command-rail .language-control button {
-  color: #b1bac4;
+  color: var(--muted);
 }
 
 .command-rail .language-control button.is-active {
-  background: #0969da;
-  color: #ffffff;
+  background: var(--cobalt);
+  color: var(--color-on-accent);
 }
 
 .cockpit-main {
+  position: relative;
   min-width: 0;
-  min-height: calc(100vh - 64px);
-  margin-left: 0;
+  min-height: calc(100vh - 48px);
+  margin: 6px;
+  overflow: auto;
+  border: 1px solid color-mix(in srgb, var(--line) 75%, transparent);
+  border-radius: 14px;
+  background: var(--workspace-surface);
 }
 
 .command-bar {
   position: sticky;
   z-index: 50;
-  top: 64px;
+  top: 0;
   display: grid;
   grid-template-columns: minmax(260px, 1fr) auto auto;
   align-items: center;
-  gap: 24px;
-  min-height: 72px;
-  padding: 8px max(16px, calc((100vw - 1280px) / 2));
+  gap: 20px;
+  min-height: 68px;
+  padding: 10px 24px;
   border-bottom: 1px solid var(--line);
-  background: var(--surface);
-  backdrop-filter: none;
-  box-shadow: none;
+  background: var(--workspace-surface);
+  box-shadow: 0 1px 0 rgb(31 35 40 / 4%);
 }
 
 .command-bar__context {
@@ -164,8 +174,8 @@
 }
 
 .command-stats > div {
-  min-width: 92px;
-  padding: 0 16px;
+  min-width: 80px;
+  padding: 0 14px;
   border-left: 1px solid var(--line);
 }
 
@@ -216,18 +226,14 @@
 }
 
 .rail-navigation {
-  position: sticky;
-  z-index: 45;
-  top: 136px;
   display: flex;
-  flex-direction: row;
-  align-items: center;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: stretch;
   gap: 4px;
-  min-height: 49px;
-  padding: 0 max(16px, calc((100vw - 1280px) / 2));
-  overflow-x: auto;
-  border-bottom: 1px solid var(--line);
-  background: var(--surface);
+  padding: 4px 0;
+  overflow-y: auto;
   scrollbar-width: none;
 }
 
@@ -237,18 +243,20 @@
 
 .rail-navigation > button:not(.xray-control) {
   position: relative;
-  display: inline-flex;
+  display: flex;
+  width: 100%;
   flex: 0 0 auto;
   align-items: center;
   gap: 7px;
-  min-height: 48px;
+  min-height: 36px;
   padding: 0 10px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 8px;
   background: transparent;
   color: var(--muted-strong);
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 550;
+  text-align: left;
 }
 
 .rail-navigation > button:not(.xray-control):hover {
@@ -257,19 +265,12 @@
 }
 
 .rail-navigation > button.is-active:not(.xray-control) {
-  background: transparent;
+  background: var(--rail-active);
   color: var(--ink-strong);
 }
 
 .rail-navigation > button.is-active:not(.xray-control)::after {
-  position: absolute;
-  right: 8px;
-  bottom: -1px;
-  left: 8px;
-  height: 2px;
-  border-radius: 2px 2px 0 0;
-  background: var(--color-nav-indicator);
-  content: '';
+  content: none;
 }
 
 .rail-navigation svg {
@@ -284,13 +285,13 @@
 }
 
 .xray-control {
-  min-width: auto;
-  min-height: 32px;
-  margin-left: auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  margin: 10px 0 0;
   padding: 0 10px;
-  flex: 0 0 auto;
   border-color: var(--line);
-  background: var(--surface-subtle);
+  background: color-mix(in srgb, var(--surface) 56%, transparent);
   font-size: 12px;
 }
 
@@ -304,11 +305,20 @@
   display: none;
 }
 
+.rail-section-label {
+  margin: 10px 10px 4px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .workspace {
   width: 100%;
-  max-width: 1280px;
+  max-width: 1240px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 36px 40px 48px;
 }
 
 .workspace-title,
@@ -326,7 +336,7 @@
 .incident-command,
 .scenario-register,
 .analysis-form {
-  border-radius: 6px;
+  border-radius: var(--radius-panel);
   box-shadow: none;
 }
 
@@ -363,7 +373,7 @@
   justify-content: space-between;
   gap: 24px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-panel);
   background: var(--surface);
 }
 
@@ -383,6 +393,32 @@
 
 .connected-readiness .button {
   flex: 0 0 auto;
+}
+
+.risk-empty-state,
+.investigation-empty-state {
+  min-height: 310px;
+}
+
+.risk-empty-state .empty-state,
+.investigation-empty-state .empty-state {
+  min-height: 310px;
+}
+
+.risk-empty-state .empty-state p,
+.investigation-empty-state .empty-state p {
+  max-width: 68ch;
+}
+
+.risk-empty-state .button,
+.investigation-empty-state .button {
+  margin-top: var(--space-4);
+}
+
+.severity-mark--connected {
+  border-color: color-mix(in srgb, var(--cobalt) 45%, var(--line));
+  background: var(--cobalt-soft);
+  color: var(--cobalt-strong);
 }
 
 .verdict-provenance {
@@ -763,19 +799,26 @@
   margin-top: 8px;
 }
 
-@media (max-width: 1060px) {
-  .command-rail {
-    grid-template-columns: auto minmax(180px, 1fr) auto;
+@media (max-width: 1120px) {
+  :host {
+    padding: 10px;
   }
 
-  .rail-brand span,
-  .command-stats dt {
+  .cockpit-shell {
+    min-height: calc(100vh - 20px);
+  }
+
+  .command-bar {
+    grid-template-columns: minmax(220px, 1fr) auto;
+    padding-inline: 18px;
+  }
+
+  .command-stats {
     display: none;
   }
 
-  .command-stats > div {
-    min-width: auto;
-    padding-inline: 12px;
+  .workspace {
+    padding: 30px 28px 40px;
   }
 
   .governance-gates {
@@ -791,7 +834,20 @@
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 900px) {
+  :host {
+    padding: 0;
+  }
+
+  .cockpit-shell {
+    display: block;
+    min-height: 100vh;
+    border: 0;
+    border-radius: 0;
+    background: var(--workspace-surface);
+    box-shadow: none;
+  }
+
   .connected-readiness {
     padding: 16px;
     align-items: flex-start;
@@ -800,35 +856,32 @@
   }
 
   .command-rail {
-    grid-template-columns: auto 1fr auto;
-    gap: 10px;
-    min-height: 56px;
-    padding-block: 8px;
+    position: fixed;
+    z-index: 90;
+    inset: 0 auto 0 0;
+    width: min(300px, calc(100vw - 44px));
+    min-height: 100vh;
+    padding: 18px 14px;
+    border-right: 1px solid var(--line);
+    box-shadow: var(--shadow-float);
+    transform: translateX(-105%);
+    transition: transform var(--motion-duration-slow) var(--ease-out);
   }
 
-  .rail-brand div,
-  .language-control {
-    display: none;
-  }
-
-  .global-search {
-    display: flex;
-    justify-content: flex-end;
+  .is-sidebar-open .command-rail {
+    transform: translateX(0);
   }
 
   .command-bar {
-    top: 56px;
-    grid-template-columns: minmax(0, 1fr) auto;
+    top: 0;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     gap: 10px;
     min-height: 64px;
+    padding: 8px 14px;
   }
 
   .mobile-menu {
     display: inline-grid;
-  }
-
-  .command-stats {
-    display: none;
   }
 
   .rail-foot {
@@ -836,47 +889,14 @@
   }
 
   .rail-navigation {
-    position: fixed;
-    z-index: 90;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    display: flex;
-    width: min(320px, calc(100vw - 48px));
-    min-height: 100vh;
-    padding: 16px;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 4px;
     overflow-y: auto;
-    border-right: 1px solid var(--line);
-    background: var(--surface);
-    box-shadow: var(--shadow-float);
-    transform: translateX(-105%);
-    transition: transform 160ms var(--ease-out);
-  }
-
-  .is-sidebar-open .rail-navigation {
-    transform: translateX(0);
-  }
-
-  .rail-navigation > button:not(.xray-control) {
-    width: 100%;
-    justify-content: flex-start;
-  }
-
-  .rail-navigation > button.is-active:not(.xray-control)::after {
-    top: 8px;
-    right: auto;
-    bottom: 8px;
-    left: 0;
-    width: 3px;
-    height: auto;
   }
 
   .rail-close {
     display: inline-grid !important;
-    align-self: flex-end !important;
+    position: absolute;
+    top: 14px;
+    right: 12px;
     width: 44px !important;
     min-height: 44px !important;
   }
@@ -893,7 +913,7 @@
     inset: 0;
     display: block;
     border: 0;
-    background: rgb(1 4 9 / 58%);
+    background: rgb(23 37 58 / 38%);
     opacity: 0;
     pointer-events: none;
     transition: opacity 160ms var(--ease-out);
@@ -905,7 +925,14 @@
   }
 
   .workspace {
-    padding: 16px;
+    padding: 24px 18px 36px;
+  }
+
+  .cockpit-main {
+    min-height: 100vh;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
   }
 
   .incident-command {
@@ -957,7 +984,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rail-navigation,
+  .command-rail,
   .sidebar-backdrop {
     transition-duration: 80ms;
   }

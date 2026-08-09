@@ -9,54 +9,52 @@ every production environment is configured or independently certified.
 | Capability | Status | Current truth |
 | --- | --- | --- |
 | DeployGuard Verify | Implemented | Keyless CLI/Action, protected-base policy, exact-SHA JUnit/Coverage/SARIF evidence, canonical receipt, stable decisions |
-| Connected receipt ingestion | Planned | GitHub App Check remains neutral until an authenticated/attested receipt path exists |
+| Connected receipt ingestion | Implemented | HMAC-authenticated, canonical, exact-SHA receipt endpoint; detached attestation mismatch stays REVIEW |
 | Deterministic change risk and blast radius | Implemented | Explicit scoring dimensions, versioned policy, cycle-safe traversal |
 | Incident evidence, RCA, and lifecycle | Implemented | Timeline, evidence/counter-evidence, hypotheses, assignments, notes, notifications |
 | Human verdict governance | Implemented | Server-owned actor provenance and structured verification outcome |
 | Postmortem and consent governance | Implemented | Immutable content-addressed snapshots, append-only purpose-specific consent, readiness gate |
 | Workspace, RBAC, and PostgreSQL RLS | Implemented | Viewer/responder/admin/owner roles and negative tenant-isolation tests |
-| Durable GitHub provider workflow | Environment-gated | GitHub App, signed webhook, Check Runs, outbox, retry, DLQ, trace propagation |
+| Durable GitHub provider workflow | Environment-gated | GitHub App, signed webhook, evidence-backed Check Runs, outbox, retry, DLQ, trace propagation |
 | OIDC and SMTP | Environment-gated | Runtime paths exist; operators must configure providers and secrets |
-| Normalized telemetry ingestion | Environment-gated | Tenant-scoped normalized contract; not a native OTLP receiver |
+| Normalized telemetry ingestion | Environment-gated | Authenticated OTLP-normalized JSON bridge; native protobuf receiver remains a deployment choice |
 | Backup, restore, and retention helpers | Implemented | Restore rehearsal, batched retention, legal hold, deletion audit; scheduling/storage external |
 | DeployGuard Bench synthetic foundation | Implemented | Schema, deterministic exporter, 3 synthetic examples, manifest, CI drift check |
-| Connected-data export/publication | Planned | Exporter remains closed; redaction, review, registry, and revocation propagation absent |
+| Connected-data export/publication | Guarded | Redaction, leakage checks, immutable release registry, and revocation tombstones exist; exporter remains closed until corpus approval |
 | Public real-world benchmark | Planned | No consented corpus, hidden test split, independent annotation, or leaderboard |
 | External LLM provider | Deferred | Requires redaction, security, blinded evaluation, and frozen benchmark first |
-| Native OTLP gateway | Planned | Requires authenticated Collector mapping, quotas, and normalization policy |
-| Slack/Teams/PagerDuty | Planned | No arbitrary outbound webhook path is currently bundled |
+| Native OTLP gateway | Planned | Current intake is a bounded normalized bridge; protobuf/resource signal mapping still needs a separate release |
+| Slack/Teams/PagerDuty | Implemented | Fixed deployment-owned destinations enqueue secret-free jobs; worker retries and dead-letters delivery |
 | Hosted public demo | Planned | Requires isolated tenancy, abuse protection, cost limits, and resettable synthetic data |
 | .NET 10 public control plane | Implemented | Native fail-closed health/readiness and full compatibility routing; domain slices migrate only after parity gates |
 
 ## P0 — Close the change outcome loop
 
-1. Ship and self-dogfood the versioned `DeployGuard Verify` Action, publish a
-   pinned release, and prove 10/10 byte-identical receipt replay.
-2. Ingest authenticated/attested receipts without accepting arbitrary commands
-   or trusting policy from the pull-request head.
-3. Publish PASS/REVIEW/BLOCK through the GitHub App only from an accepted
-   receipt; keep metadata-only analysis neutral.
+1. Self-dogfood the released `DeployGuard Verify` Action at tag `2` on a
+   protected branch and prove 10/10 byte-identical receipt replay.
+2. Keep authenticated/attested receipt ingestion fail-closed; cryptographic
+   attestation verification remains an operator/provider integration concern.
+3. Publish PASS/REVIEW/BLOCK only from an accepted receipt; metadata-only
+   analysis stays neutral.
 4. Link exact deployed SHA to explicit outcomes: `stable_window_met`, `failed`,
    `rolled_back`, `incident_linked`, or `unknown`, with human confirmation.
 
 ## P1 — Close the connected-data safety loop
 
-1. Build deterministic secret, PII, customer-data, and tenant-identifier
-   redaction with inspectable review artifacts.
-2. Add a source license/retention inventory and publication approval workflow.
-3. Create an immutable dataset release registry and propagate consent revocation
-   as tombstones to every derived bundle.
-4. Add deduplication, contamination, and train/test leakage checks before any
-   record can leave `ready_for_review`.
-5. Verify migration `0011`, RLS, and immutability triggers on a real PostgreSQL
+1. Expand deterministic secret, PII, customer-data, and tenant-identifier
+   redaction with inspectable review artifacts for every connected exporter.
+2. Add source license/retention inventory and independent publication approval.
+3. Propagate consent-revocation tombstones to every derived bundle and registry.
+4. Keep deduplication, contamination, and train/test leakage checks mandatory.
+5. Verify migration `0012`, RLS, and immutability triggers on a real PostgreSQL
    16 non-owner role in CI and a reference environment.
 
 ## P2 — Make connected operations easier
 
 1. Native OTLP gateway with authenticated Collector mapping, allow-listed
    attributes, cardinality limits, and redaction before persistence.
-2. Slack/Teams/PagerDuty adapters through the durable outbox with allow-listed
-   destinations, idempotency, retry, and auditable delivery state.
+2. Harden Slack/Teams/PagerDuty adapters with provider acknowledgements,
+   rotation/revocation playbooks, and delivery SLOs.
 3. SLO/error-budget dashboards backed by connected deployment and incident
    evidence, not placeholder metrics.
 4. Search, saved views, and evidence filters that remain tenant-scoped and

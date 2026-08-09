@@ -344,6 +344,16 @@ internal Python service address outside local Compose. Set
 observability profile (or an equivalent trusted Collector) is running; leave it
 empty otherwise.
 
+## SLO and notification operations
+
+The API exposes a tenant-scoped SLO/error-budget summary at
+`GET /api/v1/workspaces/{workspace_id}/slo`. It reports only observed telemetry
+attributes and uses `unknown` when an objective or budget signal is absent.
+Slack, Teams, and PagerDuty delivery is queued through the durable outbox;
+destination credentials stay in deployment configuration and never enter job
+payloads. Review the job attention queue and dead-letter records after provider
+rotation or a delivery outage.
+
 ## Failure playbooks
 
 ### API ไม่เริ่มหลัง release
@@ -443,7 +453,7 @@ target database:
 ```powershell
 python scripts/restore_check.py `
   --backup .runtime/backups/deployguard-20260803.db `
-  --format sqlite --expected-head 0011
+  --format sqlite --expected-head 0012
 ```
 
 ทดสอบ restore SQLite บน writable disposable copy:
@@ -451,7 +461,7 @@ python scripts/restore_check.py `
 ```powershell
 python scripts/restore_rehearsal.py `
   --backup .runtime/backups/deployguard-20260803.db `
-  --format sqlite --expected-head 0011 `
+  --format sqlite --expected-head 0012 `
   --report .runtime/restore-rehearsal-20260803.json
 ```
 
@@ -466,7 +476,7 @@ python scripts/restore_rehearsal.py `
   --application-database-url $env:RESTORE_APPLICATION_DATABASE_URL `
   --target-database deployguard_restore_release_20260803 `
   --confirm CREATE-AND-DROP-ISOLATED-DATABASE `
-  --expected-head 0011
+  --expected-head 0012
 ```
 
 ตรวจ retention candidates แบบ read-only ก่อน:
@@ -555,7 +565,7 @@ docker compose config
 Backup validation (read-only):
 
 ```powershell
-python scripts/restore_check.py --backup .runtime/backups/deployguard.db --format sqlite --expected-head 0011
+python scripts/restore_check.py --backup .runtime/backups/deployguard.db --format sqlite --expected-head 0012
 ```
 
 Migration smoke:

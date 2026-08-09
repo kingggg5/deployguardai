@@ -37,22 +37,26 @@ class Database:
         # Model modules are imported lazily here to avoid a Base/model import
         # cycle during application startup.
         from . import (  # noqa: F401
+            dataset_models,
             deployment_models,
             job_models,
             models,
             operations_models,
             provider_models,
+            verification_models,
         )
 
         Base.metadata.create_all(self.engine)
 
     def migrate(self, *, allow_legacy_bootstrap: bool = False) -> None:
         from . import (  # noqa: F401
+            dataset_models,
             deployment_models,
             job_models,
             models,
             operations_models,
             provider_models,
+            verification_models,
         )
 
         existing_tables = set(inspect(self.engine).get_table_names())

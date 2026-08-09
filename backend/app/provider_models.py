@@ -110,7 +110,7 @@ class GitHubCheckPublication(Base):
             name="ck_github_check_publication_status",
         ),
         CheckConstraint(
-            "conclusion IS NULL OR conclusion IN ('neutral', 'success')",
+            "conclusion IS NULL OR conclusion IN ('neutral', 'failure', 'success')",
             name="ck_github_check_publication_conclusion",
         ),
         CheckConstraint(

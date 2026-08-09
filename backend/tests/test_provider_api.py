@@ -18,11 +18,13 @@ from app.job_contracts import GITHUB_CHECK_PUBLISH_JOB
 from app.job_models import BackgroundJob
 from app.operations_models import OperationalEvent
 from app.provider_models import WebhookDelivery
+from app.verification_receipts import _receipt_hash
 
 
 class FakeGitHubClient:
     def __init__(self) -> None:
         self.create_calls = 0
+        self.conclusions: list[str] = []
 
     def installation(self, installation_id: str) -> dict:
         assert installation_id == "12345"
@@ -55,6 +57,7 @@ class FakeGitHubClient:
 
     def create_check_run(self, **payload) -> dict:
         self.create_calls += 1
+        self.conclusions.append(payload["conclusion"])
         assert payload["installation_id"] == "12345"
         assert payload["repository_full_name"] == "acme/checkout"
         assert len(payload["head_sha"]) >= 7
@@ -64,6 +67,14 @@ class FakeGitHubClient:
         assert "decision support only" in payload["summary"]
         return {
             "id": 4_242,
+            "status": "completed",
+            "conclusion": payload["conclusion"],
+        }
+
+    def update_check_run(self, **payload) -> dict:
+        self.conclusions.append(payload["conclusion"])
+        return {
+            "id": int(payload["provider_check_id"]),
             "status": "completed",
             "conclusion": payload["conclusion"],
         }
@@ -325,6 +336,74 @@ def test_github_install_discovery_and_sync(
     assert published.json()["change_id"] == analyzed.json()["change_id"]
     assert published.json()["status"] == "completed"
     assert published.json()["conclusion"] == "neutral"
+
+    # A receipt is the executable gate. Even when the metadata-derived risk
+    # prior is deliberately extreme, a matching PASS receipt with a verified
+    # attestation is the only source allowed to publish a successful Check.
+    with client.app.state.database.session_factory() as session:
+        change = session.scalar(
+            select(ChangeRecord).where(
+                ChangeRecord.id == analyzed.json()["change_id"]
+            )
+        )
+        assert change is not None
+        change.risk = {
+            "overall_score": 100,
+            "level": "critical",
+            "data_quality": 1.0,
+            "recommendations": [],
+            "nodes": [],
+        }
+        session.commit()
+    receipt = {
+        "schema_version": "0.1",
+        "repository": {
+            "name": "acme/checkout",
+            "head_sha": "b" * 40,
+        },
+        "decision": {"status": "pass"},
+    }
+    receipt["receipt_sha256"] = _receipt_hash(receipt)
+    envelope = {
+        "receipt": receipt,
+        "attestation": {
+            "subject_sha": "b" * 40,
+            "receipt_sha256": receipt["receipt_sha256"],
+            "verified_by": "github_artifact_attestation",
+        },
+    }
+    settings.receipt_ingest_secret = "r" * 32
+    receipt_body = json.dumps(
+        envelope, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode()
+    receipt_signature = "sha256=" + hmac.new(
+        b"r" * 32, receipt_body, hashlib.sha256
+    ).hexdigest()
+    ingested = client.post(
+        (
+            f"/api/v1/workspaces/{workspace_id}/providers/github/"
+            f"repositories/{connected[0]['id']}/receipts"
+        ),
+        headers={
+            "X-DeployGuard-Receipt-Signature": receipt_signature,
+            "Content-Type": "application/json",
+        },
+        content=receipt_body,
+    )
+    assert ingested.status_code == 201
+    assert ingested.json()["attestation_state"] == "verified"
+    verified_check = client.post(
+        (
+            f"/api/v1/workspaces/{workspace_id}/repositories/"
+            f"{connected[0]['id']}/changes/"
+            f"{analyzed.json()['change_id']}/github-check"
+        ),
+        headers=headers,
+    )
+    assert verified_check.status_code == 200
+    assert verified_check.json()["decision"] == "pass"
+    assert verified_check.json()["attestation_state"] == "verified"
+    assert verified_check.json()["conclusion"] == "success"
 
     workflow_body = json.dumps(
         {

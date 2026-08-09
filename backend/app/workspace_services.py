@@ -248,6 +248,11 @@ def create_workspace(
     )
     workspace.memberships.append(membership)
     session.add(workspace)
+    # Materialize the workspace and its owner membership before tenant-scoped
+    # context or audit rows reference them. PostgreSQL can otherwise schedule
+    # the raw-id audit insert before the new workspace because no ORM
+    # relationship connects those two pending objects.
+    session.flush()
     context = session.get(UserContext, user.id)
     if context is None:
         session.add(

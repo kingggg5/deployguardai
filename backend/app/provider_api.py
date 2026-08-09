@@ -20,6 +20,7 @@ from .provider_schemas import (
     GitHubRepositorySyncRequest,
     GitHubRepositorySyncResponse,
     ProductCapabilities,
+    VerificationReceiptIngestResponse,
 )
 from .provider_services import (
     available_github_repositories,
@@ -33,6 +34,7 @@ from .provider_services import (
     publish_github_change_check,
     sync_github_repositories,
 )
+from .verification_receipts import ingest_receipt
 from .workspace_api import get_current_user, get_session, request_id
 
 
@@ -77,6 +79,37 @@ def connected_repository_changes(
     if repository is None:
         raise DomainError("Repository not found", "repository_not_found", 404)
     return list_changes(session, workspace_id, repository_id)
+
+
+@router.post(
+    "/workspaces/{workspace_id}/providers/github/repositories/{repository_id}/receipts",
+    response_model=VerificationReceiptIngestResponse,
+    status_code=201,
+)
+async def ingest_github_receipt(
+    workspace_id: str,
+    repository_id: str,
+    request: Request,
+    session: Annotated[Session, Depends(get_session)],
+) -> VerificationReceiptIngestResponse:
+    """Accept one signed, canonical receipt from the reusable Verify Action.
+
+    This endpoint intentionally has no user session. It is an integration
+    boundary authenticated by a deployment-managed HMAC secret and scoped by
+    the repository path; it never accepts a policy document from the PR head.
+    """
+
+    raw_body = await request.body()
+    return ingest_receipt(
+        session,
+        workspace_id=workspace_id,
+        repository_id=repository_id,
+        raw_body=raw_body,
+        signature=request.headers.get("x-deployguard-receipt-signature", ""),
+        secret=request.app.state.settings.receipt_ingest_secret,
+        request_id=request_id(request),
+        settings=request.app.state.settings,
+    )
 
 
 @router.post(

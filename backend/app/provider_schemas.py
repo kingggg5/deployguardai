@@ -83,9 +83,23 @@ class GitHubCheckRunResponse(APIModel):
     provider_check_id: str
     change_id: str
     status: str
-    conclusion: Literal["neutral", "success"]
+    conclusion: Literal["neutral", "failure", "success"]
     details_url: str
     published_at: datetime
+    decision: Literal["pass", "review", "block", "error"] = "review"
+    receipt_sha256: str | None = None
+    attestation_state: Literal["verified", "missing", "invalid"] = "missing"
+
+
+class VerificationReceiptIngestResponse(APIModel):
+    receipt_id: str
+    change_id: str
+    head_sha: str
+    receipt_sha256: str
+    decision: Literal["pass", "review", "block", "error"]
+    attestation_state: Literal["verified", "missing", "invalid"]
+    status: Literal["accepted", "duplicate"]
+    authenticated_at: datetime
 
 
 class InvitationDeliverySummary(APIModel):

@@ -7,6 +7,9 @@ release notes from `main` and will use semantic versioning for tagged releases.
 
 ### Added
 
+- A repository-distributed `deployguardai` Codex plugin with one focused
+  `deployguard-change-safety` Skill, Git marketplace metadata, manifest/version
+  contract tests, and explicit no-LLM-key/no-decision-override boundaries.
 - DeployGuard Verify v0.1: a standalone, zero-LLM-key CLI and composite GitHub
   Action that imports JUnit, Cobertura/LCOV, SARIF, and build status into a
   protected-base-policy, exact-SHA, canonical evidence receipt with stable
@@ -17,10 +20,25 @@ release notes from `main` and will use semantic versioning for tagged releases.
 - DeployGuard Bench v0.1 foundation with a versioned operational-example schema,
   deterministic synthetic exporter, provenance and eligibility rules,
   reproducible dataset artifacts, contract tests, and CI drift checks.
+- Authenticated evidence-receipt ingestion with exact repository/head-SHA
+  matching, detached attestation state, and evidence-backed GitHub Check
+  publication; metadata-only checks remain neutral.
+- Explicit post-deployment outcome records with stable-window, failure,
+  rollback, incident-link, and human-confirmation states, plus an Operations
+  surface for SLO/error-budget summaries and accountable response.
+- Conservative secret/PII redaction and cross-split leakage checks, immutable
+  dataset release records with revocation tombstones, and fixed-destination
+  Slack/Teams/PagerDuty notification outbox jobs.
 - Citation-gated deterministic incident explanations with a versioned evidence
   contract, evidence-bundle hash, uncertainty, validation, and audit metadata.
 - Cross-platform local development commands, a `make demo` entry point, and CI
   coverage reports/floors for backend and frontend suites.
+
+### Documentation
+
+- Reworked the English and Thai READMEs around the released Marketplace Action
+  `@2`, its immutable production SHA, Action/CLI/Plugin/connected entry points,
+  and concrete Skill benefits without overstating the `@2` publisher boundary.
 - An explicit AI-boundary document and a dependency-ordered public roadmap.
 - Three-minute connected and isolated demo quickstarts, a polished English/Thai
   project overview, and a real dashboard screenshot for repository discovery.

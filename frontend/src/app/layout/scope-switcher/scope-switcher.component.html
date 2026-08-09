@@ -18,7 +18,11 @@
     @if (activeScenario()) {
       <span class="scope-full-name">{{ activeScenario()!.repository }}</span>
     }
-    <span class="scope-chevron" aria-hidden="true">⌄</span>
+    <span class="scope-chevron" aria-hidden="true">
+      <svg viewBox="0 0 16 16">
+        <path d="m4 6 4 4 4-4"/>
+      </svg>
+    </span>
   </button>
 
   <span class="scope-mode" [attr.data-mode]="activeDataMode()">

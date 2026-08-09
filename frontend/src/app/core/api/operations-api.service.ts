@@ -8,6 +8,7 @@ import {
   IncidentLifecycleUpdateRequest,
   IncidentNoteRequest,
   DeploymentFilters,
+  DeploymentOutcomeRequest,
   DeploymentRecord,
   OperationalEvent,
   OperationalEventCreateRequest,
@@ -17,7 +18,8 @@ import {
   RiskPolicyUpdateRequest,
   ServiceCreateRequest,
   ServiceRecord,
-  ServiceUpdateRequest
+  ServiceUpdateRequest,
+  SloDashboard
 } from '../models/operations.models';
 
 @Injectable({ providedIn: 'root' })
@@ -68,6 +70,16 @@ export class OperationsApiService {
     );
   }
 
+  sloDashboard(workspaceId: string, windowMinutes = 60): Observable<SloDashboard> {
+    return this.http.get<SloDashboard>(
+      `${this.apiBase}/workspaces/${this.encode(workspaceId)}/slo`,
+      {
+        headers: this.headers(),
+        params: new HttpParams().set('window_minutes', String(windowMinutes))
+      }
+    );
+  }
+
   deployments(
     workspaceId: string,
     filters: DeploymentFilters = {}
@@ -81,6 +93,17 @@ export class OperationsApiService {
     return this.http.get<DeploymentRecord[]>(
       `${this.apiBase}/workspaces/${this.encode(workspaceId)}/deployments`,
       { headers: this.headers(), params }
+    );
+  }
+
+  recordDeploymentOutcome(
+    deploymentId: string,
+    request: DeploymentOutcomeRequest
+  ): Observable<DeploymentRecord> {
+    return this.http.post<DeploymentRecord>(
+      `${this.apiBase}/deployments/${this.encode(deploymentId)}/outcome`,
+      request,
+      { headers: this.headers() }
     );
   }
 

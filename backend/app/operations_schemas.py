@@ -53,6 +53,23 @@ class BackgroundJobSummary(BaseModel):
     completed_at: datetime | None
 
 
+class NotificationProviderRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    provider: Literal["slack", "teams", "pagerduty"]
+    event_id: ResourceId
+
+
+class NotificationDeliveryResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
+
+    job_id: str
+    provider: Literal["slack", "teams", "pagerduty"]
+    event_id: str
+    status: BackgroundJobStatus
+    created_at: datetime
+
+
 class OperationsModel(BaseModel):
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 

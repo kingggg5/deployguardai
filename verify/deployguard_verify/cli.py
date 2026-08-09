@@ -157,7 +157,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out the pull request head
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
@@ -167,7 +167,8 @@ jobs:
       # configured, DeployGuard deliberately returns REVIEW rather than PASS.
 
       - name: Verify change evidence
-        uses: kingggg5/deployguardai@v1
+        # Pin this to the release's full commit SHA in protected production workflows.
+        uses: kingggg5/deployguardai@2
         with:
           base-sha: ${{ github.event.pull_request.base.sha }}
           head-sha: ${{ github.event.pull_request.head.sha }}

@@ -1457,7 +1457,13 @@ def ingest_telemetry_event(
             "invalid_telemetry_event_id",
             400,
         )
-    timestamp = datetime.now(UTC)
+    timestamp = request.occurred_at.astimezone(UTC) if request.occurred_at else datetime.now(UTC)
+    if timestamp > datetime.now(UTC) + timedelta(minutes=5):
+        raise DomainError(
+            "Telemetry timestamp is too far in the future",
+            "invalid_telemetry_timestamp",
+            422,
+        )
     event = record_trusted_operational_event(
         session,
         scoped_workspace_id,
@@ -1476,6 +1482,7 @@ def ingest_telemetry_event(
             summary=request.summary,
             attributes={
                 "value": request.value,
+                **request.attributes,
                 "supports_hypothesis_ids": request.supports_hypothesis_ids,
                 "contradicts_hypothesis_ids": (
                     request.contradicts_hypothesis_ids

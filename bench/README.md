@@ -157,15 +157,12 @@ This yields only `ready_for_review`. The connected-data exporter remains
 hard-disabled. The current exporter reads repository-owned synthetic fixtures
 only and has no database, GitHub, telemetry, or connected-workspace input mode.
 
-Before any connected publication, the project still needs:
-
-- deterministic secret, PII, customer-data, and tenant-identifier redaction;
-- review artifacts and source license/retention inventory;
-- deduplication, contamination, and train/test leakage checks;
-- immutable release registry and revocation/tombstone propagation;
-- annotation, adjudication, inter-rater agreement, and quality sampling;
-- independent publication approval and frozen train/validation/hidden-test
-  policies.
+The runtime now provides conservative secret/PII redaction, cross-split leakage
+checks, and an append-only release registry with revocation tombstones. Before
+any connected publication, the project still needs review artifacts, a source
+license/retention inventory, independent approval, revocation propagation to
+every derived bundle, annotation/adjudication, and frozen
+train/validation/hidden-test policies.
 
 Human attestations are not proof that automated redaction succeeded. Raw
 prompts, credentials, private source content, customer payloads, and unredacted

@@ -54,6 +54,7 @@ All paths below are relative to `/api/v1`.
 | `POST`, `GET`, `DELETE` | `/workspaces/{workspace_id}/providers/github...` | Admin |
 | `GET`, `POST` | `/workspaces/{workspace_id}/providers/github/repositories...` | Viewer / Admin |
 | `POST` | `/workspaces/{workspace_id}/repositories/{repository_id}/changes/{change_id}/github-check` | Responder |
+| `POST` | `/workspaces/{workspace_id}/providers/github/repositories/{repository_id}/receipts` | HMAC receipt + exact-SHA attestation |
 
 ### Investigation and analysis
 
@@ -78,8 +79,8 @@ does not call a model.
 `POST /changes/analyze` accepts nullable test coverage, rollback readiness,
 observability, and previous-failure evidence. `null` means unknown and is kept
 distinct from observed zero/false. GitHub webhook metadata uses this unknown
-lane; its App Check is neutral until a separately authenticated, SHA-matched
-Evidence Receipt ingestion contract is implemented.
+lane; its App Check remains neutral until a separately authenticated,
+SHA-matched Evidence Receipt is accepted.
 
 ### Operations
 
@@ -89,7 +90,10 @@ Evidence Receipt ingestion contract is implemented.
 | `GET`, `PATCH` | `/services/{service_id}` | Viewer / Admin |
 | `GET` | `/workspaces/{workspace_id}/risk-policy` | Viewer |
 | `GET` | `/workspaces/{workspace_id}/deployments`, `/deployments/{deployment_id}` | Viewer |
+| `POST` | `/deployments/{deployment_id}/outcome` | Responder; explicit human confirmation |
+| `GET` | `/workspaces/{workspace_id}/slo` | Viewer; observed SLO/error-budget summary |
 | `GET`, `POST` | `/workspaces/{workspace_id}/events` | Viewer / Responder |
+| `POST` | `/workspaces/{workspace_id}/notification-deliveries` | Responder; allow-listed outbox provider |
 | `PATCH` | `/incidents/{incident_id}/lifecycle` | Responder |
 | `POST` | `/incidents/{incident_id}/notes` | Responder |
 | `GET`, `PATCH` | `/notifications...` | Recipient only |
@@ -102,11 +106,13 @@ Evidence Receipt ingestion contract is implemented.
 | --- | --- | --- |
 | `POST` | `/webhooks/github` | Signed GitHub webhook |
 | `POST` | `/telemetry/events` | Workspace-derived telemetry bearer |
+| `POST` | `/telemetry/otlp/v1/events` | Workspace-derived telemetry bearer; normalized OTLP JSON bridge |
 | `POST` | `/reset-database` | Explicit synthetic-mode flag only |
 
 The telemetry endpoint accepts DeployGuard's normalized metric/log/trace/alert
-contract. It is not a native OTLP receiver; do not point an `otlphttp` exporter
-at this route. A trusted normalization/redaction gateway must send:
+contract. `/telemetry/otlp/v1/events` is a bounded JSON bridge for an OTLP
+Collector transform; it is not a native protobuf receiver. A trusted
+normalization/redaction gateway must send:
 
 ```http
 POST /api/v1/telemetry/events
@@ -186,6 +192,12 @@ Readiness response contains six ordered requirements, the latest snapshot and
 consent summaries, and one of `not_applicable`, `blocked`, or
 `ready_for_review`. `connected_exporter_enabled` is always `false` in the
 current contract.
+
+Dataset release registration is admin-only at
+`/workspaces/{workspace_id}/dataset/releases`. The server rejects redaction
+findings and duplicate content crossing frozen splits before storing an
+immutable release manifest. Revocation is a separate admin-only
+`.../{release_id}/revoke` request that creates an append-only tombstone.
 
 ## Core response provenance
 

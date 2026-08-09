@@ -134,6 +134,15 @@
   height: 260px;
 }
 
+.dora-empty-state,
+.dora-empty-state .empty-state {
+  min-height: 310px;
+}
+
+.dora-empty-state .empty-state p {
+  max-width: 68ch;
+}
+
 @media (max-width: 1060px) {
   .metric-grid,
   .metrics-command {

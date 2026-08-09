@@ -1,0 +1,21 @@
+{
+  "name": "deployguardai",
+  "interface": {
+    "displayName": "DeployGuard AI"
+  },
+  "plugins": [
+    {
+      "name": "deployguardai",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/kingggg5/deployguardai.git",
+        "ref": "main"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

@@ -405,3 +405,29 @@ engine โดยไม่มี end-to-end HTTP/PostgreSQL evidence และ ro
 Runbook สำหรับ deployment และ failure handling อยู่ใน
 [OPERATIONS.md](OPERATIONS.md) ส่วน security controls และ known gaps อยู่ใน
 [SECURITY.md](SECURITY.md)
+# Architecture at a glance
+
+DeployGuard is a deliberately bounded, evidence-first platform. The public
+request boundary is an ASP.NET Core 10/YARP control plane; it validates proxy
+trust, readiness, and routing before forwarding tenant-scoped requests to the
+private FastAPI application. Python owns the deterministic risk, graph, and
+dataset engines. Angular is the browser client, and PostgreSQL is the
+production source of truth with row-level security. SQLite is supported only
+for local development.
+
+The core loop is:
+
+```text
+GitHub/CI + OTLP signals
+        -> authenticated evidence receipt
+        -> deterministic risk and evidence graph
+        -> deployment outcome + human confirmation
+        -> governed, redacted dataset release
+```
+
+No LLM key is required for this loop. An LLM or coding agent may consume a
+receipt or propose a verification step, but it cannot author a PASS/BLOCK
+decision, execute shell commands, deploy, roll back, or change infrastructure.
+
+The sections below retain the detailed operational notes, including Thai
+runbooks for the original maintainer workflow.
